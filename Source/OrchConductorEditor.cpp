@@ -20,20 +20,20 @@ namespace
     void addWoodwindsPresetItems (juce::ComboBox& box)
     {
         box.addItem ("All Off", 1);
-        box.addItem ("Flutes Only", 2);
-        box.addItem ("Oboes Only", 3);
-        box.addItem ("Clarinets Only", 4);
-        box.addItem ("Bassoons Only", 5);
+        box.addItem ("Piccolo Only", 2);
+        box.addItem ("Flutes", 3);
+        box.addItem ("Reeds", 4);
+        box.addItem ("Low Woodwinds", 5);
         box.addItem ("Full Woodwinds", 6);
     }
 
     void addBrassPresetItems (juce::ComboBox& box)
     {
         box.addItem ("All Off", 1);
-        box.addItem ("Horns Only", 2);
-        box.addItem ("Trumpets Only", 3);
-        box.addItem ("Trombones Only", 4);
-        box.addItem ("Tuba Only", 5);
+        box.addItem ("Horns", 2);
+        box.addItem ("Trumpets", 3);
+        box.addItem ("Trombones", 4);
+        box.addItem ("Low Brass", 5);
         box.addItem ("Full Brass", 6);
     }
 
@@ -69,7 +69,7 @@ namespace
 OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConductorAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
-    setSize (980, 760);
+    setSize (980, 560);
 
     titleLabel.setText ("OrchConductor", juce::dontSendNotification);
     titleLabel.setJustificationType (juce::Justification::centred);
@@ -83,7 +83,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 1F", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 1G", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -197,7 +197,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     sendButton.onClick = [this]
     {
         audioProcessor.requestSendPreset();
-        statusLabel.setText ("Requested send: " + audioProcessor.getPresetName() + " | MIDI-capable: Woodwinds/Brass/Melodic Perc", juce::dontSendNotification);
+        statusLabel.setText ("Requested send: " + audioProcessor.getPresetName() + " | Full-score MIDI gates active | Harp reserved", juce::dontSendNotification);
     };
 
     allOffButton.setButtonText ("Send All Off");
@@ -211,74 +211,84 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         statusLabel.setText ("Requested send: All Off", juce::dontSendNotification);
     };
 
+    midiMapButton.setButtonText ("Show MIDI Map");
+    midiMapButton.setColour (juce::TextButton::buttonColourId, juce::Colour::fromRGB (45, 60, 80));
+    midiMapButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
+    addAndMakeVisible (midiMapButton);
+
+    midiMapButton.onClick = [this]
+    {
+        showMidiMap();
+    };
+
     tableTitleLabel.setText ("Selected Output", juce::dontSendNotification);
     tableTitleLabel.setJustificationType (juce::Justification::centred);
     tableTitleLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (245, 245, 245));
     tableTitleLabel.setFont (juce::FontOptions (15.0f, juce::Font::bold));
-    addAndMakeVisible (tableTitleLabel);
+    // Phase 1G cleanup: selected-output table moved to MIDI Map popup.
 
     woodwindsPanelLabel.setText ("Woodwinds", juce::dontSendNotification);
     woodwindsPanelLabel.setJustificationType (juce::Justification::centred);
     styleLabel (woodwindsPanelLabel, juce::Colour::fromRGB (245, 245, 245), 14.0f, juce::Font::bold);
-    addAndMakeVisible (woodwindsPanelLabel);
+    // Permanent Woodwinds table hidden; map is available via Show MIDI Map.
 
     woodwindsTableHeaderLabel.setText ("Instrument                 CC      Value", juce::dontSendNotification);
     woodwindsTableHeaderLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (120, 210, 250));
-    woodwindsTableHeaderLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, juce::Font::bold));
-    addAndMakeVisible (woodwindsTableHeaderLabel);
+    woodwindsTableHeaderLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 11.0f, juce::Font::bold));
+    // Hidden in main UI.
 
     woodwindsTableRowsLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (220, 230, 235));
-    woodwindsTableRowsLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, juce::Font::plain));
+    woodwindsTableRowsLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 11.0f, juce::Font::plain));
     woodwindsTableRowsLabel.setJustificationType (juce::Justification::topLeft);
-    addAndMakeVisible (woodwindsTableRowsLabel);
+    // Hidden in main UI.
 
     brassPanelLabel.setText ("Brass", juce::dontSendNotification);
     brassPanelLabel.setJustificationType (juce::Justification::centred);
     styleLabel (brassPanelLabel, juce::Colour::fromRGB (245, 245, 245), 14.0f, juce::Font::bold);
-    addAndMakeVisible (brassPanelLabel);
+    // Permanent Brass table hidden; map is available via Show MIDI Map.
 
     brassTableHeaderLabel.setText ("Instrument                 CC      Value", juce::dontSendNotification);
     brassTableHeaderLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (120, 210, 250));
-    brassTableHeaderLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, juce::Font::bold));
-    addAndMakeVisible (brassTableHeaderLabel);
+    brassTableHeaderLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 11.0f, juce::Font::bold));
+    // Hidden in main UI.
 
     brassTableRowsLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (220, 230, 235));
-    brassTableRowsLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, juce::Font::plain));
+    brassTableRowsLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 11.0f, juce::Font::plain));
     brassTableRowsLabel.setJustificationType (juce::Justification::topLeft);
-    addAndMakeVisible (brassTableRowsLabel);
+    // Hidden in main UI.
 
     percussionPanelLabel.setText ("Percussion", juce::dontSendNotification);
     percussionPanelLabel.setJustificationType (juce::Justification::centred);
     styleLabel (percussionPanelLabel, juce::Colour::fromRGB (245, 245, 245), 14.0f, juce::Font::bold);
-    addAndMakeVisible (percussionPanelLabel);
+    // Permanent Percussion table hidden; map is available via Show MIDI Map.
 
     percussionTableHeaderLabel.setText ("Instrument                 CC      Value", juce::dontSendNotification);
     percussionTableHeaderLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (120, 210, 250));
-    percussionTableHeaderLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, juce::Font::bold));
-    addAndMakeVisible (percussionTableHeaderLabel);
+    percussionTableHeaderLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 11.0f, juce::Font::bold));
+    // Hidden in main UI.
 
     percussionTableRowsLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (220, 230, 235));
-    percussionTableRowsLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, juce::Font::plain));
+    percussionTableRowsLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 11.0f, juce::Font::plain));
     percussionTableRowsLabel.setJustificationType (juce::Justification::topLeft);
-    addAndMakeVisible (percussionTableRowsLabel);
+    // Hidden in main UI.
 
     stringsPanelLabel.setText ("Strings", juce::dontSendNotification);
     stringsPanelLabel.setJustificationType (juce::Justification::centred);
     styleLabel (stringsPanelLabel, juce::Colour::fromRGB (245, 245, 245), 14.0f, juce::Font::bold);
-    addAndMakeVisible (stringsPanelLabel);
+    // Permanent Strings table hidden; map is available via Show MIDI Map.
 
     tableHeaderLabel.setText ("Instrument                 CC      Value", juce::dontSendNotification);
     tableHeaderLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (120, 210, 250));
-    tableHeaderLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, juce::Font::bold));
-    addAndMakeVisible (tableHeaderLabel);
+    tableHeaderLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 11.0f, juce::Font::bold));
+    // Hidden in main UI.
 
     tableRowsLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (220, 230, 235));
-    tableRowsLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, juce::Font::plain));
+    tableRowsLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 11.0f, juce::Font::plain));
     tableRowsLabel.setJustificationType (juce::Justification::topLeft);
-    addAndMakeVisible (tableRowsLabel);
+    // Hidden in main UI.
 
     ccMapLabel.setText (
-        "Phase 1F Active MIDI Map: Strings CC20-CC24 | Woodwinds CC30-CC33 | Brass CC40-CC43 | Melodic Perc CC50-CC55",
+        "Phase 1G MIDI Map: Full-score CC20-CC54 | CC49 reserved for Harp",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -312,19 +322,19 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
     const auto panelColour = juce::Colour::fromRGB (24, 32, 42);
     const auto outlineColour = juce::Colour::fromRGB (55, 75, 90);
 
-    const juce::Rectangle<float> woodwindsArea  (48.0f, 410.0f, 424.0f, 92.0f);
-    const juce::Rectangle<float> brassArea      (508.0f, 410.0f, 424.0f, 92.0f);
-    const juce::Rectangle<float> percussionArea (48.0f, 518.0f, 424.0f, 150.0f);
-    const juce::Rectangle<float> stringsArea    (508.0f, 518.0f, 424.0f, 150.0f);
+    const juce::Rectangle<float> futureArea (48.0f, 390.0f, 884.0f, 80.0f);
 
-    for (auto area : { woodwindsArea, brassArea, percussionArea, stringsArea })
-    {
-        g.setColour (panelColour);
-        g.fillRoundedRectangle (area, 6.0f);
+    g.setColour (panelColour);
+    g.fillRoundedRectangle (futureArea, 6.0f);
 
-        g.setColour (outlineColour);
-        g.drawRoundedRectangle (area, 6.0f, 1.0f);
-    }
+    g.setColour (outlineColour);
+    g.drawRoundedRectangle (futureArea, 6.0f, 1.0f);
+
+    g.setColour (juce::Colour::fromRGB (120, 140, 155));
+    g.setFont (juce::FontOptions (13.0f, juce::Font::plain));
+    g.drawText ("Future area reserved for orchestral combo presets / active players / Divisimate-style controls",
+                futureArea.toNearestInt().reduced (16, 8),
+                juce::Justification::centred);
 }
 
 void OrchConductorAudioProcessorEditor::resized()
@@ -378,26 +388,10 @@ void OrchConductorAudioProcessorEditor::resized()
     allOffButton.setBounds (buttonRow.removeFromLeft (240).withSizeKeepingCentre (190, 36));
     sendOnChangeToggle.setBounds (buttonRow.removeFromLeft (300).withSizeKeepingCentre (260, 24));
 
-    tableTitleLabel.setBounds (48, 374, 884, 28);
+    midiMapButton.setBounds (390, 374, 200, 34);
 
-    woodwindsPanelLabel.setBounds (48, 416, 424, 22);
-    woodwindsTableHeaderLabel.setBounds (88, 442, 340, 22);
-    woodwindsTableRowsLabel.setBounds (88, 466, 340, 64);
-
-    brassPanelLabel.setBounds (508, 416, 424, 22);
-    brassTableHeaderLabel.setBounds (548, 442, 340, 22);
-    brassTableRowsLabel.setBounds (548, 466, 340, 64);
-
-    percussionPanelLabel.setBounds (48, 524, 424, 22);
-    percussionTableHeaderLabel.setBounds (88, 552, 340, 22);
-    percussionTableRowsLabel.setBounds (88, 576, 360, 88);
-
-    stringsPanelLabel.setBounds (508, 524, 424, 22);
-    tableHeaderLabel.setBounds (548, 552, 340, 22);
-    tableRowsLabel.setBounds (548, 576, 340, 88);
-
-    ccMapLabel.setBounds (48, 684, 884, 24);
-    statusLabel.setBounds (48, 710, 884, 28);
+    ccMapLabel.setBounds (48, 484, 884, 24);
+    statusLabel.setBounds (48, 510, 884, 28);
 }
 
 void OrchConductorAudioProcessorEditor::updateStatus()
@@ -406,7 +400,7 @@ void OrchConductorAudioProcessorEditor::updateStatus()
 
     statusLabel.setText (
         "Selected strings preset: " + audioProcessor.getPresetName()
-        + " | MIDI-capable: Woodwinds/Brass/Melodic Perc"
+        + " | Full-score MIDI gates active | Harp reserved"
         + autoSendText,
         juce::dontSendNotification);
 }
@@ -447,6 +441,61 @@ void OrchConductorAudioProcessorEditor::updateWoodwindsOutputTable()
 
 
 
+
+juce::String OrchConductorAudioProcessorEditor::buildMidiMapText() const
+{
+    juce::String text;
+
+    text << "Full-score MIDI Gate Map\n\n";
+
+    text << "Woodwinds\n";
+    for (int i = 0; i < OrchConductorAudioProcessor::getNumWoodwindsOutputRows(); ++i)
+    {
+        const auto row = audioProcessor.getWoodwindsOutputRow (i);
+        text << "CC" << juce::String (row.ccNumber).paddedRight (' ', 4)
+             << " " << row.instrumentName << "\n";
+    }
+
+    text << "\nBrass\n";
+    for (int i = 0; i < OrchConductorAudioProcessor::getNumBrassOutputRows(); ++i)
+    {
+        const auto row = audioProcessor.getBrassOutputRow (i);
+        text << "CC" << juce::String (row.ccNumber).paddedRight (' ', 4)
+             << " " << row.instrumentName << "\n";
+    }
+
+    text << "\nMelodic Percussion\n";
+    for (int i = 0; i < OrchConductorAudioProcessor::getNumPercussionOutputRows(); ++i)
+    {
+        const auto row = audioProcessor.getPercussionOutputRow (i);
+        text << "CC" << juce::String (row.ccNumber).paddedRight (' ', 4)
+             << " " << row.instrumentName << "\n";
+    }
+
+    text << "\nReserved\n";
+    text << "CC49   Harp\n";
+
+    text << "\nStrings\n";
+    for (int i = 0; i < OrchConductorAudioProcessor::getNumOutputRows(); ++i)
+    {
+        const auto row = audioProcessor.getOutputRow (i);
+        text << "CC" << juce::String (row.ccNumber).paddedRight (' ', 4)
+             << " " << row.instrumentName << "\n";
+    }
+
+    text << "\nUse these CC numbers as the assigned CC Gate values in each OrchGate instance.";
+
+    return text;
+}
+
+void OrchConductorAudioProcessorEditor::showMidiMap()
+{
+    juce::AlertWindow::showMessageBoxAsync (
+        juce::AlertWindow::InfoIcon,
+        "OrchConductor MIDI Map",
+        buildMidiMapText(),
+        "OK");
+}
 
 void OrchConductorAudioProcessorEditor::updateBrassOutputTable()
 {

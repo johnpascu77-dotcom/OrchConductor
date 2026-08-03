@@ -16,37 +16,52 @@ namespace
 
     constexpr int ccNumbers[numRows] =
     {
-        20, 21, 22, 23, 24
+        50, 51, 52, 53, 54
     };
 
-    constexpr int numWoodwindsRows = 4;
+    constexpr int numWoodwindsRows = 12;
 
     const char* woodwindsInstrumentNames[numWoodwindsRows] =
     {
-        "Flutes",
-        "Oboes",
-        "Clarinets",
-        "Bassoons"
+        "Piccolo",
+        "Flute 1",
+        "Flute 2",
+        "Oboe 1",
+        "Oboe 2",
+        "English Horn",
+        "Clarinet 1",
+        "Clarinet 2",
+        "Bass Clarinet",
+        "Bassoon 1",
+        "Bassoon 2",
+        "Contrabassoon"
     };
 
     constexpr int woodwindsCcNumbers[numWoodwindsRows] =
     {
-        30, 31, 32, 33
+        20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
     };
 
-    constexpr int numBrassRows = 4;
+    constexpr int numBrassRows = 11;
 
     const char* brassInstrumentNames[numBrassRows] =
     {
-        "Horns",
-        "Trumpets",
-        "Trombones",
+        "Horn 1",
+        "Horn 2",
+        "Horn 3",
+        "Horn 4",
+        "Trumpet 1",
+        "Trumpet 2",
+        "Trumpet 3",
+        "Trombone 1",
+        "Trombone 2",
+        "Bass Trombone",
         "Tuba"
     };
 
     constexpr int brassCcNumbers[numBrassRows] =
     {
-        40, 41, 42, 43
+        32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42
     };
 
     constexpr int numPercussionRows = 6;
@@ -63,7 +78,7 @@ namespace
 
     constexpr int percussionCcNumbers[numPercussionRows] =
     {
-        50, 51, 52, 53, 54, 55
+        43, 44, 45, 46, 47, 48
     };
 }
 
@@ -149,28 +164,28 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     if (! shouldSendAllOff && ! shouldSendPreset)
         return;
 
-    // Phase 1D: Strings output remains preserved from Phase 1A.3/1A.4.
+    // Phase 1G: Strings emit in full-score order after reserved Harp CC49.
     for (int i = 0; i < numRows; ++i)
     {
         const int value = shouldSendAllOff ? 0 : getPresetValueForIndex (i);
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, ccNumbers[i], value), 0);
     }
 
-    // Phase 1D: Woodwinds section emits real MIDI CC output.
+    // Phase 1G: Woodwinds emit individual full-score track CC output.
     for (int i = 0; i < numWoodwindsRows; ++i)
     {
         const int value = shouldSendAllOff ? 0 : getWoodwindsPresetValueForIndex (i);
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, woodwindsCcNumbers[i], value), 0);
     }
 
-    // Phase 1E: Brass section emits real MIDI CC output.
+    // Phase 1G: Brass emits individual full-score track CC output.
     for (int i = 0; i < numBrassRows; ++i)
     {
         const int value = shouldSendAllOff ? 0 : getBrassPresetValueForIndex (i);
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, brassCcNumbers[i], value), 0);
     }
 
-    // Phase 1F: Melodic percussion section emits real MIDI CC output.
+    // Phase 1G: Melodic percussion emits full-score track CC output.
     for (int i = 0; i < numPercussionRows; ++i)
     {
         const int value = shouldSendAllOff ? 0 : getPercussionPresetValueForIndex (i);
@@ -487,12 +502,26 @@ int OrchConductorAudioProcessor::getWoodwindsPresetValueForIndex (int index) con
 
     switch (woodwindsPresetId)
     {
-        case 0: return 0;
-        case 1: return index == 0 ? 127 : 0;
-        case 2: return index == 1 ? 127 : 0;
-        case 3: return index == 2 ? 127 : 0;
-        case 4: return index == 3 ? 127 : 0;
-        case 5: return 127;
+        case 0: return 0;                         // All Off
+        case 1: return index == 0 ? 127 : 0;      // Piccolo Only
+
+        case 2:                                  // Flutes
+            if (index == 1) return 127;
+            if (index == 2) return 127;
+            return 0;
+
+        case 3:                                  // Reeds
+            if (index >= 3 && index <= 10) return 127;
+            return 0;
+
+        case 4:                                  // Low Woodwinds
+            if (index == 8) return 127;
+            if (index == 9) return 127;
+            if (index == 10) return 127;
+            if (index == 11) return 127;
+            return 0;
+
+        case 5: return 127;                      // Full Woodwinds
     }
 
     return 0;
@@ -505,12 +534,29 @@ int OrchConductorAudioProcessor::getBrassPresetValueForIndex (int index) const
 
     switch (brassPresetId)
     {
-        case 0: return 0;
-        case 1: return index == 0 ? 127 : 0;
-        case 2: return index == 1 ? 127 : 0;
-        case 3: return index == 2 ? 127 : 0;
-        case 4: return index == 3 ? 127 : 0;
-        case 5: return 127;
+        case 0: return 0;                         // All Off
+
+        case 1:                                  // Horns
+            if (index >= 0 && index <= 3) return 127;
+            return 0;
+
+        case 2:                                  // Trumpets
+            if (index >= 4 && index <= 6) return 127;
+            return 0;
+
+        case 3:                                  // Trombones
+            if (index == 7) return 127;
+            if (index == 8) return 127;
+            return 0;
+
+        case 4:                                  // Low Brass
+            if (index == 7) return 127;
+            if (index == 8) return 127;
+            if (index == 9) return 127;
+            if (index == 10) return 127;
+            return 0;
+
+        case 5: return 127;                      // Full Brass
     }
 
     return 0;

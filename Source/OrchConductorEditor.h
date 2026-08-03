@@ -51,12 +51,16 @@ private:
     juce::ToggleButton sendOnChangeToggle;
     juce::TextButton sendButton;
     juce::TextButton allOffButton;
+    juce::TextButton midiMapButton;
 
     void updateStatus();
     void updateOutputTable();
     void updateWoodwindsOutputTable();
     void updateBrassOutputTable();
     void updatePercussionOutputTable();
+
+    juce::String buildMidiMapText() const;
+    void showMidiMap();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessorEditor)
 };
