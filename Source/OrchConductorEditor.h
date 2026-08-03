@@ -31,6 +31,8 @@ private:
     juce::Label woodwindsTableHeaderLabel;
     juce::Label woodwindsTableRowsLabel;
     juce::Label brassPanelLabel;
+    juce::Label brassTableHeaderLabel;
+    juce::Label brassTableRowsLabel;
     juce::Label percussionPanelLabel;
     juce::Label stringsPanelLabel;
     juce::Label tableHeaderLabel;
@@ -51,8 +53,11 @@ private:
     void updateStatus();
     void updateOutputTable();
     void updateWoodwindsOutputTable();
+    void updateBrassOutputTable();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessorEditor)
 };
+
+
 
 

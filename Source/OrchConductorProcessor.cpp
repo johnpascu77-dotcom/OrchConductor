@@ -372,6 +372,23 @@ OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getWoodwinds
     };
 }
 
+int OrchConductorAudioProcessor::getNumBrassOutputRows()
+{
+    return numBrassRows;
+}
+
+OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getBrassOutputRow (int index) const
+{
+    if (index < 0 || index >= numBrassRows)
+        return { "Invalid", 0, 0 };
+
+    return
+    {
+        brassInstrumentNames[index],
+        brassCcNumbers[index],
+        getBrassPresetValueForIndex (index)
+    };
+}
 int OrchConductorAudioProcessor::getPresetValueForIndex (int index) const
 {
     if (index < 0 || index >= numRows)
@@ -453,5 +470,6 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
+
 
 
