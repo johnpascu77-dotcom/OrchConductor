@@ -19,7 +19,7 @@ namespace
 
     void addWoodwindsPresetItems (juce::ComboBox& box)
     {
-        box.addItem ("All Off (data only)", 1);
+        box.addItem ("All Off", 1);
         box.addItem ("Flutes Only", 2);
         box.addItem ("Oboes Only", 3);
         box.addItem ("Clarinets Only", 4);
@@ -29,7 +29,7 @@ namespace
 
     void addBrassPresetItems (juce::ComboBox& box)
     {
-        box.addItem ("All Off (data only)", 1);
+        box.addItem ("All Off", 1);
         box.addItem ("Horns Only", 2);
         box.addItem ("Trumpets Only", 3);
         box.addItem ("Trombones Only", 4);
@@ -39,12 +39,12 @@ namespace
 
     void addPercussionPresetItems (juce::ComboBox& box)
     {
-        box.addItem ("All Off (data only)", 1);
-        box.addItem ("Timpani Only (data only)", 2);
-        box.addItem ("Cymbals Only (data only)", 3);
-        box.addItem ("Snare Only (data only)", 4);
-        box.addItem ("Bass Drum Only (data only)", 5);
-        box.addItem ("Full Percussion (data only)", 6);
+        box.addItem ("All Off", 1);
+        box.addItem ("Timpani Only", 2);
+        box.addItem ("Glockenspiel Only", 3);
+        box.addItem ("Xylophone Only", 4);
+        box.addItem ("Mallets", 5);
+        box.addItem ("Full Melodic Percussion", 6);
     }
 
     void addStringsPresetItems (juce::ComboBox& box)
@@ -83,7 +83,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 1E", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 1F", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -159,6 +159,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     {
         const int selected = percussionPresetBox.getSelectedId() - 1;
         audioProcessor.setSectionPresetId (OrchConductorAudioProcessor::Section::percussion, selected);
+        updatePercussionOutputTable();
         updateStatus();
     };
 
@@ -196,7 +197,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     sendButton.onClick = [this]
     {
         audioProcessor.requestSendPreset();
-        statusLabel.setText ("Requested send: " + audioProcessor.getPresetName() + " | MIDI-capable: Woodwinds/Brass", juce::dontSendNotification);
+        statusLabel.setText ("Requested send: " + audioProcessor.getPresetName() + " | MIDI-capable: Woodwinds/Brass/Melodic Perc", juce::dontSendNotification);
     };
 
     allOffButton.setButtonText ("Send All Off");
@@ -246,10 +247,20 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     brassTableRowsLabel.setJustificationType (juce::Justification::topLeft);
     addAndMakeVisible (brassTableRowsLabel);
 
-    percussionPanelLabel.setText ("Percussion\nPreset shell active\nMIDI planned", juce::dontSendNotification);
+    percussionPanelLabel.setText ("Percussion", juce::dontSendNotification);
     percussionPanelLabel.setJustificationType (juce::Justification::centred);
-    styleLabel (percussionPanelLabel, juce::Colour::fromRGB (160, 175, 190), 14.0f, juce::Font::bold);
+    styleLabel (percussionPanelLabel, juce::Colour::fromRGB (245, 245, 245), 14.0f, juce::Font::bold);
     addAndMakeVisible (percussionPanelLabel);
+
+    percussionTableHeaderLabel.setText ("Instrument                 CC      Value", juce::dontSendNotification);
+    percussionTableHeaderLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (120, 210, 250));
+    percussionTableHeaderLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, juce::Font::bold));
+    addAndMakeVisible (percussionTableHeaderLabel);
+
+    percussionTableRowsLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (220, 230, 235));
+    percussionTableRowsLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, juce::Font::plain));
+    percussionTableRowsLabel.setJustificationType (juce::Justification::topLeft);
+    addAndMakeVisible (percussionTableRowsLabel);
 
     stringsPanelLabel.setText ("Strings", juce::dontSendNotification);
     stringsPanelLabel.setJustificationType (juce::Justification::centred);
@@ -267,7 +278,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     addAndMakeVisible (tableRowsLabel);
 
     ccMapLabel.setText (
-        "Phase 1E Active MIDI Map: Strings CC20-CC24 | Woodwinds CC30-CC33 | Brass CC40-CC43 | Percussion data-only",
+        "Phase 1F Active MIDI Map: Strings CC20-CC24 | Woodwinds CC30-CC33 | Brass CC40-CC43 | Melodic Perc CC50-CC55",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -282,6 +293,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     updateOutputTable();
     updateWoodwindsOutputTable();
     updateBrassOutputTable();
+    updatePercussionOutputTable();
     updateStatus();
 }
 
@@ -376,7 +388,9 @@ void OrchConductorAudioProcessorEditor::resized()
     brassTableHeaderLabel.setBounds (548, 442, 340, 22);
     brassTableRowsLabel.setBounds (548, 466, 340, 64);
 
-    percussionPanelLabel.setBounds (48, 518, 424, 150);
+    percussionPanelLabel.setBounds (48, 524, 424, 22);
+    percussionTableHeaderLabel.setBounds (88, 552, 340, 22);
+    percussionTableRowsLabel.setBounds (88, 576, 360, 88);
 
     stringsPanelLabel.setBounds (508, 524, 424, 22);
     tableHeaderLabel.setBounds (548, 552, 340, 22);
@@ -392,7 +406,7 @@ void OrchConductorAudioProcessorEditor::updateStatus()
 
     statusLabel.setText (
         "Selected strings preset: " + audioProcessor.getPresetName()
-        + " | MIDI-capable: Woodwinds/Brass | Perc data-only"
+        + " | MIDI-capable: Woodwinds/Brass/Melodic Perc"
         + autoSendText,
         juce::dontSendNotification);
 }
@@ -450,6 +464,24 @@ void OrchConductorAudioProcessorEditor::updateBrassOutputTable()
 
     brassTableRowsLabel.setText (rows, juce::dontSendNotification);
 }
+
+void OrchConductorAudioProcessorEditor::updatePercussionOutputTable()
+{
+    juce::String rows;
+
+    for (int i = 0; i < OrchConductorAudioProcessor::getNumPercussionOutputRows(); ++i)
+    {
+        const auto row = audioProcessor.getPercussionOutputRow (i);
+
+        rows << row.instrumentName.paddedRight (' ', 24)
+             << juce::String (row.ccNumber).paddedRight (' ', 8)
+             << juce::String (row.value)
+             << "\n";
+    }
+
+    percussionTableRowsLabel.setText (rows, juce::dontSendNotification);
+}
+
 
 
 

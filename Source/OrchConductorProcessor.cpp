@@ -48,6 +48,23 @@ namespace
     {
         40, 41, 42, 43
     };
+
+    constexpr int numPercussionRows = 6;
+
+    const char* percussionInstrumentNames[numPercussionRows] =
+    {
+        "Timpani",
+        "Glockenspiel",
+        "Xylophone",
+        "Marimba",
+        "Vibraphone",
+        "Tubular Bells"
+    };
+
+    constexpr int percussionCcNumbers[numPercussionRows] =
+    {
+        50, 51, 52, 53, 54, 55
+    };
 }
 
 OrchConductorAudioProcessor::OrchConductorAudioProcessor()
@@ -139,11 +156,25 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, ccNumbers[i], value), 0);
     }
 
-    // Phase 1D: Woodwinds section now emits real MIDI CC output.
+    // Phase 1D: Woodwinds section emits real MIDI CC output.
     for (int i = 0; i < numWoodwindsRows; ++i)
     {
         const int value = shouldSendAllOff ? 0 : getWoodwindsPresetValueForIndex (i);
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, woodwindsCcNumbers[i], value), 0);
+    }
+
+    // Phase 1E: Brass section emits real MIDI CC output.
+    for (int i = 0; i < numBrassRows; ++i)
+    {
+        const int value = shouldSendAllOff ? 0 : getBrassPresetValueForIndex (i);
+        midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, brassCcNumbers[i], value), 0);
+    }
+
+    // Phase 1F: Melodic percussion section emits real MIDI CC output.
+    for (int i = 0; i < numPercussionRows; ++i)
+    {
+        const int value = shouldSendAllOff ? 0 : getPercussionPresetValueForIndex (i);
+        midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, percussionCcNumbers[i], value), 0);
     }
 }
 
@@ -389,6 +420,25 @@ OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getBrassOutp
         getBrassPresetValueForIndex (index)
     };
 }
+
+int OrchConductorAudioProcessor::getNumPercussionOutputRows()
+{
+    return numPercussionRows;
+}
+
+OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getPercussionOutputRow (int index) const
+{
+    if (index < 0 || index >= numPercussionRows)
+        return { "Invalid", 0, 0 };
+
+    return
+    {
+        percussionInstrumentNames[index],
+        percussionCcNumbers[index],
+        getPercussionPresetValueForIndex (index)
+    };
+}
+
 int OrchConductorAudioProcessor::getPresetValueForIndex (int index) const
 {
     if (index < 0 || index >= numRows)
@@ -461,6 +511,30 @@ int OrchConductorAudioProcessor::getBrassPresetValueForIndex (int index) const
         case 3: return index == 2 ? 127 : 0;
         case 4: return index == 3 ? 127 : 0;
         case 5: return 127;
+    }
+
+    return 0;
+}
+
+int OrchConductorAudioProcessor::getPercussionPresetValueForIndex (int index) const
+{
+    if (index < 0 || index >= numPercussionRows)
+        return 0;
+
+    switch (percussionPresetId)
+    {
+        case 0: return 0;
+        case 1: return index == 0 ? 127 : 0; // Timpani
+        case 2: return index == 1 ? 127 : 0; // Glockenspiel
+        case 3: return index == 2 ? 127 : 0; // Xylophone
+
+        case 4: // Mallets: Xylophone, Marimba, Vibraphone
+            if (index == 2) return 127;
+            if (index == 3) return 127;
+            if (index == 4) return 127;
+            return 0;
+
+        case 5: return 127; // Full Melodic Percussion
     }
 
     return 0;

@@ -101,6 +101,9 @@ public:
     static int getNumBrassOutputRows();
     OutputRow getBrassOutputRow (int index) const;
 
+    static int getNumPercussionOutputRows();
+    OutputRow getPercussionOutputRow (int index) const;
+
 private:
     static constexpr int minCombiPresetId = 0;
     static constexpr int maxCombiPresetId = 0;
@@ -125,6 +128,7 @@ private:
     int getPresetValueForIndex (int index) const;
     int getWoodwindsPresetValueForIndex (int index) const;
     int getBrassPresetValueForIndex (int index) const;
+    int getPercussionPresetValueForIndex (int index) const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };
