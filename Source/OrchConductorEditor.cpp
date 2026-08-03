@@ -143,6 +143,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     {
         const int selected = woodwindsPresetBox.getSelectedId() - 1;
         audioProcessor.setSectionPresetId (OrchConductorAudioProcessor::Section::woodwinds, selected);
+        updateWoodwindsOutputTable();
         updateStatus();
     };
 
@@ -214,10 +215,20 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     tableTitleLabel.setFont (juce::FontOptions (15.0f, juce::Font::bold));
     addAndMakeVisible (tableTitleLabel);
 
-    woodwindsPanelLabel.setText ("Woodwinds\nPreset shell active\nMIDI planned", juce::dontSendNotification);
+    woodwindsPanelLabel.setText ("Woodwinds", juce::dontSendNotification);
     woodwindsPanelLabel.setJustificationType (juce::Justification::centred);
-    styleLabel (woodwindsPanelLabel, juce::Colour::fromRGB (160, 175, 190), 14.0f, juce::Font::bold);
+    styleLabel (woodwindsPanelLabel, juce::Colour::fromRGB (245, 245, 245), 14.0f, juce::Font::bold);
     addAndMakeVisible (woodwindsPanelLabel);
+
+    woodwindsTableHeaderLabel.setText ("Instrument                 CC      Value", juce::dontSendNotification);
+    woodwindsTableHeaderLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (120, 210, 250));
+    woodwindsTableHeaderLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, juce::Font::bold));
+    addAndMakeVisible (woodwindsTableHeaderLabel);
+
+    woodwindsTableRowsLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (220, 230, 235));
+    woodwindsTableRowsLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, juce::Font::plain));
+    woodwindsTableRowsLabel.setJustificationType (juce::Justification::topLeft);
+    addAndMakeVisible (woodwindsTableRowsLabel);
 
     brassPanelLabel.setText ("Brass\nPreset shell active\nMIDI planned", juce::dontSendNotification);
     brassPanelLabel.setJustificationType (juce::Justification::centred);
@@ -258,6 +269,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     addAndMakeVisible (statusLabel);
 
     updateOutputTable();
+    updateWoodwindsOutputTable();
     updateStatus();
 }
 
@@ -344,7 +356,10 @@ void OrchConductorAudioProcessorEditor::resized()
 
     tableTitleLabel.setBounds (48, 374, 884, 28);
 
-    woodwindsPanelLabel.setBounds (48, 410, 424, 92);
+    woodwindsPanelLabel.setBounds (48, 416, 424, 22);
+    woodwindsTableHeaderLabel.setBounds (88, 442, 340, 22);
+    woodwindsTableRowsLabel.setBounds (88, 466, 340, 64);
+
     brassPanelLabel.setBounds (508, 410, 424, 92);
     percussionPanelLabel.setBounds (48, 518, 424, 150);
 
@@ -362,7 +377,7 @@ void OrchConductorAudioProcessorEditor::updateStatus()
 
     statusLabel.setText (
         "Selected strings preset: " + audioProcessor.getPresetName()
-        + " | Section shells: data-only"
+        + " | Woodwinds MIDI active | Brass/Perc data-only"
         + autoSendText,
         juce::dontSendNotification);
 }
@@ -383,4 +398,23 @@ void OrchConductorAudioProcessorEditor::updateOutputTable()
 
     tableRowsLabel.setText (rows, juce::dontSendNotification);
 }
+
+void OrchConductorAudioProcessorEditor::updateWoodwindsOutputTable()
+{
+    juce::String rows;
+
+    for (int i = 0; i < OrchConductorAudioProcessor::getNumWoodwindsOutputRows(); ++i)
+    {
+        const auto row = audioProcessor.getWoodwindsOutputRow (i);
+
+        rows << row.instrumentName.paddedRight (' ', 24)
+             << juce::String (row.ccNumber).paddedRight (' ', 8)
+             << juce::String (row.value)
+             << "\n";
+    }
+
+    woodwindsTableRowsLabel.setText (rows, juce::dontSendNotification);
+}
+
+
 
