@@ -100,7 +100,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     presetBox.addItem ("Cello + Bass", 12);
     presetBox.addItem ("Full Strings", 13);
     presetBox.addItem ("Tutti", 14);
-    presetBox.setSelectedId (static_cast<int> (audioProcessor.getPreset()) + 1, juce::dontSendNotification);
+    presetBox.setSelectedId (audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::strings) + 1, juce::dontSendNotification);
     styleComboBox (presetBox, true);
     addAndMakeVisible (presetBox);
 
@@ -320,6 +320,7 @@ void OrchConductorAudioProcessorEditor::updateOutputTable()
 
     tableRowsLabel.setText (rows, juce::dontSendNotification);
 }
+
 
 
 
