@@ -164,28 +164,28 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     if (! shouldSendAllOff && ! shouldSendPreset)
         return;
 
-    // Phase 1G: Strings emit in full-score order after reserved Harp CC49.
+    // Phase 1H: Strings emit in full-score order after reserved Harp CC49.
     for (int i = 0; i < numRows; ++i)
     {
         const int value = shouldSendAllOff ? 0 : getPresetValueForIndex (i);
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, ccNumbers[i], value), 0);
     }
 
-    // Phase 1G: Woodwinds emit individual full-score track CC output.
+    // Phase 1H: Woodwinds emit individual full-score track CC output.
     for (int i = 0; i < numWoodwindsRows; ++i)
     {
         const int value = shouldSendAllOff ? 0 : getWoodwindsPresetValueForIndex (i);
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, woodwindsCcNumbers[i], value), 0);
     }
 
-    // Phase 1G: Brass emits individual full-score track CC output.
+    // Phase 1H: Brass emits individual full-score track CC output.
     for (int i = 0; i < numBrassRows; ++i)
     {
         const int value = shouldSendAllOff ? 0 : getBrassPresetValueForIndex (i);
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, brassCcNumbers[i], value), 0);
     }
 
-    // Phase 1G: Melodic percussion emits full-score track CC output.
+    // Phase 1H: Melodic percussion emits full-score track CC output.
     for (int i = 0; i < numPercussionRows; ++i)
     {
         const int value = shouldSendAllOff ? 0 : getPercussionPresetValueForIndex (i);
@@ -282,33 +282,45 @@ int OrchConductorAudioProcessor::getSectionPresetId (Section section) const
 
 void OrchConductorAudioProcessor::setSectionPresetId (Section section, int presetId)
 {
+    bool changed = false;
+
     switch (section)
     {
         case Section::woodwinds:
-            if (presetId >= minPlaceholderSectionPresetId && presetId <= maxPlaceholderSectionPresetId)
+            if (presetId >= minSectionPresetId && presetId <= maxWoodwindsPresetId)
+            {
                 woodwindsPresetId = presetId;
+                changed = true;
+            }
             break;
 
         case Section::brass:
-            if (presetId >= minPlaceholderSectionPresetId && presetId <= maxPlaceholderSectionPresetId)
+            if (presetId >= minSectionPresetId && presetId <= maxBrassPresetId)
+            {
                 brassPresetId = presetId;
+                changed = true;
+            }
             break;
 
         case Section::percussion:
-            if (presetId >= minPlaceholderSectionPresetId && presetId <= maxPlaceholderSectionPresetId)
+            if (presetId >= minSectionPresetId && presetId <= maxPercussionPresetId)
+            {
                 percussionPresetId = presetId;
+                changed = true;
+            }
             break;
 
         case Section::strings:
             if (presetId >= minStringsPresetId && presetId <= maxStringsPresetId)
             {
                 stringsPresetId = presetId;
-
-                if (sendOnPresetChange)
-                    requestSendPreset();
+                changed = true;
             }
             break;
     }
+
+    if (changed && sendOnPresetChange)
+        requestSendPreset();
 }
 
 void OrchConductorAudioProcessor::setPreset (Preset newPreset)
@@ -503,25 +515,39 @@ int OrchConductorAudioProcessor::getWoodwindsPresetValueForIndex (int index) con
     switch (woodwindsPresetId)
     {
         case 0: return 0;                         // All Off
+
         case 1: return index == 0 ? 127 : 0;      // Piccolo Only
 
         case 2:                                  // Flutes
-            if (index == 1) return 127;
-            if (index == 2) return 127;
-            return 0;
+            return (index == 1 || index == 2) ? 127 : 0;
+        case 3: return index == 1 ? 127 : 0;      // Flute 1 Only
+        case 4: return index == 2 ? 127 : 0;      // Flute 2 Only
 
-        case 3:                                  // Reeds
-            if (index >= 3 && index <= 10) return 127;
-            return 0;
+        case 5:                                  // Oboes
+            return (index == 3 || index == 4) ? 127 : 0;
+        case 6: return index == 3 ? 127 : 0;      // Oboe 1 Only
+        case 7: return index == 4 ? 127 : 0;      // Oboe 2 Only
+        case 8: return index == 5 ? 127 : 0;      // English Horn Only
 
-        case 4:                                  // Low Woodwinds
-            if (index == 8) return 127;
-            if (index == 9) return 127;
-            if (index == 10) return 127;
-            if (index == 11) return 127;
-            return 0;
+        case 9:                                  // Clarinets
+            return (index == 6 || index == 7) ? 127 : 0;
+        case 10: return index == 6 ? 127 : 0;     // Clarinet 1 Only
+        case 11: return index == 7 ? 127 : 0;     // Clarinet 2 Only
+        case 12: return index == 8 ? 127 : 0;     // Bass Clarinet Only
 
-        case 5: return 127;                      // Full Woodwinds
+        case 13:                                 // Bassoons
+            return (index == 9 || index == 10) ? 127 : 0;
+        case 14: return index == 9 ? 127 : 0;     // Bassoon 1 Only
+        case 15: return index == 10 ? 127 : 0;    // Bassoon 2 Only
+        case 16: return index == 11 ? 127 : 0;    // Contrabassoon Only
+
+        case 17:                                 // High Woodwinds
+            return (index >= 0 && index <= 7) ? 127 : 0;
+
+        case 18:                                 // Low Woodwinds
+            return (index >= 8 && index <= 11) ? 127 : 0;
+
+        case 19: return 127;                     // Full Woodwinds
     }
 
     return 0;
@@ -537,26 +563,30 @@ int OrchConductorAudioProcessor::getBrassPresetValueForIndex (int index) const
         case 0: return 0;                         // All Off
 
         case 1:                                  // Horns
-            if (index >= 0 && index <= 3) return 127;
-            return 0;
+            return (index >= 0 && index <= 3) ? 127 : 0;
+        case 2: return index == 0 ? 127 : 0;      // Horn 1 Only
+        case 3: return index == 1 ? 127 : 0;      // Horn 2 Only
+        case 4: return index == 2 ? 127 : 0;      // Horn 3 Only
+        case 5: return index == 3 ? 127 : 0;      // Horn 4 Only
 
-        case 2:                                  // Trumpets
-            if (index >= 4 && index <= 6) return 127;
-            return 0;
+        case 6:                                  // Trumpets
+            return (index >= 4 && index <= 6) ? 127 : 0;
+        case 7: return index == 4 ? 127 : 0;      // Trumpet 1 Only
+        case 8: return index == 5 ? 127 : 0;      // Trumpet 2 Only
+        case 9: return index == 6 ? 127 : 0;      // Trumpet 3 Only
 
-        case 3:                                  // Trombones
-            if (index == 7) return 127;
-            if (index == 8) return 127;
-            return 0;
+        case 10:                                 // Trombones
+            return (index == 7 || index == 8) ? 127 : 0;
+        case 11: return index == 7 ? 127 : 0;     // Trombone 1 Only
+        case 12: return index == 8 ? 127 : 0;     // Trombone 2 Only
+        case 13: return index == 9 ? 127 : 0;     // Bass Trombone Only
 
-        case 4:                                  // Low Brass
-            if (index == 7) return 127;
-            if (index == 8) return 127;
-            if (index == 9) return 127;
-            if (index == 10) return 127;
-            return 0;
+        case 14: return index == 10 ? 127 : 0;    // Tuba Only
 
-        case 5: return 127;                      // Full Brass
+        case 15:                                 // Low Brass
+            return (index >= 7 && index <= 10) ? 127 : 0;
+
+        case 16: return 127;                     // Full Brass
     }
 
     return 0;
@@ -569,18 +599,18 @@ int OrchConductorAudioProcessor::getPercussionPresetValueForIndex (int index) co
 
     switch (percussionPresetId)
     {
-        case 0: return 0;
-        case 1: return index == 0 ? 127 : 0; // Timpani
-        case 2: return index == 1 ? 127 : 0; // Glockenspiel
-        case 3: return index == 2 ? 127 : 0; // Xylophone
+        case 0: return 0;                         // All Off
+        case 1: return index == 0 ? 127 : 0;      // Timpani Only
+        case 2: return index == 1 ? 127 : 0;      // Glockenspiel Only
+        case 3: return index == 2 ? 127 : 0;      // Xylophone Only
+        case 4: return index == 3 ? 127 : 0;      // Marimba Only
+        case 5: return index == 4 ? 127 : 0;      // Vibraphone Only
+        case 6: return index == 5 ? 127 : 0;      // Tubular Bells Only
 
-        case 4: // Mallets: Xylophone, Marimba, Vibraphone
-            if (index == 2) return 127;
-            if (index == 3) return 127;
-            if (index == 4) return 127;
-            return 0;
+        case 7:                                  // Mallets
+            return (index >= 1 && index <= 5) ? 127 : 0;
 
-        case 5: return 127; // Full Melodic Percussion
+        case 8: return 127;                      // Full Melodic Percussion
     }
 
     return 0;

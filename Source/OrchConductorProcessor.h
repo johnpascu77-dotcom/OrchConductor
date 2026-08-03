@@ -108,8 +108,12 @@ private:
     static constexpr int minCombiPresetId = 0;
     static constexpr int maxCombiPresetId = 0;
 
-    static constexpr int minPlaceholderSectionPresetId = 0;
-    static constexpr int maxPlaceholderSectionPresetId = 5;
+    static constexpr int minSectionPresetId = 0;
+
+    // Phase 1H expanded section dropdown limits.
+    static constexpr int maxWoodwindsPresetId = 19;
+    static constexpr int maxBrassPresetId = 16;
+    static constexpr int maxPercussionPresetId = 8;
 
     static constexpr int minStringsPresetId = 0;
     static constexpr int maxStringsPresetId = static_cast<int> (Preset::tutti);
