@@ -194,8 +194,17 @@ juce::String OrchConductorAudioProcessor::getPresetName() const
     switch (currentPreset)
     {
         case Preset::allOff:        return "All Off";
-        case Preset::stringQuartet: return "String Quartet";
+        case Preset::violinIOnly:   return "Violin I Only";
+        case Preset::violinIIOnly:  return "Violin II Only";
+        case Preset::violinsOnly:   return "Violins Only";
+        case Preset::violasOnly:    return "Violas Only";
+        case Preset::cellosOnly:    return "Cellos Only";
+        case Preset::bassesOnly:    return "Basses Only";
+        case Preset::upperStrings:  return "Upper Strings";
         case Preset::lowStrings:    return "Low Strings";
+        case Preset::stringQuartet: return "String Quartet";
+        case Preset::violaCello:    return "Viola + Cello";
+        case Preset::celloBass:     return "Cello + Bass";
         case Preset::fullStrings:   return "Full Strings";
         case Preset::tutti:         return "Tutti";
     }
@@ -231,13 +240,42 @@ int OrchConductorAudioProcessor::getPresetValueForIndex (int index) const
         case Preset::allOff:
             return 0;
 
-        case Preset::stringQuartet:
-            // Violin I, Violin II, Viola, Cello on. Double Bass off.
-            return index <= 3 ? 127 : 0;
+        case Preset::violinIOnly:
+            return index == 0 ? 127 : 0;
+
+        case Preset::violinIIOnly:
+            return index == 1 ? 127 : 0;
+
+        case Preset::violinsOnly:
+            return index <= 1 ? 127 : 0;
+
+        case Preset::violasOnly:
+            return index == 2 ? 127 : 0;
+
+        case Preset::cellosOnly:
+            return index == 3 ? 127 : 0;
+
+        case Preset::bassesOnly:
+            return index == 4 ? 127 : 0;
+
+        case Preset::upperStrings:
+            return index <= 2 ? 127 : 0;
 
         case Preset::lowStrings:
-            // Viola half, Cello full, Double Bass full.
             if (index == 2) return 64;
+            if (index == 3) return 127;
+            if (index == 4) return 127;
+            return 0;
+
+        case Preset::stringQuartet:
+            return index <= 3 ? 127 : 0;
+
+        case Preset::violaCello:
+            if (index == 2) return 127;
+            if (index == 3) return 127;
+            return 0;
+
+        case Preset::celloBass:
             if (index == 3) return 127;
             if (index == 4) return 127;
             return 0;

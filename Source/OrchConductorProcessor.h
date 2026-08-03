@@ -37,8 +37,17 @@ public:
     enum class Preset
     {
         allOff = 0,
-        stringQuartet,
+        violinIOnly,
+        violinIIOnly,
+        violinsOnly,
+        violasOnly,
+        cellosOnly,
+        bassesOnly,
+        upperStrings,
         lowStrings,
+        stringQuartet,
+        violaCello,
+        celloBass,
         fullStrings,
         tutti
     };

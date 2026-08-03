@@ -17,7 +17,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 1A.2", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 1A.3", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -29,10 +29,19 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     addAndMakeVisible (presetLabel);
 
     presetBox.addItem ("All Off", 1);
-    presetBox.addItem ("String Quartet", 2);
-    presetBox.addItem ("Low Strings", 3);
-    presetBox.addItem ("Full Strings", 4);
-    presetBox.addItem ("Tutti", 5);
+    presetBox.addItem ("Violin I Only", 2);
+    presetBox.addItem ("Violin II Only", 3);
+    presetBox.addItem ("Violins Only", 4);
+    presetBox.addItem ("Violas Only", 5);
+    presetBox.addItem ("Cellos Only", 6);
+    presetBox.addItem ("Basses Only", 7);
+    presetBox.addItem ("Upper Strings", 8);
+    presetBox.addItem ("Low Strings", 9);
+    presetBox.addItem ("String Quartet", 10);
+    presetBox.addItem ("Viola + Cello", 11);
+    presetBox.addItem ("Cello + Bass", 12);
+    presetBox.addItem ("Full Strings", 13);
+    presetBox.addItem ("Tutti", 14);
     presetBox.setSelectedId (static_cast<int> (audioProcessor.getPreset()) + 1, juce::dontSendNotification);
     presetBox.setColour (juce::ComboBox::backgroundColourId, juce::Colour::fromRGB (28, 36, 46));
     presetBox.setColour (juce::ComboBox::textColourId, juce::Colours::white);
@@ -104,7 +113,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     addAndMakeVisible (tableRowsLabel);
 
     ccMapLabel.setText (
-        "Phase 1A.2 CC Map: CC20 Violin I | CC21 Violin II | CC22 Viola | CC23 Cello | CC24 Double Bass",
+        "Phase 1A.3 CC Map: CC20 Violin I | CC21 Violin II | CC22 Viola | CC23 Cello | CC24 Double Bass",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -201,3 +210,5 @@ void OrchConductorAudioProcessorEditor::updateOutputTable()
 
     tableRowsLabel.setText (rows, juce::dontSendNotification);
 }
+
+
