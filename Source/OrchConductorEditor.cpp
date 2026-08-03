@@ -1,9 +1,27 @@
-﻿#include "OrchConductorEditor.h"
+#include "OrchConductorEditor.h"
+
+namespace
+{
+    void styleLabel (juce::Label& label, juce::Colour colour, float size, int style = juce::Font::plain)
+    {
+        label.setColour (juce::Label::textColourId, colour);
+        label.setFont (juce::FontOptions (size, style));
+    }
+
+    void styleComboBox (juce::ComboBox& box, bool enabled)
+    {
+        box.setColour (juce::ComboBox::backgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+        box.setColour (juce::ComboBox::textColourId, enabled ? juce::Colours::white : juce::Colour::fromRGB (145, 155, 165));
+        box.setColour (juce::ComboBox::outlineColourId, enabled ? juce::Colour::fromRGB (95, 200, 245)
+                                                                 : juce::Colour::fromRGB (70, 85, 95));
+        box.setEnabled (enabled);
+    }
+}
 
 OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConductorAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
-    setSize (620, 560);
+    setSize (980, 760);
 
     titleLabel.setText ("OrchConductor", juce::dontSendNotification);
     titleLabel.setJustificationType (juce::Justification::centred);
@@ -17,16 +35,56 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 1A.3", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 1A.4", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
     addAndMakeVisible (buildLabel);
 
-    presetLabel.setText ("Preset", juce::dontSendNotification);
-    presetLabel.setColour (juce::Label::textColourId, juce::Colours::white);
-    presetLabel.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    addAndMakeVisible (presetLabel);
+    combiPresetLabel.setText ("Combi Preset", juce::dontSendNotification);
+    styleLabel (combiPresetLabel, juce::Colours::white, 14.0f, juce::Font::bold);
+    addAndMakeVisible (combiPresetLabel);
+
+    combiPresetBox.addItem ("Manual Sections / Coming Soon", 1);
+    combiPresetBox.setSelectedId (1, juce::dontSendNotification);
+    styleComboBox (combiPresetBox, false);
+    addAndMakeVisible (combiPresetBox);
+
+    sectionPresetsLabel.setText ("Section Presets", juce::dontSendNotification);
+    sectionPresetsLabel.setJustificationType (juce::Justification::centred);
+    styleLabel (sectionPresetsLabel, juce::Colour::fromRGB (245, 245, 245), 15.0f, juce::Font::bold);
+    addAndMakeVisible (sectionPresetsLabel);
+
+    woodwindsPresetLabel.setText ("Woodwinds", juce::dontSendNotification);
+    styleLabel (woodwindsPresetLabel, juce::Colours::white, 14.0f, juce::Font::bold);
+    addAndMakeVisible (woodwindsPresetLabel);
+
+    brassPresetLabel.setText ("Brass", juce::dontSendNotification);
+    styleLabel (brassPresetLabel, juce::Colours::white, 14.0f, juce::Font::bold);
+    addAndMakeVisible (brassPresetLabel);
+
+    percussionPresetLabel.setText ("Percussion", juce::dontSendNotification);
+    styleLabel (percussionPresetLabel, juce::Colours::white, 14.0f, juce::Font::bold);
+    addAndMakeVisible (percussionPresetLabel);
+
+    stringsPresetLabel.setText ("Strings", juce::dontSendNotification);
+    styleLabel (stringsPresetLabel, juce::Colours::white, 14.0f, juce::Font::bold);
+    addAndMakeVisible (stringsPresetLabel);
+
+    woodwindsPresetBox.addItem ("Coming Soon", 1);
+    woodwindsPresetBox.setSelectedId (1, juce::dontSendNotification);
+    styleComboBox (woodwindsPresetBox, false);
+    addAndMakeVisible (woodwindsPresetBox);
+
+    brassPresetBox.addItem ("Coming Soon", 1);
+    brassPresetBox.setSelectedId (1, juce::dontSendNotification);
+    styleComboBox (brassPresetBox, false);
+    addAndMakeVisible (brassPresetBox);
+
+    percussionPresetBox.addItem ("Coming Soon", 1);
+    percussionPresetBox.setSelectedId (1, juce::dontSendNotification);
+    styleComboBox (percussionPresetBox, false);
+    addAndMakeVisible (percussionPresetBox);
 
     presetBox.addItem ("All Off", 1);
     presetBox.addItem ("Violin I Only", 2);
@@ -43,9 +101,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     presetBox.addItem ("Full Strings", 13);
     presetBox.addItem ("Tutti", 14);
     presetBox.setSelectedId (static_cast<int> (audioProcessor.getPreset()) + 1, juce::dontSendNotification);
-    presetBox.setColour (juce::ComboBox::backgroundColourId, juce::Colour::fromRGB (28, 36, 46));
-    presetBox.setColour (juce::ComboBox::textColourId, juce::Colours::white);
-    presetBox.setColour (juce::ComboBox::outlineColourId, juce::Colour::fromRGB (95, 200, 245));
+    styleComboBox (presetBox, true);
     addAndMakeVisible (presetBox);
 
     presetBox.onChange = [this]
@@ -74,7 +130,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         updateStatus();
     };
 
-    sendButton.setButtonText ("Send Preset CCs");
+    sendButton.setButtonText ("Send Current Presets");
     sendButton.setColour (juce::TextButton::buttonColourId, juce::Colour::fromRGB (45, 75, 95));
     sendButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
     addAndMakeVisible (sendButton);
@@ -96,24 +152,44 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         statusLabel.setText ("Requested send: All Off", juce::dontSendNotification);
     };
 
-    tableTitleLabel.setText ("Selected Preset Output", juce::dontSendNotification);
+    tableTitleLabel.setText ("Selected Output", juce::dontSendNotification);
     tableTitleLabel.setJustificationType (juce::Justification::centred);
     tableTitleLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (245, 245, 245));
     tableTitleLabel.setFont (juce::FontOptions (15.0f, juce::Font::bold));
     addAndMakeVisible (tableTitleLabel);
 
+    woodwindsPanelLabel.setText ("Woodwinds\nComing soon", juce::dontSendNotification);
+    woodwindsPanelLabel.setJustificationType (juce::Justification::centred);
+    styleLabel (woodwindsPanelLabel, juce::Colour::fromRGB (160, 175, 190), 14.0f, juce::Font::bold);
+    addAndMakeVisible (woodwindsPanelLabel);
+
+    brassPanelLabel.setText ("Brass\nComing soon", juce::dontSendNotification);
+    brassPanelLabel.setJustificationType (juce::Justification::centred);
+    styleLabel (brassPanelLabel, juce::Colour::fromRGB (160, 175, 190), 14.0f, juce::Font::bold);
+    addAndMakeVisible (brassPanelLabel);
+
+    percussionPanelLabel.setText ("Percussion\nComing soon", juce::dontSendNotification);
+    percussionPanelLabel.setJustificationType (juce::Justification::centred);
+    styleLabel (percussionPanelLabel, juce::Colour::fromRGB (160, 175, 190), 14.0f, juce::Font::bold);
+    addAndMakeVisible (percussionPanelLabel);
+
+    stringsPanelLabel.setText ("Strings", juce::dontSendNotification);
+    stringsPanelLabel.setJustificationType (juce::Justification::centred);
+    styleLabel (stringsPanelLabel, juce::Colour::fromRGB (245, 245, 245), 14.0f, juce::Font::bold);
+    addAndMakeVisible (stringsPanelLabel);
+
     tableHeaderLabel.setText ("Instrument                 CC      Value", juce::dontSendNotification);
     tableHeaderLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (120, 210, 250));
-    tableHeaderLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 14.0f, juce::Font::bold));
+    tableHeaderLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, juce::Font::bold));
     addAndMakeVisible (tableHeaderLabel);
 
     tableRowsLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (220, 230, 235));
-    tableRowsLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 14.0f, juce::Font::plain));
+    tableRowsLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, juce::Font::plain));
     tableRowsLabel.setJustificationType (juce::Justification::topLeft);
     addAndMakeVisible (tableRowsLabel);
 
     ccMapLabel.setText (
-        "Phase 1A.3 CC Map: CC20 Violin I | CC21 Violin II | CC22 Viola | CC23 Cello | CC24 Double Bass",
+        "Phase 1A.4 Active CC Map: Strings CC20-CC24",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -141,57 +217,91 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
     g.setColour (juce::Colour::fromRGB (95, 200, 245));
     g.drawRoundedRectangle (bounds, 8.0f, 2.0f);
 
-    auto tableArea = juce::Rectangle<float> (60.0f, 285.0f, 500.0f, 150.0f);
-    g.setColour (juce::Colour::fromRGB (24, 32, 42));
-    g.fillRoundedRectangle (tableArea, 6.0f);
+    const auto panelColour = juce::Colour::fromRGB (24, 32, 42);
+    const auto outlineColour = juce::Colour::fromRGB (55, 75, 90);
 
-    g.setColour (juce::Colour::fromRGB (55, 75, 90));
-    g.drawRoundedRectangle (tableArea, 6.0f, 1.0f);
+    const juce::Rectangle<float> woodwindsArea  (48.0f, 410.0f, 424.0f, 92.0f);
+    const juce::Rectangle<float> brassArea      (508.0f, 410.0f, 424.0f, 92.0f);
+    const juce::Rectangle<float> percussionArea (48.0f, 518.0f, 424.0f, 150.0f);
+    const juce::Rectangle<float> stringsArea    (508.0f, 518.0f, 424.0f, 150.0f);
+
+    for (auto area : { woodwindsArea, brassArea, percussionArea, stringsArea })
+    {
+        g.setColour (panelColour);
+        g.fillRoundedRectangle (area, 6.0f);
+
+        g.setColour (outlineColour);
+        g.drawRoundedRectangle (area, 6.0f, 1.0f);
+    }
 }
-
 void OrchConductorAudioProcessorEditor::resized()
 {
-    auto area = getLocalBounds().reduced (32);
+    auto area = getLocalBounds().reduced (48, 28);
 
-    titleLabel.setBounds (area.removeFromTop (42));
-    subtitleLabel.setBounds (area.removeFromTop (24));
-    buildLabel.setBounds (area.removeFromTop (22));
-
-    area.removeFromTop (18);
-
-    auto row = area.removeFromTop (42);
-    presetLabel.setBounds (row.removeFromLeft (135));
-    presetBox.setBounds (row.removeFromLeft (280));
+    titleLabel.setBounds (area.removeFromTop (38));
+    subtitleLabel.setBounds (area.removeFromTop (22));
+    buildLabel.setBounds (area.removeFromTop (20));
 
     area.removeFromTop (12);
 
-    sendOnChangeToggle.setBounds (area.removeFromTop (28).withSizeKeepingCentre (260, 24));
+    auto combiRow = area.removeFromTop (38);
+    combiPresetLabel.setBounds (combiRow.removeFromLeft (150));
+    combiPresetBox.setBounds (combiRow.removeFromLeft (650));
 
-    area.removeFromTop (16);
+    area.removeFromTop (14);
 
-    auto buttonRow = area.removeFromTop (44);
-    sendButton.setBounds (buttonRow.removeFromLeft (270).withSizeKeepingCentre (220, 38));
-    allOffButton.setBounds (buttonRow.removeFromLeft (270).withSizeKeepingCentre (190, 38));
+    sectionPresetsLabel.setBounds (area.removeFromTop (26));
 
-    area.removeFromTop (24);
+    area.removeFromTop (4);
 
-    tableTitleLabel.setBounds (area.removeFromTop (28));
-    tableHeaderLabel.setBounds (area.removeFromTop (28).reduced (64, 0));
-    tableRowsLabel.setBounds (area.removeFromTop (110).reduced (64, 0));
+    auto sectionRow1 = area.removeFromTop (38);
+    auto leftTop = sectionRow1.removeFromLeft (424);
+    sectionRow1.removeFromLeft (36);
+    auto rightTop = sectionRow1.removeFromLeft (424);
 
-    area.removeFromTop (16);
+    woodwindsPresetLabel.setBounds (leftTop.removeFromLeft (110));
+    woodwindsPresetBox.setBounds (leftTop);
 
-    ccMapLabel.setBounds (area.removeFromTop (32));
+    brassPresetLabel.setBounds (rightTop.removeFromLeft (110));
+    brassPresetBox.setBounds (rightTop);
 
-    area.removeFromTop (10);
+    area.removeFromTop (8);
 
-    statusLabel.setBounds (area.removeFromTop (32));
+    auto sectionRow2 = area.removeFromTop (38);
+    auto leftBottom = sectionRow2.removeFromLeft (424);
+    sectionRow2.removeFromLeft (36);
+    auto rightBottom = sectionRow2.removeFromLeft (424);
+
+    percussionPresetLabel.setBounds (leftBottom.removeFromLeft (110));
+    percussionPresetBox.setBounds (leftBottom);
+
+    stringsPresetLabel.setBounds (rightBottom.removeFromLeft (110));
+    presetBox.setBounds (rightBottom);
+
+    area.removeFromTop (18);
+
+    auto buttonRow = area.removeFromTop (42);
+    sendButton.setBounds (buttonRow.removeFromLeft (280).withSizeKeepingCentre (240, 36));
+    allOffButton.setBounds (buttonRow.removeFromLeft (240).withSizeKeepingCentre (190, 36));
+    sendOnChangeToggle.setBounds (buttonRow.removeFromLeft (300).withSizeKeepingCentre (260, 24));
+
+    tableTitleLabel.setBounds (48, 374, 884, 28);
+
+    woodwindsPanelLabel.setBounds (48, 410, 424, 92);
+    brassPanelLabel.setBounds (508, 410, 424, 92);
+    percussionPanelLabel.setBounds (48, 518, 424, 150);
+
+    stringsPanelLabel.setBounds (508, 524, 424, 22);
+    tableHeaderLabel.setBounds (548, 552, 340, 22);
+    tableRowsLabel.setBounds (548, 576, 340, 88);
+
+    ccMapLabel.setBounds (48, 684, 884, 24);
+    statusLabel.setBounds (48, 710, 884, 28);
 }
-
 void OrchConductorAudioProcessorEditor::updateStatus()
 {
     const juce::String autoSendText = audioProcessor.getSendOnPresetChange() ? " | Auto-send: On" : " | Auto-send: Off";
-    statusLabel.setText ("Selected preset: " + audioProcessor.getPresetName() + autoSendText, juce::dontSendNotification);
+    statusLabel.setText ("Selected strings preset: " + audioProcessor.getPresetName() + autoSendText, juce::dontSendNotification);
 }
 
 void OrchConductorAudioProcessorEditor::updateOutputTable()
@@ -210,5 +320,12 @@ void OrchConductorAudioProcessorEditor::updateOutputTable()
 
     tableRowsLabel.setText (rows, juce::dontSendNotification);
 }
+
+
+
+
+
+
+
 
 
