@@ -196,7 +196,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     sendButton.onClick = [this]
     {
         audioProcessor.requestSendPreset();
-        statusLabel.setText ("Requested send: " + audioProcessor.getPresetName() + " | Woodwinds/Brass MIDI active", juce::dontSendNotification);
+        statusLabel.setText ("Requested send: " + audioProcessor.getPresetName() + " | MIDI-capable: Woodwinds/Brass", juce::dontSendNotification);
     };
 
     allOffButton.setButtonText ("Send All Off");
@@ -392,7 +392,7 @@ void OrchConductorAudioProcessorEditor::updateStatus()
 
     statusLabel.setText (
         "Selected strings preset: " + audioProcessor.getPresetName()
-        + " | Woodwinds/Brass MIDI active | Perc data-only"
+        + " | MIDI-capable: Woodwinds/Brass | Perc data-only"
         + autoSendText,
         juce::dontSendNotification);
 }
@@ -450,6 +450,7 @@ void OrchConductorAudioProcessorEditor::updateBrassOutputTable()
 
     brassTableRowsLabel.setText (rows, juce::dontSendNotification);
 }
+
 
 
 
