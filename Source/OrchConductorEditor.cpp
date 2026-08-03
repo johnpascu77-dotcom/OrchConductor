@@ -392,7 +392,7 @@ void OrchConductorAudioProcessorEditor::updateStatus()
 
     statusLabel.setText (
         "Selected strings preset: " + audioProcessor.getPresetName()
-        + " | Woodwinds MIDI active | Brass/Perc data-only"
+        + " | Woodwinds/Brass MIDI active | Perc data-only"
         + autoSendText,
         juce::dontSendNotification);
 }
@@ -450,6 +450,8 @@ void OrchConductorAudioProcessorEditor::updateBrassOutputTable()
 
     brassTableRowsLabel.setText (rows, juce::dontSendNotification);
 }
+
+
 
 
 
