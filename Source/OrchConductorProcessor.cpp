@@ -1,4 +1,4 @@
-﻿#include "OrchConductorProcessor.h"
+#include "OrchConductorProcessor.h"
 #include "OrchConductorEditor.h"
 
 namespace
@@ -102,6 +102,7 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     if (! shouldSendAllOff && ! shouldSendPreset)
         return;
 
+    // Phase 1B: MIDI output remains Strings-only, preserving Phase 1A.3/1A.4 behavior.
     for (int i = 0; i < numRows; ++i)
     {
         const int value = shouldSendAllOff ? 0 : getPresetValueForIndex (i);
@@ -122,33 +123,123 @@ juce::AudioProcessorEditor* OrchConductorAudioProcessor::createEditor()
 void OrchConductorAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     juce::MemoryOutputStream stream (destData, true);
-    stream.writeInt (static_cast<int> (currentPreset));
+
+    // Phase 1B state format:
+    // version, combi, woodwinds, brass, percussion, strings, sendOnChange.
+    stream.writeInt (1);
+    stream.writeInt (combiPresetId);
+    stream.writeInt (woodwindsPresetId);
+    stream.writeInt (brassPresetId);
+    stream.writeInt (percussionPresetId);
+    stream.writeInt (stringsPresetId);
     stream.writeBool (sendOnPresetChange);
 }
 
 void OrchConductorAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     juce::MemoryInputStream stream (data, static_cast<size_t> (sizeInBytes), false);
-    const auto p = stream.readInt();
+    const auto firstInt = stream.readInt();
 
-    if (p >= 0 && p <= static_cast<int> (Preset::tutti))
-        currentPreset = static_cast<Preset> (p);
+    if (stream.isExhausted())
+    {
+        if (firstInt >= minStringsPresetId && firstInt <= maxStringsPresetId)
+            stringsPresetId = firstInt;
+
+        return;
+    }
+
+    if (firstInt == 1)
+    {
+        const auto combi = stream.readInt();
+        const auto woodwinds = stream.readInt();
+        const auto brass = stream.readInt();
+        const auto percussion = stream.readInt();
+        const auto strings = stream.readInt();
+
+        setCombiPresetId (combi);
+        setSectionPresetId (Section::woodwinds, woodwinds);
+        setSectionPresetId (Section::brass, brass);
+        setSectionPresetId (Section::percussion, percussion);
+        setSectionPresetId (Section::strings, strings);
+
+        if (! stream.isExhausted())
+            sendOnPresetChange = stream.readBool();
+
+        return;
+    }
+
+    // Backward compatibility with Phase 1A.3/1A.4 state:
+    // first int was the Strings preset, followed by sendOnChange.
+    if (firstInt >= minStringsPresetId && firstInt <= maxStringsPresetId)
+        stringsPresetId = firstInt;
 
     if (! stream.isExhausted())
         sendOnPresetChange = stream.readBool();
 }
 
+int OrchConductorAudioProcessor::getCombiPresetId() const
+{
+    return combiPresetId;
+}
+
+void OrchConductorAudioProcessor::setCombiPresetId (int presetId)
+{
+    if (presetId >= minCombiPresetId && presetId <= maxCombiPresetId)
+        combiPresetId = presetId;
+}
+
+int OrchConductorAudioProcessor::getSectionPresetId (Section section) const
+{
+    switch (section)
+    {
+        case Section::woodwinds:  return woodwindsPresetId;
+        case Section::brass:      return brassPresetId;
+        case Section::percussion: return percussionPresetId;
+        case Section::strings:    return stringsPresetId;
+    }
+
+    return 0;
+}
+
+void OrchConductorAudioProcessor::setSectionPresetId (Section section, int presetId)
+{
+    switch (section)
+    {
+        case Section::woodwinds:
+            if (presetId >= minPlaceholderSectionPresetId && presetId <= maxPlaceholderSectionPresetId)
+                woodwindsPresetId = presetId;
+            break;
+
+        case Section::brass:
+            if (presetId >= minPlaceholderSectionPresetId && presetId <= maxPlaceholderSectionPresetId)
+                brassPresetId = presetId;
+            break;
+
+        case Section::percussion:
+            if (presetId >= minPlaceholderSectionPresetId && presetId <= maxPlaceholderSectionPresetId)
+                percussionPresetId = presetId;
+            break;
+
+        case Section::strings:
+            if (presetId >= minStringsPresetId && presetId <= maxStringsPresetId)
+            {
+                stringsPresetId = presetId;
+
+                if (sendOnPresetChange)
+                    requestSendPreset();
+            }
+            break;
+    }
+}
+
 void OrchConductorAudioProcessor::setPreset (Preset newPreset)
 {
-    currentPreset = newPreset;
-
-    if (sendOnPresetChange)
-        requestSendPreset();
+    setSectionPresetId (Section::strings, static_cast<int> (newPreset));
 }
 
 OrchConductorAudioProcessor::Preset OrchConductorAudioProcessor::getPreset() const
 {
-    return currentPreset;
+    return static_cast<Preset> (stringsPresetId);
 }
 
 void OrchConductorAudioProcessor::requestSendPreset()
@@ -191,7 +282,7 @@ bool OrchConductorAudioProcessor::getSendOnPresetChange() const
 
 juce::String OrchConductorAudioProcessor::getPresetName() const
 {
-    switch (currentPreset)
+    switch (getPreset())
     {
         case Preset::allOff:        return "All Off";
         case Preset::violinIOnly:   return "Violin I Only";
@@ -235,7 +326,7 @@ int OrchConductorAudioProcessor::getPresetValueForIndex (int index) const
     if (index < 0 || index >= numRows)
         return 0;
 
-    switch (currentPreset)
+    switch (getPreset())
     {
         case Preset::allOff:
             return 0;

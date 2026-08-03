@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <JuceHeader.h>
 
@@ -34,6 +34,19 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
+    enum class Section
+    {
+        woodwinds = 0,
+        brass,
+        percussion,
+        strings
+    };
+
+    enum class CombiPreset
+    {
+        manualSections = 0
+    };
+
     enum class Preset
     {
         allOff = 0,
@@ -59,6 +72,14 @@ public:
         int value;
     };
 
+    // Phase 1B multisection data model.
+    int getCombiPresetId() const;
+    void setCombiPresetId (int presetId);
+
+    int getSectionPresetId (Section section) const;
+    void setSectionPresetId (Section section, int presetId);
+
+    // Compatibility wrappers for the validated Strings preset behavior.
     void setPreset (Preset newPreset);
     Preset getPreset() const;
 
@@ -77,7 +98,21 @@ public:
     OutputRow getOutputRow (int index) const;
 
 private:
-    Preset currentPreset { Preset::allOff };
+    static constexpr int minCombiPresetId = 0;
+    static constexpr int maxCombiPresetId = 0;
+
+    static constexpr int minPlaceholderSectionPresetId = 0;
+    static constexpr int maxPlaceholderSectionPresetId = 0;
+
+    static constexpr int minStringsPresetId = 0;
+    static constexpr int maxStringsPresetId = static_cast<int> (Preset::tutti);
+
+    int combiPresetId { static_cast<int> (CombiPreset::manualSections) };
+
+    int woodwindsPresetId { 0 };
+    int brassPresetId { 0 };
+    int percussionPresetId { 0 };
+    int stringsPresetId { static_cast<int> (Preset::allOff) };
 
     bool sendPresetRequested { false };
     bool sendAllOffRequested { false };
