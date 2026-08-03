@@ -1,6 +1,25 @@
 ﻿#include "OrchConductorProcessor.h"
 #include "OrchConductorEditor.h"
 
+namespace
+{
+    constexpr int numRows = 5;
+
+    const char* instrumentNames[numRows] =
+    {
+        "Violin I",
+        "Violin II",
+        "Viola",
+        "Cello",
+        "Double Bass"
+    };
+
+    constexpr int ccNumbers[numRows] =
+    {
+        20, 21, 22, 23, 24
+    };
+}
+
 OrchConductorAudioProcessor::OrchConductorAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
      : AudioProcessor (BusesProperties())
@@ -83,70 +102,11 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     if (! shouldSendAllOff && ! shouldSendPreset)
         return;
 
-    struct CcValue
+    for (int i = 0; i < numRows; ++i)
     {
-        int cc;
-        int value;
-    };
-
-    // Phase 1A.1 fixed CC map:
-    // CC20 Violin I
-    // CC21 Violin II
-    // CC22 Viola
-    // CC23 Cello
-    // CC24 Double Bass
-    CcValue values[] =
-    {
-        { 20, 0 },
-        { 21, 0 },
-        { 22, 0 },
-        { 23, 0 },
-        { 24, 0 }
-    };
-
-    if (! shouldSendAllOff)
-    {
-        switch (currentPreset)
-        {
-            case Preset::allOff:
-                break;
-
-            case Preset::stringQuartet:
-                values[0].value = 127;
-                values[1].value = 127;
-                values[2].value = 127;
-                values[3].value = 127;
-                values[4].value = 0;
-                break;
-
-            case Preset::lowStrings:
-                values[0].value = 0;
-                values[1].value = 0;
-                values[2].value = 64;
-                values[3].value = 127;
-                values[4].value = 127;
-                break;
-
-            case Preset::fullStrings:
-                values[0].value = 127;
-                values[1].value = 127;
-                values[2].value = 127;
-                values[3].value = 127;
-                values[4].value = 127;
-                break;
-
-            case Preset::tutti:
-                values[0].value = 127;
-                values[1].value = 127;
-                values[2].value = 127;
-                values[3].value = 127;
-                values[4].value = 127;
-                break;
-        }
+        const int value = shouldSendAllOff ? 0 : getPresetValueForIndex (i);
+        midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, ccNumbers[i], value), 0);
     }
-
-    for (const auto& v : values)
-        midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, v.cc, v.value), 0);
 }
 
 bool OrchConductorAudioProcessor::hasEditor() const
@@ -241,6 +201,55 @@ juce::String OrchConductorAudioProcessor::getPresetName() const
     }
 
     return "Unknown";
+}
+
+int OrchConductorAudioProcessor::getNumOutputRows()
+{
+    return numRows;
+}
+
+OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getOutputRow (int index) const
+{
+    if (index < 0 || index >= numRows)
+        return { "Invalid", 0, 0 };
+
+    return
+    {
+        instrumentNames[index],
+        ccNumbers[index],
+        getPresetValueForIndex (index)
+    };
+}
+
+int OrchConductorAudioProcessor::getPresetValueForIndex (int index) const
+{
+    if (index < 0 || index >= numRows)
+        return 0;
+
+    switch (currentPreset)
+    {
+        case Preset::allOff:
+            return 0;
+
+        case Preset::stringQuartet:
+            // Violin I, Violin II, Viola, Cello on. Double Bass off.
+            return index <= 3 ? 127 : 0;
+
+        case Preset::lowStrings:
+            // Viola half, Cello full, Double Bass full.
+            if (index == 2) return 64;
+            if (index == 3) return 127;
+            if (index == 4) return 127;
+            return 0;
+
+        case Preset::fullStrings:
+            return 127;
+
+        case Preset::tutti:
+            return 127;
+    }
+
+    return 0;
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

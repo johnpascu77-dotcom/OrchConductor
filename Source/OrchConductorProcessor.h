@@ -43,6 +43,13 @@ public:
         tutti
     };
 
+    struct OutputRow
+    {
+        juce::String instrumentName;
+        int ccNumber;
+        int value;
+    };
+
     void setPreset (Preset newPreset);
     Preset getPreset() const;
 
@@ -57,12 +64,17 @@ public:
 
     juce::String getPresetName() const;
 
+    static int getNumOutputRows();
+    OutputRow getOutputRow (int index) const;
+
 private:
     Preset currentPreset { Preset::allOff };
 
     bool sendPresetRequested { false };
     bool sendAllOffRequested { false };
     bool sendOnPresetChange { false };
+
+    int getPresetValueForIndex (int index) const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };

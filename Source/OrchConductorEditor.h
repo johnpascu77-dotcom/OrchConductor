@@ -19,6 +19,9 @@ private:
     juce::Label subtitleLabel;
     juce::Label buildLabel;
     juce::Label presetLabel;
+    juce::Label tableTitleLabel;
+    juce::Label tableHeaderLabel;
+    juce::Label tableRowsLabel;
     juce::Label ccMapLabel;
     juce::Label statusLabel;
 
@@ -28,6 +31,7 @@ private:
     juce::TextButton allOffButton;
 
     void updateStatus();
+    void updateOutputTable();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessorEditor)
 };

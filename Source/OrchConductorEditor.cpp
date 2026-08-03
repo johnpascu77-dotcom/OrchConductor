@@ -3,7 +3,7 @@
 OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConductorAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
-    setSize (560, 460);
+    setSize (620, 560);
 
     titleLabel.setText ("OrchConductor", juce::dontSendNotification);
     titleLabel.setJustificationType (juce::Justification::centred);
@@ -17,7 +17,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 1A.1", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 1A.2", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -45,6 +45,8 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
 
         if (selected >= 0 && selected <= static_cast<int> (OrchConductorAudioProcessor::Preset::tutti))
             audioProcessor.setPreset (static_cast<OrchConductorAudioProcessor::Preset> (selected));
+
+        updateOutputTable();
 
         if (audioProcessor.getSendOnPresetChange())
             statusLabel.setText ("Auto-send requested: " + audioProcessor.getPresetName(), juce::dontSendNotification);
@@ -85,17 +87,28 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         statusLabel.setText ("Requested send: All Off", juce::dontSendNotification);
     };
 
+    tableTitleLabel.setText ("Selected Preset Output", juce::dontSendNotification);
+    tableTitleLabel.setJustificationType (juce::Justification::centred);
+    tableTitleLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (245, 245, 245));
+    tableTitleLabel.setFont (juce::FontOptions (15.0f, juce::Font::bold));
+    addAndMakeVisible (tableTitleLabel);
+
+    tableHeaderLabel.setText ("Instrument                 CC      Value", juce::dontSendNotification);
+    tableHeaderLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (120, 210, 250));
+    tableHeaderLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 14.0f, juce::Font::bold));
+    addAndMakeVisible (tableHeaderLabel);
+
+    tableRowsLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (220, 230, 235));
+    tableRowsLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 14.0f, juce::Font::plain));
+    tableRowsLabel.setJustificationType (juce::Justification::topLeft);
+    addAndMakeVisible (tableRowsLabel);
+
     ccMapLabel.setText (
-        "Phase 1A.1 CC Map:\n"
-        "CC20 = Violin I\n"
-        "CC21 = Violin II\n"
-        "CC22 = Viola\n"
-        "CC23 = Cello\n"
-        "CC24 = Double Bass",
+        "Phase 1A.2 CC Map: CC20 Violin I | CC21 Violin II | CC22 Viola | CC23 Cello | CC24 Double Bass",
         juce::dontSendNotification);
-    ccMapLabel.setJustificationType (juce::Justification::centredLeft);
-    ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (210, 220, 230));
-    ccMapLabel.setFont (juce::FontOptions (14.0f));
+    ccMapLabel.setJustificationType (juce::Justification::centred);
+    ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
+    ccMapLabel.setFont (juce::FontOptions (12.0f));
     addAndMakeVisible (ccMapLabel);
 
     statusLabel.setJustificationType (juce::Justification::centred);
@@ -103,6 +116,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     statusLabel.setFont (juce::FontOptions (14.0f, juce::Font::bold));
     addAndMakeVisible (statusLabel);
 
+    updateOutputTable();
     updateStatus();
 }
 
@@ -117,11 +131,18 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
     auto bounds = getLocalBounds().toFloat().reduced (2.0f);
     g.setColour (juce::Colour::fromRGB (95, 200, 245));
     g.drawRoundedRectangle (bounds, 8.0f, 2.0f);
+
+    auto tableArea = juce::Rectangle<float> (60.0f, 285.0f, 500.0f, 150.0f);
+    g.setColour (juce::Colour::fromRGB (24, 32, 42));
+    g.fillRoundedRectangle (tableArea, 6.0f);
+
+    g.setColour (juce::Colour::fromRGB (55, 75, 90));
+    g.drawRoundedRectangle (tableArea, 6.0f, 1.0f);
 }
 
 void OrchConductorAudioProcessorEditor::resized()
 {
-    auto area = getLocalBounds().reduced (28);
+    auto area = getLocalBounds().reduced (32);
 
     titleLabel.setBounds (area.removeFromTop (42));
     subtitleLabel.setBounds (area.removeFromTop (24));
@@ -130,24 +151,30 @@ void OrchConductorAudioProcessorEditor::resized()
     area.removeFromTop (18);
 
     auto row = area.removeFromTop (42);
-    presetLabel.setBounds (row.removeFromLeft (120));
-    presetBox.setBounds (row.removeFromLeft (260));
+    presetLabel.setBounds (row.removeFromLeft (135));
+    presetBox.setBounds (row.removeFromLeft (280));
 
     area.removeFromTop (12);
 
-    sendOnChangeToggle.setBounds (area.removeFromTop (28).withSizeKeepingCentre (240, 24));
+    sendOnChangeToggle.setBounds (area.removeFromTop (28).withSizeKeepingCentre (260, 24));
 
     area.removeFromTop (16);
 
     auto buttonRow = area.removeFromTop (44);
-    sendButton.setBounds (buttonRow.removeFromLeft (240).withSizeKeepingCentre (210, 38));
-    allOffButton.setBounds (buttonRow.removeFromLeft (240).withSizeKeepingCentre (180, 38));
+    sendButton.setBounds (buttonRow.removeFromLeft (270).withSizeKeepingCentre (220, 38));
+    allOffButton.setBounds (buttonRow.removeFromLeft (270).withSizeKeepingCentre (190, 38));
 
-    area.removeFromTop (28);
+    area.removeFromTop (24);
 
-    ccMapLabel.setBounds (area.removeFromTop (120));
+    tableTitleLabel.setBounds (area.removeFromTop (28));
+    tableHeaderLabel.setBounds (area.removeFromTop (28).reduced (64, 0));
+    tableRowsLabel.setBounds (area.removeFromTop (110).reduced (64, 0));
 
-    area.removeFromTop (18);
+    area.removeFromTop (16);
+
+    ccMapLabel.setBounds (area.removeFromTop (32));
+
+    area.removeFromTop (10);
 
     statusLabel.setBounds (area.removeFromTop (32));
 }
@@ -156,4 +183,21 @@ void OrchConductorAudioProcessorEditor::updateStatus()
 {
     const juce::String autoSendText = audioProcessor.getSendOnPresetChange() ? " | Auto-send: On" : " | Auto-send: Off";
     statusLabel.setText ("Selected preset: " + audioProcessor.getPresetName() + autoSendText, juce::dontSendNotification);
+}
+
+void OrchConductorAudioProcessorEditor::updateOutputTable()
+{
+    juce::String rows;
+
+    for (int i = 0; i < OrchConductorAudioProcessor::getNumOutputRows(); ++i)
+    {
+        const auto row = audioProcessor.getOutputRow (i);
+
+        rows << row.instrumentName.paddedRight (' ', 24)
+             << juce::String (row.ccNumber).paddedRight (' ', 8)
+             << juce::String (row.value)
+             << "\n";
+    }
+
+    tableRowsLabel.setText (rows, juce::dontSendNotification);
 }
