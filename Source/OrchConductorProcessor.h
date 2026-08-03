@@ -72,14 +72,12 @@ public:
         int value;
     };
 
-    // Phase 1B multisection data model.
     int getCombiPresetId() const;
     void setCombiPresetId (int presetId);
 
     int getSectionPresetId (Section section) const;
     void setSectionPresetId (Section section, int presetId);
 
-    // Compatibility wrappers for the validated Strings preset behavior.
     void setPreset (Preset newPreset);
     Preset getPreset() const;
 
@@ -96,6 +94,9 @@ public:
 
     static int getNumOutputRows();
     OutputRow getOutputRow (int index) const;
+
+    static int getNumWoodwindsOutputRows();
+    OutputRow getWoodwindsOutputRow (int index) const;
 
 private:
     static constexpr int minCombiPresetId = 0;
@@ -119,7 +120,7 @@ private:
     bool sendOnPresetChange { false };
 
     int getPresetValueForIndex (int index) const;
+    int getWoodwindsPresetValueForIndex (int index) const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };
-

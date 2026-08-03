@@ -18,6 +18,21 @@ namespace
     {
         20, 21, 22, 23, 24
     };
+
+    constexpr int numWoodwindsRows = 4;
+
+    const char* woodwindsInstrumentNames[numWoodwindsRows] =
+    {
+        "Flutes",
+        "Oboes",
+        "Clarinets",
+        "Bassoons"
+    };
+
+    constexpr int woodwindsCcNumbers[numWoodwindsRows] =
+    {
+        30, 31, 32, 33
+    };
 }
 
 OrchConductorAudioProcessor::OrchConductorAudioProcessor()
@@ -102,11 +117,18 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     if (! shouldSendAllOff && ! shouldSendPreset)
         return;
 
-    // Phase 1B: MIDI output remains Strings-only, preserving Phase 1A.3/1A.4 behavior.
+    // Phase 1D: Strings output remains preserved from Phase 1A.3/1A.4.
     for (int i = 0; i < numRows; ++i)
     {
         const int value = shouldSendAllOff ? 0 : getPresetValueForIndex (i);
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, ccNumbers[i], value), 0);
+    }
+
+    // Phase 1D: Woodwinds section now emits real MIDI CC output.
+    for (int i = 0; i < numWoodwindsRows; ++i)
+    {
+        const int value = shouldSendAllOff ? 0 : getWoodwindsPresetValueForIndex (i);
+        midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, woodwindsCcNumbers[i], value), 0);
     }
 }
 
@@ -124,8 +146,6 @@ void OrchConductorAudioProcessor::getStateInformation (juce::MemoryBlock& destDa
 {
     juce::MemoryOutputStream stream (destData, true);
 
-    // Phase 1B state format:
-    // version, combi, woodwinds, brass, percussion, strings, sendOnChange.
     stream.writeInt (1);
     stream.writeInt (combiPresetId);
     stream.writeInt (woodwindsPresetId);
@@ -168,8 +188,6 @@ void OrchConductorAudioProcessor::setStateInformation (const void* data, int siz
         return;
     }
 
-    // Backward compatibility with Phase 1A.3/1A.4 state:
-    // first int was the Strings preset, followed by sendOnChange.
     if (firstInt >= minStringsPresetId && firstInt <= maxStringsPresetId)
         stringsPresetId = firstInt;
 
@@ -321,6 +339,24 @@ OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getOutputRow
     };
 }
 
+int OrchConductorAudioProcessor::getNumWoodwindsOutputRows()
+{
+    return numWoodwindsRows;
+}
+
+OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getWoodwindsOutputRow (int index) const
+{
+    if (index < 0 || index >= numWoodwindsRows)
+        return { "Invalid", 0, 0 };
+
+    return
+    {
+        woodwindsInstrumentNames[index],
+        woodwindsCcNumbers[index],
+        getWoodwindsPresetValueForIndex (index)
+    };
+}
+
 int OrchConductorAudioProcessor::getPresetValueForIndex (int index) const
 {
     if (index < 0 || index >= numRows)
@@ -328,29 +364,14 @@ int OrchConductorAudioProcessor::getPresetValueForIndex (int index) const
 
     switch (getPreset())
     {
-        case Preset::allOff:
-            return 0;
-
-        case Preset::violinIOnly:
-            return index == 0 ? 127 : 0;
-
-        case Preset::violinIIOnly:
-            return index == 1 ? 127 : 0;
-
-        case Preset::violinsOnly:
-            return index <= 1 ? 127 : 0;
-
-        case Preset::violasOnly:
-            return index == 2 ? 127 : 0;
-
-        case Preset::cellosOnly:
-            return index == 3 ? 127 : 0;
-
-        case Preset::bassesOnly:
-            return index == 4 ? 127 : 0;
-
-        case Preset::upperStrings:
-            return index <= 2 ? 127 : 0;
+        case Preset::allOff:        return 0;
+        case Preset::violinIOnly:   return index == 0 ? 127 : 0;
+        case Preset::violinIIOnly:  return index == 1 ? 127 : 0;
+        case Preset::violinsOnly:   return index <= 1 ? 127 : 0;
+        case Preset::violasOnly:    return index == 2 ? 127 : 0;
+        case Preset::cellosOnly:    return index == 3 ? 127 : 0;
+        case Preset::bassesOnly:    return index == 4 ? 127 : 0;
+        case Preset::upperStrings:  return index <= 2 ? 127 : 0;
 
         case Preset::lowStrings:
             if (index == 2) return 64;
@@ -358,8 +379,7 @@ int OrchConductorAudioProcessor::getPresetValueForIndex (int index) const
             if (index == 4) return 127;
             return 0;
 
-        case Preset::stringQuartet:
-            return index <= 3 ? 127 : 0;
+        case Preset::stringQuartet: return index <= 3 ? 127 : 0;
 
         case Preset::violaCello:
             if (index == 2) return 127;
@@ -371,11 +391,26 @@ int OrchConductorAudioProcessor::getPresetValueForIndex (int index) const
             if (index == 4) return 127;
             return 0;
 
-        case Preset::fullStrings:
-            return 127;
+        case Preset::fullStrings:   return 127;
+        case Preset::tutti:         return 127;
+    }
 
-        case Preset::tutti:
-            return 127;
+    return 0;
+}
+
+int OrchConductorAudioProcessor::getWoodwindsPresetValueForIndex (int index) const
+{
+    if (index < 0 || index >= numWoodwindsRows)
+        return 0;
+
+    switch (woodwindsPresetId)
+    {
+        case 0: return 0;
+        case 1: return index == 0 ? 127 : 0;
+        case 2: return index == 1 ? 127 : 0;
+        case 3: return index == 2 ? 127 : 0;
+        case 4: return index == 3 ? 127 : 0;
+        case 5: return 127;
     }
 
     return 0;
