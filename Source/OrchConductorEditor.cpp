@@ -83,7 +83,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 1C", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 1D", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -245,7 +245,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     addAndMakeVisible (tableRowsLabel);
 
     ccMapLabel.setText (
-        "Phase 1C Active MIDI Map: Strings CC20-CC24 | Woodwinds/Brass/Percussion data-only",
+        "Phase 1D Active MIDI Map: Strings CC20-CC24 | Woodwinds CC30-CC33 | Brass/Percussion data-only",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -383,3 +383,4 @@ void OrchConductorAudioProcessorEditor::updateOutputTable()
 
     tableRowsLabel.setText (rows, juce::dontSendNotification);
 }
+
