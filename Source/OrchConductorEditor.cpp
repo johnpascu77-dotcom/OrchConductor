@@ -3,7 +3,7 @@
 OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConductorAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
-    setSize (560, 420);
+    setSize (560, 460);
 
     titleLabel.setText ("OrchConductor", juce::dontSendNotification);
     titleLabel.setJustificationType (juce::Justification::centred);
@@ -17,7 +17,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 1A", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 1A.1", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -46,6 +46,20 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         if (selected >= 0 && selected <= static_cast<int> (OrchConductorAudioProcessor::Preset::tutti))
             audioProcessor.setPreset (static_cast<OrchConductorAudioProcessor::Preset> (selected));
 
+        if (audioProcessor.getSendOnPresetChange())
+            statusLabel.setText ("Auto-send requested: " + audioProcessor.getPresetName(), juce::dontSendNotification);
+        else
+            updateStatus();
+    };
+
+    sendOnChangeToggle.setButtonText ("Send on Preset Change");
+    sendOnChangeToggle.setToggleState (audioProcessor.getSendOnPresetChange(), juce::dontSendNotification);
+    sendOnChangeToggle.setColour (juce::ToggleButton::textColourId, juce::Colours::white);
+    addAndMakeVisible (sendOnChangeToggle);
+
+    sendOnChangeToggle.onClick = [this]
+    {
+        audioProcessor.setSendOnPresetChange (sendOnChangeToggle.getToggleState());
         updateStatus();
     };
 
@@ -60,8 +74,19 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         statusLabel.setText ("Requested send: " + audioProcessor.getPresetName(), juce::dontSendNotification);
     };
 
+    allOffButton.setButtonText ("Send All Off");
+    allOffButton.setColour (juce::TextButton::buttonColourId, juce::Colour::fromRGB (95, 45, 45));
+    allOffButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
+    addAndMakeVisible (allOffButton);
+
+    allOffButton.onClick = [this]
+    {
+        audioProcessor.requestSendAllOff();
+        statusLabel.setText ("Requested send: All Off", juce::dontSendNotification);
+    };
+
     ccMapLabel.setText (
-        "Phase 1A CC Map:\n"
+        "Phase 1A.1 CC Map:\n"
         "CC20 = Violin I\n"
         "CC21 = Violin II\n"
         "CC22 = Viola\n"
@@ -102,26 +127,33 @@ void OrchConductorAudioProcessorEditor::resized()
     subtitleLabel.setBounds (area.removeFromTop (24));
     buildLabel.setBounds (area.removeFromTop (22));
 
-    area.removeFromTop (20);
+    area.removeFromTop (18);
 
     auto row = area.removeFromTop (42);
     presetLabel.setBounds (row.removeFromLeft (120));
     presetBox.setBounds (row.removeFromLeft (260));
 
-    area.removeFromTop (22);
+    area.removeFromTop (12);
 
-    sendButton.setBounds (area.removeFromTop (44).withSizeKeepingCentre (220, 38));
+    sendOnChangeToggle.setBounds (area.removeFromTop (28).withSizeKeepingCentre (240, 24));
+
+    area.removeFromTop (16);
+
+    auto buttonRow = area.removeFromTop (44);
+    sendButton.setBounds (buttonRow.removeFromLeft (240).withSizeKeepingCentre (210, 38));
+    allOffButton.setBounds (buttonRow.removeFromLeft (240).withSizeKeepingCentre (180, 38));
 
     area.removeFromTop (28);
 
     ccMapLabel.setBounds (area.removeFromTop (120));
 
-    area.removeFromTop (20);
+    area.removeFromTop (18);
 
     statusLabel.setBounds (area.removeFromTop (32));
 }
 
 void OrchConductorAudioProcessorEditor::updateStatus()
 {
-    statusLabel.setText ("Selected preset: " + audioProcessor.getPresetName(), juce::dontSendNotification);
+    const juce::String autoSendText = audioProcessor.getSendOnPresetChange() ? " | Auto-send: On" : " | Auto-send: Off";
+    statusLabel.setText ("Selected preset: " + audioProcessor.getPresetName() + autoSendText, juce::dontSendNotification);
 }

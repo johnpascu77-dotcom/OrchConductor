@@ -23,7 +23,9 @@ private:
     juce::Label statusLabel;
 
     juce::ComboBox presetBox;
+    juce::ToggleButton sendOnChangeToggle;
     juce::TextButton sendButton;
+    juce::TextButton allOffButton;
 
     void updateStatus();
 

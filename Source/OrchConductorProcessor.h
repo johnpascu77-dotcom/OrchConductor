@@ -47,13 +47,22 @@ public:
     Preset getPreset() const;
 
     void requestSendPreset();
+    void requestSendAllOff();
+
     bool consumeSendPresetRequest();
+    bool consumeSendAllOffRequest();
+
+    void setSendOnPresetChange (bool shouldSend);
+    bool getSendOnPresetChange() const;
 
     juce::String getPresetName() const;
 
 private:
     Preset currentPreset { Preset::allOff };
+
     bool sendPresetRequested { false };
+    bool sendAllOffRequested { false };
+    bool sendOnPresetChange { false };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };
