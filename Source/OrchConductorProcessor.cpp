@@ -33,6 +33,21 @@ namespace
     {
         30, 31, 32, 33
     };
+
+    constexpr int numBrassRows = 4;
+
+    const char* brassInstrumentNames[numBrassRows] =
+    {
+        "Horns",
+        "Trumpets",
+        "Trombones",
+        "Tuba"
+    };
+
+    constexpr int brassCcNumbers[numBrassRows] =
+    {
+        40, 41, 42, 43
+    };
 }
 
 OrchConductorAudioProcessor::OrchConductorAudioProcessor()
@@ -416,7 +431,27 @@ int OrchConductorAudioProcessor::getWoodwindsPresetValueForIndex (int index) con
     return 0;
 }
 
+int OrchConductorAudioProcessor::getBrassPresetValueForIndex (int index) const
+{
+    if (index < 0 || index >= numBrassRows)
+        return 0;
+
+    switch (brassPresetId)
+    {
+        case 0: return 0;
+        case 1: return index == 0 ? 127 : 0;
+        case 2: return index == 1 ? 127 : 0;
+        case 3: return index == 2 ? 127 : 0;
+        case 4: return index == 3 ? 127 : 0;
+        case 5: return 127;
+    }
+
+    return 0;
+}
+
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
+
+
