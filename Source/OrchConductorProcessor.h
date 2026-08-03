@@ -102,7 +102,7 @@ private:
     static constexpr int maxCombiPresetId = 0;
 
     static constexpr int minPlaceholderSectionPresetId = 0;
-    static constexpr int maxPlaceholderSectionPresetId = 0;
+    static constexpr int maxPlaceholderSectionPresetId = 5;
 
     static constexpr int minStringsPresetId = 0;
     static constexpr int maxStringsPresetId = static_cast<int> (Preset::tutti);
@@ -122,3 +122,4 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };
+
