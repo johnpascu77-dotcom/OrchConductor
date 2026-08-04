@@ -15,6 +15,17 @@ constexpr int expectedFactoryPercussionPresetCount = 9;
 constexpr int expectedFactoryStringPresetCount = 14;
 constexpr int expectedFactoryCombiPresetCount = 29;
 
+const juce::String expectedWoodwindFirstLabel = "All Off";
+const juce::String expectedWoodwindLastLabel = "Full Woodwinds";
+const juce::String expectedBrassFirstLabel = "All Off";
+const juce::String expectedBrassLastLabel = "Full Brass";
+const juce::String expectedPercussionFirstLabel = "All Off";
+const juce::String expectedPercussionLastLabel = "Full Melodic Percussion";
+const juce::String expectedStringFirstLabel = "All Off";
+const juce::String expectedStringLastLabel = "Tutti";
+const juce::String expectedCombiFirstLabel = "Manual Sections";
+const juce::String expectedCombiLastLabel = "[Solo] English Horn Lament";
+
 int fail(const juce::String& message)
 {
     std::cerr << "[FAIL] " << message << std::endl;
@@ -77,6 +88,8 @@ bool verifySafeLabelAccess(const OrchConductorRuntimePresetCatalog& catalog,
                    labelPrefix + " out-of-range section label index returns empty") && ok;
     ok = checkPass(catalog.getSectionPresetLabel("unknown", 0).isEmpty(),
                    labelPrefix + " unknown section label returns empty") && ok;
+    ok = checkPass(catalog.getSectionPresetCount("unknown") == 0,
+                   labelPrefix + " unknown section count returns zero") && ok;
     ok = checkPass(catalog.getCombiPresetLabel(-1).isEmpty(),
                    labelPrefix + " negative combi label index returns empty") && ok;
     ok = checkPass(catalog.getCombiPresetLabel(9999).isEmpty(),
@@ -91,15 +104,47 @@ bool verifyRuntimeSourceLabelsMirrorSource(const orchconductor::RuntimePresetSou
     bool ok = true;
 
     ok = checkPass(catalog.getSectionPresetLabel("woodwinds", 0) == source.library.woodwindPresets.front().name,
-                   "runtime-source catalog mirrors first woodwind label") && ok;
+                   "runtime-source catalog mirrors first woodwind label from source") && ok;
     ok = checkPass(catalog.getSectionPresetLabel("brass", 0) == source.library.brassPresets.front().name,
-                   "runtime-source catalog mirrors first brass label") && ok;
+                   "runtime-source catalog mirrors first brass label from source") && ok;
     ok = checkPass(catalog.getSectionPresetLabel("percussion", 0) == source.library.percussionPresets.front().name,
-                   "runtime-source catalog mirrors first percussion label") && ok;
+                   "runtime-source catalog mirrors first percussion label from source") && ok;
     ok = checkPass(catalog.getSectionPresetLabel("strings", 0) == source.library.stringPresets.front().name,
-                   "runtime-source catalog mirrors first string label") && ok;
+                   "runtime-source catalog mirrors first string label from source") && ok;
     ok = checkPass(catalog.getCombiPresetLabel(0) == source.library.combiPresets.front().name,
-                   "runtime-source catalog mirrors first combi label") && ok;
+                   "runtime-source catalog mirrors first combi label from source") && ok;
+
+    return ok;
+}
+
+bool verifyRuntimeSourceLabelsMatchExpectedFactorySnapshot(const OrchConductorRuntimePresetCatalog& catalog)
+{
+    bool ok = true;
+
+    ok = checkPass(catalog.getSectionPresetLabel("woodwinds", 0) == expectedWoodwindFirstLabel,
+                   "runtime-source catalog first woodwind label matches expected factory snapshot") && ok;
+    ok = checkPass(catalog.getSectionPresetLabel("woodwinds", expectedFactoryWoodwindPresetCount - 1) == expectedWoodwindLastLabel,
+                   "runtime-source catalog last woodwind label matches expected factory snapshot") && ok;
+
+    ok = checkPass(catalog.getSectionPresetLabel("brass", 0) == expectedBrassFirstLabel,
+                   "runtime-source catalog first brass label matches expected factory snapshot") && ok;
+    ok = checkPass(catalog.getSectionPresetLabel("brass", expectedFactoryBrassPresetCount - 1) == expectedBrassLastLabel,
+                   "runtime-source catalog last brass label matches expected factory snapshot") && ok;
+
+    ok = checkPass(catalog.getSectionPresetLabel("percussion", 0) == expectedPercussionFirstLabel,
+                   "runtime-source catalog first percussion label matches expected factory snapshot") && ok;
+    ok = checkPass(catalog.getSectionPresetLabel("percussion", expectedFactoryPercussionPresetCount - 1) == expectedPercussionLastLabel,
+                   "runtime-source catalog last percussion label matches expected factory snapshot") && ok;
+
+    ok = checkPass(catalog.getSectionPresetLabel("strings", 0) == expectedStringFirstLabel,
+                   "runtime-source catalog first string label matches expected factory snapshot") && ok;
+    ok = checkPass(catalog.getSectionPresetLabel("strings", expectedFactoryStringPresetCount - 1) == expectedStringLastLabel,
+                   "runtime-source catalog last string label matches expected factory snapshot") && ok;
+
+    ok = checkPass(catalog.getCombiPresetLabel(0) == expectedCombiFirstLabel,
+                   "runtime-source catalog first combi label matches expected factory snapshot") && ok;
+    ok = checkPass(catalog.getCombiPresetLabel(expectedFactoryCombiPresetCount - 1) == expectedCombiLastLabel,
+                   "runtime-source catalog last combi label matches expected factory snapshot") && ok;
 
     return ok;
 }
@@ -115,6 +160,11 @@ bool verifyFallbackCatalog()
     ok = checkPass(catalog.getDiagnosticMessage().isNotEmpty(), "fallback catalog diagnostic is non-empty") && ok;
     ok = verifyExpectedFactoryShape(catalog, "fallback catalog") && ok;
     ok = verifySafeLabelAccess(catalog, "fallback catalog") && ok;
+
+    ok = checkPass(catalog.getSectionPresetLabel("woodwinds", 0) != expectedWoodwindFirstLabel,
+                   "fallback catalog does not claim real factory woodwind labels") && ok;
+    ok = checkPass(catalog.getCombiPresetLabel(0) != expectedCombiFirstLabel,
+                   "fallback catalog does not claim real factory combi labels") && ok;
 
     return ok;
 }
@@ -136,10 +186,15 @@ bool verifyRuntimeSourceCatalog()
     ok = checkPass(! source.requiresHardcodedFallback(), "runtime source does not require fallback in ON catalog check build") && ok;
     ok = checkPass(! catalog.requiresFallback(), "runtime-source catalog does not require fallback in ON catalog check build") && ok;
     ok = verifyRuntimeSourceLabelsMirrorSource(source, catalog) && ok;
+    ok = verifyRuntimeSourceLabelsMatchExpectedFactorySnapshot(catalog) && ok;
 #else
     ok = checkPass(! source.wasLoaded(), "runtime source not loaded in OFF catalog check build") && ok;
     ok = checkPass(source.requiresHardcodedFallback(), "runtime source requires fallback in OFF catalog check build") && ok;
     ok = checkPass(catalog.requiresFallback(), "runtime-source catalog requires fallback in OFF catalog check build") && ok;
+    ok = checkPass(catalog.getSectionPresetLabel("woodwinds", 0) != expectedWoodwindFirstLabel,
+                   "OFF runtime-source catalog does not claim real factory woodwind labels") && ok;
+    ok = checkPass(catalog.getCombiPresetLabel(0) != expectedCombiFirstLabel,
+                   "OFF runtime-source catalog does not claim real factory combi labels") && ok;
 #endif
 
     return ok;
@@ -149,7 +204,7 @@ bool verifyRuntimeSourceCatalog()
 
 int main()
 {
-    std::cout << "OrchConductor runtime preset catalog label access trial check" << std::endl;
+    std::cout << "OrchConductor runtime preset catalog label parity verification check" << std::endl;
     std::cout << "------------------------------------------------------------" << std::endl;
 
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
@@ -164,17 +219,17 @@ int main()
     ok = verifyRuntimeSourceCatalog() && ok;
 
     if (! ok)
-        return fail("Runtime preset catalog label access trial verification failed.");
+        return fail("Runtime preset catalog label parity verification failed.");
 
     std::cout << "------------------------------------------------------------" << std::endl;
 
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
-    std::cout << "[PASS] Runtime preset catalog label access trial completed successfully with runtime JSON ON." << std::endl;
+    std::cout << "[PASS] Runtime preset catalog label parity verification completed successfully with runtime JSON ON." << std::endl;
 #else
-    std::cout << "[PASS] Runtime preset catalog label access trial completed successfully with runtime JSON OFF." << std::endl;
+    std::cout << "[PASS] Runtime preset catalog label parity verification completed successfully with runtime JSON OFF." << std::endl;
 #endif
 
-    std::cout << "[PASS] Catalog label access remains non-authoritative." << std::endl;
+    std::cout << "[PASS] Catalog label parity remains non-authoritative." << std::endl;
 
     return 0;
 }
