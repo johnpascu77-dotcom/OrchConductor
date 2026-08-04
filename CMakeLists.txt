@@ -63,6 +63,7 @@ target_compile_definitions(OrchConductor
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
         JUCE_VST3_CAN_REPLACE_VST2=0
+        JucePlugin_Name=\"OrchConductor\"
 )
 
 target_link_libraries(OrchConductor
@@ -185,4 +186,50 @@ target_compile_definitions(OrchConductorRuntimePresetSourceParityCheck
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
 )
+
+# Developer-only verification target for the processor construction-time JSON probe.
+juce_add_console_app(OrchConductorProcessorJsonProbeCheck
+    PRODUCT_NAME "OrchConductorProcessorJsonProbeCheck"
+)
+
+juce_generate_juce_header(OrchConductorProcessorJsonProbeCheck)
+
+target_sources(OrchConductorProcessorJsonProbeCheck
+    PRIVATE
+        Tools/OrchConductorProcessorJsonProbeCheck.cpp
+        Source/OrchConductorProcessor.cpp
+        Source/OrchConductorEditor.cpp
+        Source/OrchConductorPresetLibrary.cpp
+        Source/OrchConductorPresetLibraryJson.cpp
+        Source/OrchConductorEmbeddedFactoryJson.cpp
+        Source/OrchConductorRuntimePresetSource.cpp
+)
+
+target_link_libraries(OrchConductorProcessorJsonProbeCheck
+    PRIVATE
+        juce::juce_audio_processors
+        juce::juce_audio_utils
+        juce::juce_gui_extra
+        OrchConductorFactoryJsonData
+
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)
+
+target_include_directories(OrchConductorProcessorJsonProbeCheck
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Tools
+)
+
+target_compile_definitions(OrchConductorProcessorJsonProbeCheck
+    PRIVATE
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0
+        JUCE_VST3_CAN_REPLACE_VST2=0
+        JucePlugin_Name=\"OrchConductor\"
+)
+
+
 

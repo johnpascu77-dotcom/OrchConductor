@@ -1,6 +1,7 @@
 ﻿#include "OrchConductorProcessor.h"
 #include <cmath>
 #include "OrchConductorEditor.h"
+#include "OrchConductorRuntimePresetSource.h"
 
 namespace
 {
@@ -118,6 +119,17 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
      : AudioProcessor (BusesProperties())
 #endif
 {
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+    const auto runtimeJsonPresetProbe = orchconductor::RuntimePresetSource::loadEmbeddedFactoryJsonIfEnabled();
+
+    runtimeJsonPresetProbeLoaded = runtimeJsonPresetProbe.wasLoaded();
+    runtimeJsonPresetProbeRequiresFallback = runtimeJsonPresetProbe.requiresHardcodedFallback();
+    runtimeJsonPresetProbeDiagnostic = runtimeJsonPresetProbe.diagnosticMessage;
+#else
+    runtimeJsonPresetProbeLoaded = false;
+    runtimeJsonPresetProbeRequiresFallback = true;
+    runtimeJsonPresetProbeDiagnostic = "Runtime JSON presets are disabled by ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS.";
+#endif
 }
 
 OrchConductorAudioProcessor::~OrchConductorAudioProcessor()
@@ -172,6 +184,21 @@ void OrchConductorAudioProcessor::changeProgramName (int, const juce::String&)
 {
 }
 
+
+bool OrchConductorAudioProcessor::wasRuntimeJsonPresetProbeLoaded() const
+{
+    return runtimeJsonPresetProbeLoaded;
+}
+
+bool OrchConductorAudioProcessor::doesRuntimeJsonPresetProbeRequireFallback() const
+{
+    return runtimeJsonPresetProbeRequiresFallback;
+}
+
+juce::String OrchConductorAudioProcessor::getRuntimeJsonPresetProbeDiagnostic() const
+{
+    return runtimeJsonPresetProbeDiagnostic;
+}
 
 int OrchConductorAudioProcessor::getDefaultMaxPlayersForCc (int ccNumber) const
 {
@@ -884,6 +911,7 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
+
 
 
 

@@ -144,6 +144,10 @@ public:
     int getDefaultMaxPlayersForCc (int ccNumber) const;
     int getActivePlayersForValue (int value, int maxPlayers) const;
 
+    bool wasRuntimeJsonPresetProbeLoaded() const;
+    bool doesRuntimeJsonPresetProbeRequireFallback() const;
+    juce::String getRuntimeJsonPresetProbeDiagnostic() const;
+
 private:
     static constexpr int minCombiPresetId = 0;
     static constexpr int maxCombiPresetId = static_cast<int> (CombiPreset::soloEnglishHornLament);
@@ -169,6 +173,10 @@ private:
     bool sendAllOffRequested { false };
     bool sendOnPresetChange { false };
 
+    bool runtimeJsonPresetProbeLoaded { false };
+    bool runtimeJsonPresetProbeRequiresFallback { true };
+    juce::String runtimeJsonPresetProbeDiagnostic { "Runtime JSON presets are disabled by ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS." };
+
     int getPresetValueForIndex (int index) const;
     int getWoodwindsPresetValueForIndex (int index) const;
     int getBrassPresetValueForIndex (int index) const;
@@ -177,6 +185,8 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };
+
+
 
 
 
