@@ -35,6 +35,8 @@ target_sources(OrchConductor
     PRIVATE
         Source/OrchConductorProcessor.cpp
         Source/OrchConductorEditor.cpp
+        Source/OrchConductorPresetLibrary.cpp
+        Source/OrchConductorPresetLibrary.h
 )
 
 target_compile_definitions(OrchConductor
