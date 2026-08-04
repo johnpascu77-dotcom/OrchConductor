@@ -1,9 +1,40 @@
 ﻿#include "OrchConductorProcessor.h"
+#include <cmath>
 #include "OrchConductorEditor.h"
 
 namespace
 {
-    constexpr int numRows = 5;
+    
+    OrchConductorAudioProcessor::OutputRow makeOutputRow (const juce::String& instrumentName, int ccNumber, int value)
+    {
+        auto getMaxPlayers = [] (int cc) -> int
+        {
+            // Phase 2B default ensemble profile:
+            // Winds, brass, percussion, and harp are single chairs.
+            // Strings use compact default section sizes.
+            switch (cc)
+            {
+                case 50: return 8; // Violin I
+                case 51: return 6; // Violin II
+                case 52: return 4; // Viola
+                case 53: return 4; // Cello
+                case 54: return 2; // Double Bass
+                default: return 1;
+            }
+        };
+
+        const int maxPlayers = getMaxPlayers (ccNumber);
+
+        int activePlayers = 0;
+        if (value > 0 && maxPlayers > 0)
+        {
+            const auto scaled = static_cast<int> (std::round ((static_cast<double> (value) / 127.0) * static_cast<double> (maxPlayers)));
+            activePlayers = juce::jlimit (1, maxPlayers, scaled);
+        }
+
+        return { instrumentName, ccNumber, value, activePlayers, maxPlayers };
+    }
+constexpr int numRows = 5;
 
     const char* instrumentNames[numRows] =
     {
@@ -141,6 +172,49 @@ void OrchConductorAudioProcessor::changeProgramName (int, const juce::String&)
 {
 }
 
+
+int OrchConductorAudioProcessor::getDefaultMaxPlayersForCc (int ccNumber) const
+{
+    switch (ccNumber)
+    {
+        case 50: return 8; // Violin I
+        case 51: return 6; // Violin II
+        case 52: return 4; // Viola
+        case 53: return 4; // Cello
+        case 54: return 2; // Double Bass
+        default: return 1;
+    }
+}
+
+int OrchConductorAudioProcessor::getActivePlayersForValue (int value, int maxPlayers) const
+{
+    if (value <= 0 || maxPlayers <= 0)
+        return 0;
+
+    const auto scaled = static_cast<int> (std::round ((static_cast<double> (value) / 127.0) * static_cast<double> (maxPlayers)));
+    return juce::jlimit (1, maxPlayers, scaled);
+}
+
+int OrchConductorAudioProcessor::getTotalActivePlayers() const
+{
+    int total = 0;
+
+    for (int i = 0; i < getNumWoodwindsOutputRows(); ++i)
+        total += getWoodwindsOutputRow (i).activePlayers;
+
+    for (int i = 0; i < getNumBrassOutputRows(); ++i)
+        total += getBrassOutputRow (i).activePlayers;
+
+    for (int i = 0; i < getNumPercussionOutputRows(); ++i)
+        total += getPercussionOutputRow (i).activePlayers;
+
+    // Harp is reserved at CC49 and currently always inactive in the UI layer.
+
+    for (int i = 0; i < getNumOutputRows(); ++i)
+        total += getOutputRow (i).activePlayers;
+
+    return total;
+}
 void OrchConductorAudioProcessor::prepareToPlay (double, int)
 {
 }
@@ -472,14 +546,14 @@ int OrchConductorAudioProcessor::getNumOutputRows()
 OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getOutputRow (int index) const
 {
     if (index < 0 || index >= numRows)
-        return { "Invalid", 0, 0 };
+        return makeOutputRow ("Invalid", 0, 0);
 
-    return
-    {
-        instrumentNames[index],
-        ccNumbers[index],
-        getPresetValueForIndex (index)
-    };
+    const int cc = ccNumbers[index];
+    const int value = isCombiModeActive()
+        ? getCombiPresetValueForCc (cc)
+        : getPresetValueForIndex (index);
+
+    return makeOutputRow (instrumentNames[index], cc, value);
 }
 
 int OrchConductorAudioProcessor::getNumWoodwindsOutputRows()
@@ -490,14 +564,14 @@ int OrchConductorAudioProcessor::getNumWoodwindsOutputRows()
 OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getWoodwindsOutputRow (int index) const
 {
     if (index < 0 || index >= numWoodwindsRows)
-        return { "Invalid", 0, 0 };
+        return makeOutputRow ("Invalid", 0, 0);
 
-    return
-    {
-        woodwindsInstrumentNames[index],
-        woodwindsCcNumbers[index],
-        getWoodwindsPresetValueForIndex (index)
-    };
+    const int cc = woodwindsCcNumbers[index];
+    const int value = isCombiModeActive()
+        ? getCombiPresetValueForCc (cc)
+        : getWoodwindsPresetValueForIndex (index);
+
+    return makeOutputRow (woodwindsInstrumentNames[index], cc, value);
 }
 
 int OrchConductorAudioProcessor::getNumBrassOutputRows()
@@ -508,14 +582,14 @@ int OrchConductorAudioProcessor::getNumBrassOutputRows()
 OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getBrassOutputRow (int index) const
 {
     if (index < 0 || index >= numBrassRows)
-        return { "Invalid", 0, 0 };
+        return makeOutputRow ("Invalid", 0, 0);
 
-    return
-    {
-        brassInstrumentNames[index],
-        brassCcNumbers[index],
-        getBrassPresetValueForIndex (index)
-    };
+    const int cc = brassCcNumbers[index];
+    const int value = isCombiModeActive()
+        ? getCombiPresetValueForCc (cc)
+        : getBrassPresetValueForIndex (index);
+
+    return makeOutputRow (brassInstrumentNames[index], cc, value);
 }
 
 int OrchConductorAudioProcessor::getNumPercussionOutputRows()
@@ -526,14 +600,14 @@ int OrchConductorAudioProcessor::getNumPercussionOutputRows()
 OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getPercussionOutputRow (int index) const
 {
     if (index < 0 || index >= numPercussionRows)
-        return { "Invalid", 0, 0 };
+        return makeOutputRow ("Invalid", 0, 0);
 
-    return
-    {
-        percussionInstrumentNames[index],
-        percussionCcNumbers[index],
-        getPercussionPresetValueForIndex (index)
-    };
+    const int cc = percussionCcNumbers[index];
+    const int value = isCombiModeActive()
+        ? getCombiPresetValueForCc (cc)
+        : getPercussionPresetValueForIndex (index);
+
+    return makeOutputRow (percussionInstrumentNames[index], cc, value);
 }
 
 int OrchConductorAudioProcessor::getPresetValueForIndex (int index) const

@@ -103,6 +103,8 @@ public:
         juce::String instrumentName;
         int ccNumber;
         int value;
+        int activePlayers;
+        int maxPlayers;
     };
 
     int getCombiPresetId() const;
@@ -129,6 +131,7 @@ public:
 
     static int getNumOutputRows();
     OutputRow getOutputRow (int index) const;
+    int getTotalActivePlayers() const;
 
     static int getNumWoodwindsOutputRows();
     OutputRow getWoodwindsOutputRow (int index) const;
@@ -138,6 +141,8 @@ public:
 
     static int getNumPercussionOutputRows();
     OutputRow getPercussionOutputRow (int index) const;
+    int getDefaultMaxPlayersForCc (int ccNumber) const;
+    int getActivePlayersForValue (int value, int maxPlayers) const;
 
 private:
     static constexpr int minCombiPresetId = 0;

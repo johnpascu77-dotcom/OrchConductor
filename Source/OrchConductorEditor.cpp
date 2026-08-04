@@ -159,7 +159,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 2A", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 2B", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -322,7 +322,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     styleLabel (woodwindsPanelLabel, juce::Colour::fromRGB (245, 245, 245), 14.0f, juce::Font::bold);
     // Permanent Woodwinds table hidden; map is available via Show MIDI Map.
 
-    woodwindsTableHeaderLabel.setText ("Instrument                 CC      Value", juce::dontSendNotification);
+    woodwindsTableHeaderLabel.setText ("Instrument                 CC      Value   Players", juce::dontSendNotification);
     woodwindsTableHeaderLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (120, 210, 250));
     woodwindsTableHeaderLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 11.0f, juce::Font::bold));
     // Hidden in main UI.
@@ -337,7 +337,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     styleLabel (brassPanelLabel, juce::Colour::fromRGB (245, 245, 245), 14.0f, juce::Font::bold);
     // Permanent Brass table hidden; map is available via Show MIDI Map.
 
-    brassTableHeaderLabel.setText ("Instrument                 CC      Value", juce::dontSendNotification);
+    brassTableHeaderLabel.setText ("Instrument                 CC      Value   Players", juce::dontSendNotification);
     brassTableHeaderLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (120, 210, 250));
     brassTableHeaderLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 11.0f, juce::Font::bold));
     // Hidden in main UI.
@@ -352,7 +352,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     styleLabel (percussionPanelLabel, juce::Colour::fromRGB (245, 245, 245), 14.0f, juce::Font::bold);
     // Permanent Percussion table hidden; map is available via Show MIDI Map.
 
-    percussionTableHeaderLabel.setText ("Instrument                 CC      Value", juce::dontSendNotification);
+    percussionTableHeaderLabel.setText ("Instrument                 CC      Value   Players", juce::dontSendNotification);
     percussionTableHeaderLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (120, 210, 250));
     percussionTableHeaderLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 11.0f, juce::Font::bold));
     // Hidden in main UI.
@@ -367,7 +367,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     styleLabel (stringsPanelLabel, juce::Colour::fromRGB (245, 245, 245), 14.0f, juce::Font::bold);
     // Permanent Strings table hidden; map is available via Show MIDI Map.
 
-    tableHeaderLabel.setText ("Instrument                 CC      Value", juce::dontSendNotification);
+    tableHeaderLabel.setText ("Instrument                 CC      Value   Players", juce::dontSendNotification);
     tableHeaderLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (120, 210, 250));
     tableHeaderLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 11.0f, juce::Font::bold));
     // Hidden in main UI.
@@ -378,7 +378,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     // Hidden in main UI.
 
     ccMapLabel.setText (
-        "Phase 2A: Full-score CC20-CC54 | Built-in Combi Presets | CC49 reserved for Harp",
+        "Phase 2B: Full-score CC20-CC54 | Combi Presets | Active Players | CC49 reserved for Harp",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -426,7 +426,7 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colour::fromRGB (120, 140, 155));
     g.setFont (juce::FontOptions (13.0f, juce::Font::plain));
-    g.drawText ("Phase 2A: Built-in orchestral combi presets active | Future: active players / JSON library / travel modes",
+    g.drawText ("Phase 2B: Active player metadata enabled | Future: JSON library / travel modes",
                 futureArea.toNearestInt().reduced (16, 8),
                 juce::Justification::centred);
 }
@@ -524,12 +524,14 @@ void OrchConductorAudioProcessorEditor::timerCallback()
 void OrchConductorAudioProcessorEditor::updateStatus()
 {
     const juce::String autoSendText = audioProcessor.getSendOnPresetChange() ? " | Auto-send: On" : " | Auto-send: Off";
+    const juce::String activePlayersText = " | Active players: " + juce::String (audioProcessor.getTotalActivePlayers());
 
     if (audioProcessor.isCombiModeActive())
     {
         statusLabel.setText (
             "Combi active: " + audioProcessor.getCombiPresetName()
-            + " | Full-score MIDI gates active | Harp reserved"
+            + activePlayersText
+            + " | Harp reserved"
             + autoSendText,
             juce::dontSendNotification);
 
@@ -538,7 +540,8 @@ void OrchConductorAudioProcessorEditor::updateStatus()
 
     statusLabel.setText (
         "Manual Sections | Strings: " + audioProcessor.getPresetName()
-        + " | Full-score MIDI gates active | Harp reserved"
+        + activePlayersText
+        + " | Harp reserved"
         + autoSendText,
         juce::dontSendNotification);
 }
@@ -553,7 +556,8 @@ void OrchConductorAudioProcessorEditor::updateOutputTable()
 
         rows << row.instrumentName.paddedRight (' ', 24)
              << juce::String (row.ccNumber).paddedRight (' ', 8)
-             << juce::String (row.value)
+             << juce::String (row.value).paddedRight (' ', 8)
+             << juce::String (row.activePlayers) << "/" << juce::String (row.maxPlayers)
              << "\n";
     }
 
@@ -570,7 +574,8 @@ void OrchConductorAudioProcessorEditor::updateWoodwindsOutputTable()
 
         rows << row.instrumentName.paddedRight (' ', 24)
              << juce::String (row.ccNumber).paddedRight (' ', 8)
-             << juce::String (row.value)
+             << juce::String (row.value).paddedRight (' ', 8)
+             << juce::String (row.activePlayers) << "/" << juce::String (row.maxPlayers)
              << "\n";
     }
 
@@ -591,7 +596,10 @@ juce::String OrchConductorAudioProcessorEditor::buildMidiMapText() const
     {
         const auto row = audioProcessor.getWoodwindsOutputRow (i);
         text << "CC" << juce::String (row.ccNumber).paddedRight (' ', 4)
-             << " " << row.instrumentName << "\n";
+             << " " << row.instrumentName
+             << " | Value " << juce::String (row.value)
+             << " | Players " << juce::String (row.activePlayers) << "/" << juce::String (row.maxPlayers)
+             << "\n";
     }
 
     text << "\nBrass\n";
@@ -599,7 +607,10 @@ juce::String OrchConductorAudioProcessorEditor::buildMidiMapText() const
     {
         const auto row = audioProcessor.getBrassOutputRow (i);
         text << "CC" << juce::String (row.ccNumber).paddedRight (' ', 4)
-             << " " << row.instrumentName << "\n";
+             << " " << row.instrumentName
+             << " | Value " << juce::String (row.value)
+             << " | Players " << juce::String (row.activePlayers) << "/" << juce::String (row.maxPlayers)
+             << "\n";
     }
 
     text << "\nMelodic Percussion\n";
@@ -607,7 +618,10 @@ juce::String OrchConductorAudioProcessorEditor::buildMidiMapText() const
     {
         const auto row = audioProcessor.getPercussionOutputRow (i);
         text << "CC" << juce::String (row.ccNumber).paddedRight (' ', 4)
-             << " " << row.instrumentName << "\n";
+             << " " << row.instrumentName
+             << " | Value " << juce::String (row.value)
+             << " | Players " << juce::String (row.activePlayers) << "/" << juce::String (row.maxPlayers)
+             << "\n";
     }
 
     text << "\nReserved\n";
@@ -618,7 +632,10 @@ juce::String OrchConductorAudioProcessorEditor::buildMidiMapText() const
     {
         const auto row = audioProcessor.getOutputRow (i);
         text << "CC" << juce::String (row.ccNumber).paddedRight (' ', 4)
-             << " " << row.instrumentName << "\n";
+             << " " << row.instrumentName
+             << " | Value " << juce::String (row.value)
+             << " | Players " << juce::String (row.activePlayers) << "/" << juce::String (row.maxPlayers)
+             << "\n";
     }
 
     text << "\nUse these CC numbers as the assigned CC Gate values in each OrchGate instance.";
@@ -645,7 +662,8 @@ void OrchConductorAudioProcessorEditor::updateBrassOutputTable()
 
         rows << row.instrumentName.paddedRight (' ', 24)
              << juce::String (row.ccNumber).paddedRight (' ', 8)
-             << juce::String (row.value)
+             << juce::String (row.value).paddedRight (' ', 8)
+             << juce::String (row.activePlayers) << "/" << juce::String (row.maxPlayers)
              << "\n";
     }
 
@@ -662,7 +680,8 @@ void OrchConductorAudioProcessorEditor::updatePercussionOutputTable()
 
         rows << row.instrumentName.paddedRight (' ', 24)
              << juce::String (row.ccNumber).paddedRight (' ', 8)
-             << juce::String (row.value)
+             << juce::String (row.value).paddedRight (' ', 8)
+             << juce::String (row.activePlayers) << "/" << juce::String (row.maxPlayers)
              << "\n";
     }
 
