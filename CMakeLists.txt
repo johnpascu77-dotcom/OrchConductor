@@ -107,5 +107,28 @@ target_compile_definitions(OrchConductorPresetLibraryCheck
         JUCE_USE_CURL=0
 )
 
+# Developer-only verification target for the embedded factory JSON accessor.
+add_executable(OrchConductorEmbeddedFactoryJsonCheck
+    Tools/OrchConductorEmbeddedFactoryJsonCheck.cpp
+    Source/OrchConductorPresetLibrary.cpp
+    Source/OrchConductorPresetLibraryJson.cpp
+    Source/OrchConductorEmbeddedFactoryJson.cpp
+)
 
+target_link_libraries(OrchConductorEmbeddedFactoryJsonCheck
+    PRIVATE
+        juce::juce_core
+        OrchConductorFactoryJsonData
+)
+
+target_include_directories(OrchConductorEmbeddedFactoryJsonCheck
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Tools
+)
+
+target_compile_definitions(OrchConductorEmbeddedFactoryJsonCheck
+    PRIVATE
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0
+)
 
