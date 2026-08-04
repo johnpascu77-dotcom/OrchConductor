@@ -1,0 +1,132 @@
+﻿{
+  "schema": "orchconductor.library",
+  "schemaVersion": 1,
+  "libraryName": "OrchConductor Factory Library",
+  "libraryVersion": "1.0.0",
+  "pluginTarget": "OrchConductor",
+  "phase": "3A-design-example",
+  "notes": [
+    "This file is an example only. OrchConductor does not parse it at runtime in Phase 3A.",
+    "CC49 is reserved for Harp and should remain inactive.",
+    "Active player metadata is display-only and must not alter MIDI output."
+  ],
+  "midi": {
+    "channel": 1,
+    "ccRange": {
+      "min": 20,
+      "max": 54
+    },
+    "reservedControllers": [
+      {
+        "cc": 49,
+        "name": "Harp",
+        "status": "reserved",
+        "defaultValue": 0
+      }
+    ]
+  },
+  "instruments": [
+    { "id": "woodwinds.piccolo", "name": "Piccolo", "section": "woodwinds", "cc": 20, "reserved": false },
+    { "id": "woodwinds.flute_1", "name": "Flute 1", "section": "woodwinds", "cc": 21, "reserved": false },
+    { "id": "woodwinds.flute_2", "name": "Flute 2", "section": "woodwinds", "cc": 22, "reserved": false },
+    { "id": "woodwinds.oboe_1", "name": "Oboe 1", "section": "woodwinds", "cc": 23, "reserved": false },
+    { "id": "woodwinds.oboe_2", "name": "Oboe 2", "section": "woodwinds", "cc": 24, "reserved": false },
+    { "id": "woodwinds.english_horn", "name": "English Horn", "section": "woodwinds", "cc": 25, "reserved": false },
+    { "id": "woodwinds.clarinet_1", "name": "Clarinet 1", "section": "woodwinds", "cc": 26, "reserved": false },
+    { "id": "woodwinds.clarinet_2", "name": "Clarinet 2", "section": "woodwinds", "cc": 27, "reserved": false },
+    { "id": "woodwinds.bass_clarinet", "name": "Bass Clarinet", "section": "woodwinds", "cc": 28, "reserved": false },
+    { "id": "woodwinds.bassoon_1", "name": "Bassoon 1", "section": "woodwinds", "cc": 29, "reserved": false },
+    { "id": "woodwinds.bassoon_2", "name": "Bassoon 2", "section": "woodwinds", "cc": 30, "reserved": false },
+    { "id": "woodwinds.contrabassoon", "name": "Contrabassoon", "section": "woodwinds", "cc": 31, "reserved": false },
+
+    { "id": "brass.horn_1", "name": "Horn 1", "section": "brass", "cc": 32, "reserved": false },
+    { "id": "brass.horn_2", "name": "Horn 2", "section": "brass", "cc": 33, "reserved": false },
+    { "id": "brass.horn_3", "name": "Horn 3", "section": "brass", "cc": 34, "reserved": false },
+    { "id": "brass.horn_4", "name": "Horn 4", "section": "brass", "cc": 35, "reserved": false },
+    { "id": "brass.trumpet_1", "name": "Trumpet 1", "section": "brass", "cc": 36, "reserved": false },
+    { "id": "brass.trumpet_2", "name": "Trumpet 2", "section": "brass", "cc": 37, "reserved": false },
+    { "id": "brass.trumpet_3", "name": "Trumpet 3", "section": "brass", "cc": 38, "reserved": false },
+    { "id": "brass.trombone_1", "name": "Trombone 1", "section": "brass", "cc": 39, "reserved": false },
+    { "id": "brass.trombone_2", "name": "Trombone 2", "section": "brass", "cc": 40, "reserved": false },
+    { "id": "brass.bass_trombone", "name": "Bass Trombone", "section": "brass", "cc": 41, "reserved": false },
+    { "id": "brass.tuba", "name": "Tuba", "section": "brass", "cc": 42, "reserved": false },
+
+    { "id": "percussion.timpani", "name": "Timpani", "section": "percussion", "cc": 43, "reserved": false },
+    { "id": "percussion.glockenspiel", "name": "Glockenspiel", "section": "percussion", "cc": 44, "reserved": false },
+    { "id": "percussion.xylophone", "name": "Xylophone", "section": "percussion", "cc": 45, "reserved": false },
+    { "id": "percussion.marimba", "name": "Marimba", "section": "percussion", "cc": 46, "reserved": false },
+    { "id": "percussion.vibraphone", "name": "Vibraphone", "section": "percussion", "cc": 47, "reserved": false },
+    { "id": "percussion.tubular_bells", "name": "Tubular Bells", "section": "percussion", "cc": 48, "reserved": false },
+
+    { "id": "reserved.harp", "name": "Harp", "section": "reserved", "cc": 49, "reserved": true },
+
+    { "id": "strings.violin_i", "name": "Violin I", "section": "strings", "cc": 50, "reserved": false },
+    { "id": "strings.violin_ii", "name": "Violin II", "section": "strings", "cc": 51, "reserved": false },
+    { "id": "strings.viola", "name": "Viola", "section": "strings", "cc": 52, "reserved": false },
+    { "id": "strings.cello", "name": "Cello", "section": "strings", "cc": 53, "reserved": false },
+    { "id": "strings.double_bass", "name": "Double Bass", "section": "strings", "cc": 54, "reserved": false }
+  ],
+  "playerProfile": {
+    "defaultMaxPlayers": 1,
+    "reservedMaxPlayers": 0,
+    "overrides": [
+      { "cc": 50, "maxPlayers": 8 },
+      { "cc": 51, "maxPlayers": 6 },
+      { "cc": 52, "maxPlayers": 4 },
+      { "cc": 53, "maxPlayers": 4 },
+      { "cc": 54, "maxPlayers": 2 }
+    ]
+  },
+  "sectionPresets": {
+    "woodwinds": [
+      { "id": "woodwinds.all_off", "name": "All Off", "section": "woodwinds", "factoryId": 0, "values": [] },
+      { "id": "woodwinds.piccolo_only", "name": "Piccolo Only", "section": "woodwinds", "factoryId": 1, "values": [{ "cc": 20, "value": 127 }] },
+      { "id": "woodwinds.flutes", "name": "Flutes", "section": "woodwinds", "factoryId": 2, "values": [{ "cc": 21, "value": 127 }, { "cc": 22, "value": 127 }] },
+      { "id": "woodwinds.oboes", "name": "Oboes", "section": "woodwinds", "factoryId": 5, "values": [{ "cc": 23, "value": 127 }, { "cc": 24, "value": 127 }] },
+      { "id": "woodwinds.clarinets", "name": "Clarinets", "section": "woodwinds", "factoryId": 9, "values": [{ "cc": 26, "value": 127 }, { "cc": 27, "value": 127 }] },
+      { "id": "woodwinds.bassoons", "name": "Bassoons", "section": "woodwinds", "factoryId": 13, "values": [{ "cc": 29, "value": 127 }, { "cc": 30, "value": 127 }] },
+      { "id": "woodwinds.high_woodwinds", "name": "High Woodwinds", "section": "woodwinds", "factoryId": 17, "values": [{ "cc": 20, "value": 127 }, { "cc": 21, "value": 127 }, { "cc": 22, "value": 127 }, { "cc": 23, "value": 127 }, { "cc": 24, "value": 127 }, { "cc": 25, "value": 127 }, { "cc": 26, "value": 127 }, { "cc": 27, "value": 127 }] },
+      { "id": "woodwinds.low_woodwinds", "name": "Low Woodwinds", "section": "woodwinds", "factoryId": 18, "values": [{ "cc": 28, "value": 127 }, { "cc": 29, "value": 127 }, { "cc": 30, "value": 127 }, { "cc": 31, "value": 127 }] },
+      { "id": "woodwinds.full_woodwinds", "name": "Full Woodwinds", "section": "woodwinds", "factoryId": 19, "values": [{ "cc": 20, "value": 127 }, { "cc": 21, "value": 127 }, { "cc": 22, "value": 127 }, { "cc": 23, "value": 127 }, { "cc": 24, "value": 127 }, { "cc": 25, "value": 127 }, { "cc": 26, "value": 127 }, { "cc": 27, "value": 127 }, { "cc": 28, "value": 127 }, { "cc": 29, "value": 127 }, { "cc": 30, "value": 127 }, { "cc": 31, "value": 127 }] }
+    ],
+    "brass": [
+      { "id": "brass.all_off", "name": "All Off", "section": "brass", "factoryId": 0, "values": [] },
+      { "id": "brass.horns", "name": "Horns", "section": "brass", "factoryId": 1, "values": [{ "cc": 32, "value": 127 }, { "cc": 33, "value": 127 }, { "cc": 34, "value": 127 }, { "cc": 35, "value": 127 }] },
+      { "id": "brass.trumpets", "name": "Trumpets", "section": "brass", "factoryId": 6, "values": [{ "cc": 36, "value": 127 }, { "cc": 37, "value": 127 }, { "cc": 38, "value": 127 }] },
+      { "id": "brass.trombones", "name": "Trombones", "section": "brass", "factoryId": 10, "values": [{ "cc": 39, "value": 127 }, { "cc": 40, "value": 127 }] },
+      { "id": "brass.low_brass", "name": "Low Brass", "section": "brass", "factoryId": 15, "values": [{ "cc": 39, "value": 127 }, { "cc": 40, "value": 127 }, { "cc": 41, "value": 127 }, { "cc": 42, "value": 127 }] },
+      { "id": "brass.full_brass", "name": "Full Brass", "section": "brass", "factoryId": 16, "values": [{ "cc": 32, "value": 127 }, { "cc": 33, "value": 127 }, { "cc": 34, "value": 127 }, { "cc": 35, "value": 127 }, { "cc": 36, "value": 127 }, { "cc": 37, "value": 127 }, { "cc": 38, "value": 127 }, { "cc": 39, "value": 127 }, { "cc": 40, "value": 127 }, { "cc": 41, "value": 127 }, { "cc": 42, "value": 127 }] }
+    ],
+    "percussion": [
+      { "id": "percussion.all_off", "name": "All Off", "section": "percussion", "factoryId": 0, "values": [] },
+      { "id": "percussion.timpani_only", "name": "Timpani Only", "section": "percussion", "factoryId": 1, "values": [{ "cc": 43, "value": 127 }] },
+      { "id": "percussion.mallets", "name": "Mallets", "section": "percussion", "factoryId": 7, "values": [{ "cc": 44, "value": 127 }, { "cc": 45, "value": 127 }, { "cc": 46, "value": 127 }, { "cc": 47, "value": 127 }, { "cc": 48, "value": 127 }] },
+      { "id": "percussion.full_melodic_percussion", "name": "Full Melodic Percussion", "section": "percussion", "factoryId": 8, "values": [{ "cc": 43, "value": 127 }, { "cc": 44, "value": 127 }, { "cc": 45, "value": 127 }, { "cc": 46, "value": 127 }, { "cc": 47, "value": 127 }, { "cc": 48, "value": 127 }] }
+    ],
+    "strings": [
+      { "id": "strings.all_off", "name": "All Off", "section": "strings", "factoryId": 0, "values": [] },
+      { "id": "strings.violins_only", "name": "Violins Only", "section": "strings", "factoryId": 3, "values": [{ "cc": 50, "value": 127 }, { "cc": 51, "value": 127 }] },
+      { "id": "strings.upper_strings", "name": "Upper Strings", "section": "strings", "factoryId": 7, "values": [{ "cc": 50, "value": 127 }, { "cc": 51, "value": 127 }, { "cc": 52, "value": 127 }] },
+      { "id": "strings.low_strings", "name": "Low Strings", "section": "strings", "factoryId": 8, "values": [{ "cc": 52, "value": 64 }, { "cc": 53, "value": 127 }, { "cc": 54, "value": 127 }] },
+      { "id": "strings.string_quartet", "name": "String Quartet", "section": "strings", "factoryId": 9, "values": [{ "cc": 50, "value": 127 }, { "cc": 51, "value": 127 }, { "cc": 52, "value": 127 }, { "cc": 53, "value": 127 }] },
+      { "id": "strings.full_strings", "name": "Full Strings", "section": "strings", "factoryId": 12, "values": [{ "cc": 50, "value": 127 }, { "cc": 51, "value": 127 }, { "cc": 52, "value": 127 }, { "cc": 53, "value": 127 }, { "cc": 54, "value": 127 }] }
+    ]
+  },
+  "combiPresets": [
+    { "id": "manual.sections", "name": "Manual Sections", "category": "Manual", "factoryId": 0, "description": "Use independent section preset selections.", "values": [] },
+    { "id": "utility.all_off", "name": "[Utility] All Off", "category": "Utility", "factoryId": 1, "values": [] },
+    { "id": "utility.full_orchestra", "name": "[Utility] Full Orchestra", "category": "Utility", "factoryId": 2, "values": [
+      { "cc": 20, "value": 127 }, { "cc": 21, "value": 127 }, { "cc": 22, "value": 127 }, { "cc": 23, "value": 127 }, { "cc": 24, "value": 127 }, { "cc": 25, "value": 127 }, { "cc": 26, "value": 127 }, { "cc": 27, "value": 127 }, { "cc": 28, "value": 127 }, { "cc": 29, "value": 127 }, { "cc": 30, "value": 127 }, { "cc": 31, "value": 127 },
+      { "cc": 32, "value": 127 }, { "cc": 33, "value": 127 }, { "cc": 34, "value": 127 }, { "cc": 35, "value": 127 }, { "cc": 36, "value": 127 }, { "cc": 37, "value": 127 }, { "cc": 38, "value": 127 }, { "cc": 39, "value": 127 }, { "cc": 40, "value": 127 }, { "cc": 41, "value": 127 }, { "cc": 42, "value": 127 },
+      { "cc": 43, "value": 127 }, { "cc": 44, "value": 127 }, { "cc": 45, "value": 127 }, { "cc": 46, "value": 127 }, { "cc": 47, "value": 127 }, { "cc": 48, "value": 127 },
+      { "cc": 50, "value": 127 }, { "cc": 51, "value": 127 }, { "cc": 52, "value": 127 }, { "cc": 53, "value": 127 }, { "cc": 54, "value": 127 }
+    ] },
+    { "id": "utility.full_strings", "name": "[Utility] Full Strings", "category": "Utility", "factoryId": 5, "values": [{ "cc": 50, "value": 127 }, { "cc": 51, "value": 127 }, { "cc": 52, "value": 127 }, { "cc": 53, "value": 127 }, { "cc": 54, "value": 127 }] },
+    { "id": "utility.full_woodwinds", "name": "[Utility] Full Woodwinds", "category": "Utility", "factoryId": 6, "values": [{ "cc": 20, "value": 127 }, { "cc": 21, "value": 127 }, { "cc": 22, "value": 127 }, { "cc": 23, "value": 127 }, { "cc": 24, "value": 127 }, { "cc": 25, "value": 127 }, { "cc": 26, "value": 127 }, { "cc": 27, "value": 127 }, { "cc": 28, "value": 127 }, { "cc": 29, "value": 127 }, { "cc": 30, "value": 127 }, { "cc": 31, "value": 127 }] },
+    { "id": "utility.full_brass", "name": "[Utility] Full Brass", "category": "Utility", "factoryId": 7, "values": [{ "cc": 32, "value": 127 }, { "cc": 33, "value": 127 }, { "cc": 34, "value": 127 }, { "cc": 35, "value": 127 }, { "cc": 36, "value": 127 }, { "cc": 37, "value": 127 }, { "cc": 38, "value": 127 }, { "cc": 39, "value": 127 }, { "cc": 40, "value": 127 }, { "cc": 41, "value": 127 }, { "cc": 42, "value": 127 }] },
+    { "id": "romantic.warm_strings_horns", "name": "[Romantic] Warm Strings + Horns", "category": "Romantic", "factoryId": 12, "values": [{ "cc": 32, "value": 127 }, { "cc": 33, "value": 127 }, { "cc": 34, "value": 127 }, { "cc": 35, "value": 127 }, { "cc": 50, "value": 127 }, { "cc": 51, "value": 127 }, { "cc": 52, "value": 127 }, { "cc": 53, "value": 127 }, { "cc": 54, "value": 127 }] },
+    { "id": "cinematic.dark_trailer_bed", "name": "[Cinematic] Dark Trailer Bed", "category": "Cinematic", "factoryId": 18, "values": [{ "cc": 28, "value": 127 }, { "cc": 31, "value": 127 }, { "cc": 41, "value": 127 }, { "cc": 42, "value": 127 }, { "cc": 43, "value": 127 }, { "cc": 53, "value": 127 }, { "cc": 54, "value": 127 }] },
+    { "id": "herrmann.psycho_strings", "name": "[Herrmann] Psycho Strings", "category": "Herrmann", "factoryId": 22, "values": [{ "cc": 50, "value": 127 }, { "cc": 51, "value": 127 }, { "cc": 52, "value": 127 }, { "cc": 53, "value": 127 }] },
+    { "id": "solo.english_horn_lament", "name": "[Solo] English Horn Lament", "category": "Solo", "factoryId": 27, "values": [{ "cc": 25, "value": 127 }, { "cc": 52, "value": 127 }, { "cc": 53, "value": 127 }, { "cc": 54, "value": 64 }] }
+  ]
+}
