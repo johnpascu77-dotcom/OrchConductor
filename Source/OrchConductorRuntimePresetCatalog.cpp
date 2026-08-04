@@ -58,7 +58,7 @@ orchconductor::PresetLibraryDefinition createFallbackFactoryShapeLibrary()
     library.libraryName = "OrchConductor fallback factory shape";
     library.libraryVersion = "fallback-shape";
     library.pluginTarget = "OrchConductor";
-    library.phase = "Phase 4L";
+    library.phase = "Phase 4M";
 
     addFallbackSectionPresets(library.woodwindPresets, "woodwinds", expectedFactoryWoodwindPresetCount);
     addFallbackSectionPresets(library.brassPresets, "brass", expectedFactoryBrassPresetCount);
@@ -77,6 +77,25 @@ bool hasExpectedSectionPresetCounts(const orchconductor::PresetLibraryDefinition
         && static_cast<int>(library.stringPresets.size()) == expectedFactoryStringPresetCount;
 }
 
+const std::vector<orchconductor::SectionPresetDefinition>* findSectionPresets(
+    const orchconductor::PresetLibraryDefinition& library,
+    const juce::String& sectionId) noexcept
+{
+    if (sectionId == "woodwinds")
+        return &library.woodwindPresets;
+
+    if (sectionId == "brass")
+        return &library.brassPresets;
+
+    if (sectionId == "percussion")
+        return &library.percussionPresets;
+
+    if (sectionId == "strings")
+        return &library.stringPresets;
+
+    return nullptr;
+}
+
 } // namespace
 
 OrchConductorRuntimePresetCatalog OrchConductorRuntimePresetCatalog::createFallbackCatalog()
@@ -84,7 +103,7 @@ OrchConductorRuntimePresetCatalog OrchConductorRuntimePresetCatalog::createFallb
     return OrchConductorRuntimePresetCatalog(
         true,
         true,
-        "Runtime preset catalog using fallback factory-shape metadata.",
+        "Runtime preset catalog using fallback factory-shape label metadata.",
         createFallbackFactoryShapeLibrary());
 }
 
@@ -108,8 +127,8 @@ OrchConductorRuntimePresetCatalog OrchConductorRuntimePresetCatalog::createFromR
         true,
         true,
         sourceDiagnostic.isNotEmpty()
-            ? "Runtime preset catalog using fallback factory-shape metadata because runtime source is unavailable: " + sourceDiagnostic
-            : "Runtime preset catalog using fallback factory-shape metadata because runtime source is unavailable.",
+            ? "Runtime preset catalog using fallback factory-shape label metadata because runtime source is unavailable: " + sourceDiagnostic
+            : "Runtime preset catalog using fallback factory-shape label metadata because runtime source is unavailable.",
         createFallbackFactoryShapeLibrary());
 }
 
@@ -150,6 +169,14 @@ int OrchConductorRuntimePresetCatalog::getSectionCount() const noexcept
     return count;
 }
 
+int OrchConductorRuntimePresetCatalog::getSectionPresetCount(const juce::String& sectionId) const noexcept
+{
+    if (const auto* presets = findSectionPresets(library_, sectionId))
+        return static_cast<int>(presets->size());
+
+    return 0;
+}
+
 int OrchConductorRuntimePresetCatalog::getCombiPresetCount() const noexcept
 {
     return static_cast<int>(library_.combiPresets.size());
@@ -161,6 +188,38 @@ bool OrchConductorRuntimePresetCatalog::hasExpectedFactoryShape() const noexcept
         && getSectionCount() == expectedFactorySectionCount
         && hasExpectedSectionPresetCounts(library_)
         && getCombiPresetCount() == expectedFactoryCombiPresetCount;
+}
+
+juce::String OrchConductorRuntimePresetCatalog::getSectionPresetLabel(const juce::String& sectionId,
+                                                                       int presetIndex) const
+{
+    if (presetIndex < 0)
+        return {};
+
+    const auto* presets = findSectionPresets(library_, sectionId);
+
+    if (presets == nullptr)
+        return {};
+
+    const auto index = static_cast<size_t>(presetIndex);
+
+    if (index >= presets->size())
+        return {};
+
+    return (*presets)[index].name;
+}
+
+juce::String OrchConductorRuntimePresetCatalog::getCombiPresetLabel(int presetIndex) const
+{
+    if (presetIndex < 0)
+        return {};
+
+    const auto index = static_cast<size_t>(presetIndex);
+
+    if (index >= library_.combiPresets.size())
+        return {};
+
+    return library_.combiPresets[index].name;
 }
 
 OrchConductorRuntimePresetCatalog::OrchConductorRuntimePresetCatalog(

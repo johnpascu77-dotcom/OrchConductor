@@ -7,8 +7,7 @@
 
 // Read-only, non-authoritative runtime preset catalog adapter.
 //
-// Phase 4L exposes only passive factory-shape metadata.
-// It does not expose preset names.
+// Phase 4M exposes passive factory-shape metadata and label accessors.
 // It does not expose preset values.
 // It does not participate in editor population.
 // It does not participate in MIDI generation.
@@ -25,8 +24,12 @@ public:
     juce::String getDiagnosticMessage() const;
 
     int getSectionCount() const noexcept;
+    int getSectionPresetCount(const juce::String& sectionId) const noexcept;
     int getCombiPresetCount() const noexcept;
     bool hasExpectedFactoryShape() const noexcept;
+
+    juce::String getSectionPresetLabel(const juce::String& sectionId, int presetIndex) const;
+    juce::String getCombiPresetLabel(int presetIndex) const;
 
 private:
     OrchConductorRuntimePresetCatalog(bool ready,
