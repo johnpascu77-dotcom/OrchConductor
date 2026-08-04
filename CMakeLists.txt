@@ -54,6 +54,8 @@ target_sources(OrchConductor
         Source/OrchConductorPresetLibraryJson.h
         Source/OrchConductorEmbeddedFactoryJson.cpp
         Source/OrchConductorEmbeddedFactoryJson.h
+        Source/OrchConductorRuntimePresetSource.cpp
+        Source/OrchConductorRuntimePresetSource.h
 )
 
 target_compile_definitions(OrchConductor
@@ -127,6 +129,32 @@ target_include_directories(OrchConductorEmbeddedFactoryJsonCheck
 )
 
 target_compile_definitions(OrchConductorEmbeddedFactoryJsonCheck
+    PRIVATE
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0
+)
+
+# Developer-only verification target for the runtime JSON preset source boundary.
+add_executable(OrchConductorRuntimePresetSourceCheck
+    Tools/OrchConductorRuntimePresetSourceCheck.cpp
+    Source/OrchConductorPresetLibrary.cpp
+    Source/OrchConductorPresetLibraryJson.cpp
+    Source/OrchConductorEmbeddedFactoryJson.cpp
+    Source/OrchConductorRuntimePresetSource.cpp
+)
+
+target_link_libraries(OrchConductorRuntimePresetSourceCheck
+    PRIVATE
+        juce::juce_core
+        OrchConductorFactoryJsonData
+)
+
+target_include_directories(OrchConductorRuntimePresetSourceCheck
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Tools
+)
+
+target_compile_definitions(OrchConductorRuntimePresetSourceCheck
     PRIVATE
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
