@@ -1,6 +1,14 @@
 ﻿cmake_minimum_required(VERSION 3.22)
 
 project(OrchConductor VERSION 0.1.0)
+option(ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS "Enable experimental runtime JSON-backed preset infrastructure" OFF)
+
+if(ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS)
+    message(STATUS "OrchConductor runtime JSON presets: ENABLED")
+    add_compile_definitions(ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS=1)
+else()
+    message(STATUS "OrchConductor runtime JSON presets: disabled")
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -90,4 +98,5 @@ target_compile_definitions(OrchConductorPresetLibraryCheck
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
 )
+
 
