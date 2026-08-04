@@ -231,5 +231,47 @@ target_compile_definitions(OrchConductorProcessorJsonProbeCheck
         JucePlugin_Name=\"OrchConductor\"
 )
 
+# Developer-only MIDI regression verification target for the processor JSON probe.
+juce_add_console_app(OrchConductorProcessorMidiRegressionCheck
+    PRODUCT_NAME "OrchConductorProcessorMidiRegressionCheck"
+)
 
+juce_generate_juce_header(OrchConductorProcessorMidiRegressionCheck)
+
+target_sources(OrchConductorProcessorMidiRegressionCheck
+    PRIVATE
+        Tools/OrchConductorProcessorMidiRegressionCheck.cpp
+        Source/OrchConductorProcessor.cpp
+        Source/OrchConductorEditor.cpp
+        Source/OrchConductorPresetLibrary.cpp
+        Source/OrchConductorPresetLibraryJson.cpp
+        Source/OrchConductorEmbeddedFactoryJson.cpp
+        Source/OrchConductorRuntimePresetSource.cpp
+)
+
+target_link_libraries(OrchConductorProcessorMidiRegressionCheck
+    PRIVATE
+        juce::juce_audio_processors
+        juce::juce_audio_utils
+        juce::juce_gui_extra
+        OrchConductorFactoryJsonData
+
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)
+
+target_include_directories(OrchConductorProcessorMidiRegressionCheck
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Tools
+)
+
+target_compile_definitions(OrchConductorProcessorMidiRegressionCheck
+    PRIVATE
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0
+        JUCE_VST3_CAN_REPLACE_VST2=0
+        JucePlugin_Name=\"OrchConductor\"
+)
 
