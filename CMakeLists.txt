@@ -160,3 +160,29 @@ target_compile_definitions(OrchConductorRuntimePresetSourceCheck
         JUCE_USE_CURL=0
 )
 
+# Developer-only parity verification target for the runtime JSON preset source boundary.
+add_executable(OrchConductorRuntimePresetSourceParityCheck
+    Tools/OrchConductorRuntimePresetSourceParityCheck.cpp
+    Source/OrchConductorPresetLibrary.cpp
+    Source/OrchConductorPresetLibraryJson.cpp
+    Source/OrchConductorEmbeddedFactoryJson.cpp
+    Source/OrchConductorRuntimePresetSource.cpp
+)
+
+target_link_libraries(OrchConductorRuntimePresetSourceParityCheck
+    PRIVATE
+        juce::juce_core
+        OrchConductorFactoryJsonData
+)
+
+target_include_directories(OrchConductorRuntimePresetSourceParityCheck
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Tools
+)
+
+target_compile_definitions(OrchConductorRuntimePresetSourceParityCheck
+    PRIVATE
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0
+)
+
