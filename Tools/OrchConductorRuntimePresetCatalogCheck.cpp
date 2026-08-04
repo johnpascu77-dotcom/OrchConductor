@@ -8,6 +8,9 @@
 namespace
 {
 
+constexpr int expectedFactorySectionCount = 5;
+constexpr int expectedFactoryCombiPresetCount = 29;
+
 int fail(const juce::String& message)
 {
     std::cerr << "[FAIL] " << message << std::endl;
@@ -26,6 +29,20 @@ bool checkPass(bool condition, const juce::String& label)
     return true;
 }
 
+bool verifyExpectedFactoryShape(const OrchConductorRuntimePresetCatalog& catalog,
+                                const juce::String& labelPrefix)
+{
+    bool ok = true;
+
+    ok = checkPass(catalog.hasExpectedFactoryShape(), labelPrefix + " has expected factory shape") && ok;
+    ok = checkPass(catalog.getSectionCount() == expectedFactorySectionCount,
+                   labelPrefix + " section count matches hardcoded factory shape") && ok;
+    ok = checkPass(catalog.getCombiPresetCount() == expectedFactoryCombiPresetCount,
+                   labelPrefix + " combi preset count matches hardcoded factory shape") && ok;
+
+    return ok;
+}
+
 bool verifyFallbackCatalog()
 {
     const auto catalog = OrchConductorRuntimePresetCatalog::createFallbackCatalog();
@@ -35,6 +52,7 @@ bool verifyFallbackCatalog()
     ok = checkPass(catalog.isReady(), "fallback catalog is ready") && ok;
     ok = checkPass(catalog.requiresFallback(), "fallback catalog requires fallback") && ok;
     ok = checkPass(catalog.getDiagnosticMessage().isNotEmpty(), "fallback catalog diagnostic is non-empty") && ok;
+    ok = verifyExpectedFactoryShape(catalog, "fallback catalog") && ok;
 
     return ok;
 }
@@ -48,6 +66,7 @@ bool verifyRuntimeSourceCatalog()
 
     ok = checkPass(catalog.isReady(), "runtime-source catalog is ready") && ok;
     ok = checkPass(catalog.getDiagnosticMessage().isNotEmpty(), "runtime-source catalog diagnostic is non-empty") && ok;
+    ok = verifyExpectedFactoryShape(catalog, "runtime-source catalog") && ok;
 
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     ok = checkPass(source.wasLoaded(), "runtime source loaded in ON catalog check build") && ok;
@@ -66,7 +85,7 @@ bool verifyRuntimeSourceCatalog()
 
 int main()
 {
-    std::cout << "OrchConductor read-only runtime preset catalog adapter check" << std::endl;
+    std::cout << "OrchConductor runtime preset catalog adapter parity check" << std::endl;
     std::cout << "------------------------------------------------------------" << std::endl;
 
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
@@ -81,14 +100,14 @@ int main()
     ok = verifyRuntimeSourceCatalog() && ok;
 
     if (! ok)
-        return fail("Read-only runtime preset catalog adapter verification failed.");
+        return fail("Runtime preset catalog adapter parity verification failed.");
 
     std::cout << "------------------------------------------------------------" << std::endl;
 
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
-    std::cout << "[PASS] Read-only runtime preset catalog adapter verification completed successfully with runtime JSON ON." << std::endl;
+    std::cout << "[PASS] Runtime preset catalog adapter parity verification completed successfully with runtime JSON ON." << std::endl;
 #else
-    std::cout << "[PASS] Read-only runtime preset catalog adapter verification completed successfully with runtime JSON OFF." << std::endl;
+    std::cout << "[PASS] Runtime preset catalog adapter parity verification completed successfully with runtime JSON OFF." << std::endl;
 #endif
 
     std::cout << "[PASS] Catalog adapter remains non-authoritative." << std::endl;
