@@ -38,6 +38,11 @@ juce_add_plugin(OrchConductor
 )
 
 juce_generate_juce_header(OrchConductor)
+# Embedded factory JSON resource data.
+juce_add_binary_data(OrchConductorFactoryJsonData
+    SOURCES
+        Examples/orchconductor_library_v1.example.json
+)
 
 target_sources(OrchConductor
     PRIVATE
@@ -47,6 +52,8 @@ target_sources(OrchConductor
         Source/OrchConductorPresetLibrary.h
         Source/OrchConductorPresetLibraryJson.cpp
         Source/OrchConductorPresetLibraryJson.h
+        Source/OrchConductorEmbeddedFactoryJson.cpp
+        Source/OrchConductorEmbeddedFactoryJson.h
 )
 
 target_compile_definitions(OrchConductor
@@ -61,6 +68,7 @@ target_link_libraries(OrchConductor
         juce::juce_audio_processors
         juce::juce_audio_utils
         juce::juce_gui_extra
+        OrchConductorFactoryJsonData
 
     PUBLIC
         juce::juce_recommended_config_flags
@@ -98,5 +106,6 @@ target_compile_definitions(OrchConductorPresetLibraryCheck
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
 )
+
 
 
