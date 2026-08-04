@@ -1,0 +1,374 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orchconductor.local/schemas/orchconductor_library.schema.json",
+  "title": "OrchConductor Library Schema",
+  "description": "Formal JSON Schema for OrchConductor library files. Version 1 is documentation/validation oriented and matches the Phase 3A proposed library format.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaVersion",
+    "libraryName",
+    "libraryVersion",
+    "pluginTarget",
+    "midi",
+    "instruments",
+    "playerProfile",
+    "sectionPresets",
+    "combiPresets"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "orchconductor.library"
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "libraryName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "libraryVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pluginTarget": {
+      "type": "string",
+      "minLength": 1
+    },
+    "phase": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "midi": {
+      "$ref": "#/$defs/midi"
+    },
+    "instruments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/instrument"
+      }
+    },
+    "playerProfile": {
+      "$ref": "#/$defs/playerProfile"
+    },
+    "sectionPresets": {
+      "$ref": "#/$defs/sectionPresets"
+    },
+    "combiPresets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/combiPreset"
+      }
+    }
+  },
+  "$defs": {
+    "ccNumber": {
+      "type": "integer",
+      "minimum": 20,
+      "maximum": 54
+    },
+    "ccValue": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 127
+    },
+    "sectionName": {
+      "type": "string",
+      "enum": [
+        "woodwinds",
+        "brass",
+        "percussion",
+        "reserved",
+        "strings"
+      ]
+    },
+    "presetSectionName": {
+      "type": "string",
+      "enum": [
+        "woodwinds",
+        "brass",
+        "percussion",
+        "strings"
+      ]
+    },
+    "idString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+([._-][a-z0-9]+)*$"
+    },
+    "midi": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "ccRange",
+        "reservedControllers"
+      ],
+      "properties": {
+        "channel": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16,
+          "description": "Current OrchConductor behavior sends MIDI CC on channel 1."
+        },
+        "ccRange": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "min",
+            "max"
+          ],
+          "properties": {
+            "min": {
+              "type": "integer",
+              "const": 20
+            },
+            "max": {
+              "type": "integer",
+              "const": 54
+            }
+          }
+        },
+        "reservedControllers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reservedController"
+          }
+        }
+      }
+    },
+    "reservedController": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cc",
+        "name",
+        "status",
+        "defaultValue"
+      ],
+      "properties": {
+        "cc": {
+          "$ref": "#/$defs/ccNumber"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "reserved"
+          ]
+        },
+        "defaultValue": {
+          "$ref": "#/$defs/ccValue"
+        }
+      }
+    },
+    "instrument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "section",
+        "cc",
+        "reserved"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/idString"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "section": {
+          "$ref": "#/$defs/sectionName"
+        },
+        "cc": {
+          "$ref": "#/$defs/ccNumber"
+        },
+        "reserved": {
+          "type": "boolean"
+        }
+      }
+    },
+    "playerProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "defaultMaxPlayers",
+        "reservedMaxPlayers",
+        "overrides"
+      ],
+      "properties": {
+        "defaultMaxPlayers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reservedMaxPlayers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "overrides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/playerOverride"
+          }
+        }
+      }
+    },
+    "playerOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cc",
+        "maxPlayers"
+      ],
+      "properties": {
+        "cc": {
+          "$ref": "#/$defs/ccNumber"
+        },
+        "maxPlayers": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "sectionPresets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "woodwinds",
+        "brass",
+        "percussion",
+        "strings"
+      ],
+      "properties": {
+        "woodwinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sectionPreset"
+          }
+        },
+        "brass": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sectionPreset"
+          }
+        },
+        "percussion": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sectionPreset"
+          }
+        },
+        "strings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sectionPreset"
+          }
+        }
+      }
+    },
+    "sectionPreset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "section",
+        "factoryId",
+        "values"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/idString"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "section": {
+          "$ref": "#/$defs/presetSectionName"
+        },
+        "factoryId": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "description": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/presetValue"
+          }
+        }
+      }
+    },
+    "combiPreset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "category",
+        "factoryId",
+        "values"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/idString"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1
+        },
+        "factoryId": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "description": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/presetValue"
+          }
+        }
+      }
+    },
+    "presetValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cc",
+        "value"
+      ],
+      "properties": {
+        "cc": {
+          "$ref": "#/$defs/ccNumber"
+        },
+        "value": {
+          "$ref": "#/$defs/ccValue"
+        }
+      }
+    }
+  }
+}
