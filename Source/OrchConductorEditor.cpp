@@ -1,4 +1,4 @@
-#include "OrchConductorEditor.h"
+﻿#include "OrchConductorEditor.h"
 
 namespace
 {
@@ -17,24 +17,97 @@ namespace
         box.setEnabled (enabled);
     }
 
+    void addCombiPresetItems (juce::ComboBox& box)
+    {
+        box.addItem ("Manual Sections", 1);
+
+        box.addItem ("[Utility] All Off", 2);
+        box.addItem ("[Utility] Full Orchestra", 3);
+        box.addItem ("[Utility] Full Orchestra No Percussion", 4);
+        box.addItem ("[Utility] Chamber Orchestra", 5);
+        box.addItem ("[Utility] Full Strings", 6);
+        box.addItem ("[Utility] Full Woodwinds", 7);
+        box.addItem ("[Utility] Full Brass", 8);
+        box.addItem ("[Utility] Full Winds", 9);
+        box.addItem ("[Utility] High Orchestra", 10);
+        box.addItem ("[Utility] Low Orchestra", 11);
+        box.addItem ("[Utility] Middle Orchestra", 12);
+
+        box.addItem ("[Romantic] Warm Strings + Horns", 13);
+        box.addItem ("[Romantic] Oboe + Strings", 14);
+        box.addItem ("[Romantic] Flute + Violins", 15);
+        box.addItem ("[Romantic] Bassoon + Celli", 16);
+        box.addItem ("[Romantic] Horn Choir + Strings", 17);
+
+        box.addItem ("[Cinematic] Heroic Brass + Strings", 18);
+        box.addItem ("[Cinematic] Dark Trailer Bed", 19);
+        box.addItem ("[Cinematic] High Winds Shimmer", 20);
+        box.addItem ("[Cinematic] Epic Low Pulse", 21);
+
+        box.addItem ("[Herrmann] Low Reeds", 22);
+        box.addItem ("[Herrmann] Horn Knives", 23);
+        box.addItem ("[Herrmann] Psycho Strings", 24);
+        box.addItem ("[Herrmann] Suspense Winds", 25);
+
+        box.addItem ("[Modernist] Pointillist Winds", 26);
+        box.addItem ("[Modernist] Sparse Extremes", 27);
+        box.addItem ("[Shimmer] Silver Shimmer", 28);
+        box.addItem ("[Solo] English Horn Lament", 29);
+    }
     void addWoodwindsPresetItems (juce::ComboBox& box)
     {
         box.addItem ("All Off", 1);
+
         box.addItem ("Piccolo Only", 2);
+
         box.addItem ("Flutes", 3);
-        box.addItem ("Reeds", 4);
-        box.addItem ("Low Woodwinds", 5);
-        box.addItem ("Full Woodwinds", 6);
+        box.addItem ("Flute 1 Only", 4);
+        box.addItem ("Flute 2 Only", 5);
+
+        box.addItem ("Oboes", 6);
+        box.addItem ("Oboe 1 Only", 7);
+        box.addItem ("Oboe 2 Only", 8);
+        box.addItem ("English Horn Only", 9);
+
+        box.addItem ("Clarinets", 10);
+        box.addItem ("Clarinet 1 Only", 11);
+        box.addItem ("Clarinet 2 Only", 12);
+        box.addItem ("Bass Clarinet Only", 13);
+
+        box.addItem ("Bassoons", 14);
+        box.addItem ("Bassoon 1 Only", 15);
+        box.addItem ("Bassoon 2 Only", 16);
+        box.addItem ("Contrabassoon Only", 17);
+
+        box.addItem ("High Woodwinds", 18);
+        box.addItem ("Low Woodwinds", 19);
+        box.addItem ("Full Woodwinds", 20);
     }
 
     void addBrassPresetItems (juce::ComboBox& box)
     {
         box.addItem ("All Off", 1);
+
         box.addItem ("Horns", 2);
-        box.addItem ("Trumpets", 3);
-        box.addItem ("Trombones", 4);
-        box.addItem ("Low Brass", 5);
-        box.addItem ("Full Brass", 6);
+        box.addItem ("Horn 1 Only", 3);
+        box.addItem ("Horn 2 Only", 4);
+        box.addItem ("Horn 3 Only", 5);
+        box.addItem ("Horn 4 Only", 6);
+
+        box.addItem ("Trumpets", 7);
+        box.addItem ("Trumpet 1 Only", 8);
+        box.addItem ("Trumpet 2 Only", 9);
+        box.addItem ("Trumpet 3 Only", 10);
+
+        box.addItem ("Trombones", 11);
+        box.addItem ("Trombone 1 Only", 12);
+        box.addItem ("Trombone 2 Only", 13);
+        box.addItem ("Bass Trombone Only", 14);
+
+        box.addItem ("Tuba Only", 15);
+
+        box.addItem ("Low Brass", 16);
+        box.addItem ("Full Brass", 17);
     }
 
     void addPercussionPresetItems (juce::ComboBox& box)
@@ -43,8 +116,11 @@ namespace
         box.addItem ("Timpani Only", 2);
         box.addItem ("Glockenspiel Only", 3);
         box.addItem ("Xylophone Only", 4);
-        box.addItem ("Mallets", 5);
-        box.addItem ("Full Melodic Percussion", 6);
+        box.addItem ("Marimba Only", 5);
+        box.addItem ("Vibraphone Only", 6);
+        box.addItem ("Tubular Bells Only", 7);
+        box.addItem ("Mallets", 8);
+        box.addItem ("Full Melodic Percussion", 9);
     }
 
     void addStringsPresetItems (juce::ComboBox& box)
@@ -83,7 +159,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 1G", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 2A", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -93,10 +169,17 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     styleLabel (combiPresetLabel, juce::Colours::white, 14.0f, juce::Font::bold);
     addAndMakeVisible (combiPresetLabel);
 
-    combiPresetBox.addItem ("Manual Sections", 1);
+    addCombiPresetItems (combiPresetBox);
     combiPresetBox.setSelectedId (audioProcessor.getCombiPresetId() + 1, juce::dontSendNotification);
-    styleComboBox (combiPresetBox, false);
+    styleComboBox (combiPresetBox, true);
     addAndMakeVisible (combiPresetBox);
+
+    combiPresetBox.onChange = [this]
+    {
+        const int selected = combiPresetBox.getSelectedId() - 1;
+        audioProcessor.setCombiPresetId (selected);
+        updateStatus();
+    };
 
     sectionPresetsLabel.setText ("Section Presets", juce::dontSendNotification);
     sectionPresetsLabel.setJustificationType (juce::Justification::centred);
@@ -160,8 +243,11 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         const int selected = percussionPresetBox.getSelectedId() - 1;
         audioProcessor.setSectionPresetId (OrchConductorAudioProcessor::Section::percussion, selected);
         updatePercussionOutputTable();
-        updateStatus();
-    };
+    updateStatus();
+
+    // Phase 2A: keep UI synced when host restores plugin state after editor creation.
+    startTimerHz (10);
+};
 
     presetBox.onChange = [this]
     {
@@ -197,7 +283,11 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     sendButton.onClick = [this]
     {
         audioProcessor.requestSendPreset();
-        statusLabel.setText ("Requested send: " + audioProcessor.getPresetName() + " | Full-score MIDI gates active | Harp reserved", juce::dontSendNotification);
+        statusLabel.setText ("Requested send: "
+                             + (audioProcessor.isCombiModeActive() ? audioProcessor.getCombiPresetName()
+                                                                    : audioProcessor.getPresetName())
+                             + " | Full-score MIDI gates active | Harp reserved",
+                             juce::dontSendNotification);
     };
 
     allOffButton.setButtonText ("Send All Off");
@@ -288,7 +378,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     // Hidden in main UI.
 
     ccMapLabel.setText (
-        "Phase 1G MIDI Map: Full-score CC20-CC54 | CC49 reserved for Harp",
+        "Phase 2A: Full-score CC20-CC54 | Built-in Combi Presets | CC49 reserved for Harp",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -305,10 +395,14 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     updateBrassOutputTable();
     updatePercussionOutputTable();
     updateStatus();
+
+    // Phase 2A: keep UI synced when host restores plugin state after editor creation.
+    startTimerHz (10);
 }
 
 OrchConductorAudioProcessorEditor::~OrchConductorAudioProcessorEditor()
 {
+    stopTimer();
 }
 
 void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
@@ -332,7 +426,7 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colour::fromRGB (120, 140, 155));
     g.setFont (juce::FontOptions (13.0f, juce::Font::plain));
-    g.drawText ("Future area reserved for orchestral combo presets / active players / Divisimate-style controls",
+    g.drawText ("Phase 2A: Built-in orchestral combi presets active | Future: active players / JSON library / travel modes",
                 futureArea.toNearestInt().reduced (16, 8),
                 juce::Justification::centred);
 }
@@ -394,12 +488,56 @@ void OrchConductorAudioProcessorEditor::resized()
     statusLabel.setBounds (48, 510, 884, 28);
 }
 
+
+void OrchConductorAudioProcessorEditor::timerCallback()
+{
+    // Phase 2A: Bitwig may restore plugin state after the editor has already been created.
+    // Keep visible controls synced to processor state without firing onChange callbacks.
+
+    const int combiId = audioProcessor.getCombiPresetId() + 1;
+    if (combiPresetBox.getSelectedId() != combiId)
+        combiPresetBox.setSelectedId (combiId, juce::dontSendNotification);
+
+    const int woodwindsId = audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::woodwinds) + 1;
+    if (woodwindsPresetBox.getSelectedId() != woodwindsId)
+        woodwindsPresetBox.setSelectedId (woodwindsId, juce::dontSendNotification);
+
+    const int brassId = audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::brass) + 1;
+    if (brassPresetBox.getSelectedId() != brassId)
+        brassPresetBox.setSelectedId (brassId, juce::dontSendNotification);
+
+    const int percussionId = audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::percussion) + 1;
+    if (percussionPresetBox.getSelectedId() != percussionId)
+        percussionPresetBox.setSelectedId (percussionId, juce::dontSendNotification);
+
+    const int stringsId = audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::strings) + 1;
+    if (presetBox.getSelectedId() != stringsId)
+        presetBox.setSelectedId (stringsId, juce::dontSendNotification);
+
+    const bool sendOnChange = audioProcessor.getSendOnPresetChange();
+    if (sendOnChangeToggle.getToggleState() != sendOnChange)
+        sendOnChangeToggle.setToggleState (sendOnChange, juce::dontSendNotification);
+
+    updateStatus();
+}
+
 void OrchConductorAudioProcessorEditor::updateStatus()
 {
     const juce::String autoSendText = audioProcessor.getSendOnPresetChange() ? " | Auto-send: On" : " | Auto-send: Off";
 
+    if (audioProcessor.isCombiModeActive())
+    {
+        statusLabel.setText (
+            "Combi active: " + audioProcessor.getCombiPresetName()
+            + " | Full-score MIDI gates active | Harp reserved"
+            + autoSendText,
+            juce::dontSendNotification);
+
+        return;
+    }
+
     statusLabel.setText (
-        "Selected strings preset: " + audioProcessor.getPresetName()
+        "Manual Sections | Strings: " + audioProcessor.getPresetName()
         + " | Full-score MIDI gates active | Harp reserved"
         + autoSendText,
         juce::dontSendNotification);

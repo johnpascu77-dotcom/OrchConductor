@@ -1,9 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include <JuceHeader.h>
 #include "OrchConductorProcessor.h"
 
-class OrchConductorAudioProcessorEditor  : public juce::AudioProcessorEditor
+class OrchConductorAudioProcessorEditor  : public juce::AudioProcessorEditor,
+                                           public juce::Timer
 {
 public:
     explicit OrchConductorAudioProcessorEditor (OrchConductorAudioProcessor&);
@@ -11,7 +12,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
-
+    void timerCallback() override;
 private:
     OrchConductorAudioProcessor& audioProcessor;
 

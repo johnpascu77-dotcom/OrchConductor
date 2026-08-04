@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <JuceHeader.h>
 
@@ -44,7 +44,40 @@ public:
 
     enum class CombiPreset
     {
-        manualSections = 0
+        manualSections = 0,
+
+        utilityAllOff,
+        utilityFullOrchestra,
+        utilityFullOrchestraNoPercussion,
+        utilityChamberOrchestra,
+        utilityFullStrings,
+        utilityFullWoodwinds,
+        utilityFullBrass,
+        utilityFullWinds,
+        utilityHighOrchestra,
+        utilityLowOrchestra,
+        utilityMiddleOrchestra,
+
+        romanticWarmStringsHorns,
+        romanticOboeStrings,
+        romanticFluteViolins,
+        romanticBassoonCelli,
+        romanticHornChoirStrings,
+
+        cinematicHeroicBrassStrings,
+        cinematicDarkTrailerBed,
+        cinematicHighWindsShimmer,
+        cinematicEpicLowPulse,
+
+        herrmannLowReeds,
+        herrmannHornKnives,
+        herrmannPsychoStrings,
+        herrmannSuspenseWinds,
+
+        modernistPointillistWinds,
+        modernistSparseExtremes,
+        shimmerSilverShimmer,
+        soloEnglishHornLament
     };
 
     enum class Preset
@@ -91,6 +124,8 @@ public:
     bool getSendOnPresetChange() const;
 
     juce::String getPresetName() const;
+    juce::String getCombiPresetName() const;
+    bool isCombiModeActive() const;
 
     static int getNumOutputRows();
     OutputRow getOutputRow (int index) const;
@@ -106,7 +141,7 @@ public:
 
 private:
     static constexpr int minCombiPresetId = 0;
-    static constexpr int maxCombiPresetId = 0;
+    static constexpr int maxCombiPresetId = static_cast<int> (CombiPreset::soloEnglishHornLament);
 
     static constexpr int minSectionPresetId = 0;
 
@@ -133,6 +168,7 @@ private:
     int getWoodwindsPresetValueForIndex (int index) const;
     int getBrassPresetValueForIndex (int index) const;
     int getPercussionPresetValueForIndex (int index) const;
+    int getCombiPresetValueForCc (int ccNumber) const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };

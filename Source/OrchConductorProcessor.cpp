@@ -1,4 +1,4 @@
-#include "OrchConductorProcessor.h"
+﻿#include "OrchConductorProcessor.h"
 #include "OrchConductorEditor.h"
 
 namespace
@@ -164,32 +164,48 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     if (! shouldSendAllOff && ! shouldSendPreset)
         return;
 
-    // Phase 1H: Strings emit in full-score order after reserved Harp CC49.
-    for (int i = 0; i < numRows; ++i)
-    {
-        const int value = shouldSendAllOff ? 0 : getPresetValueForIndex (i);
-        midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, ccNumbers[i], value), 0);
-    }
+    const bool useCombi = isCombiModeActive() && ! shouldSendAllOff;
 
-    // Phase 1H: Woodwinds emit individual full-score track CC output.
     for (int i = 0; i < numWoodwindsRows; ++i)
     {
-        const int value = shouldSendAllOff ? 0 : getWoodwindsPresetValueForIndex (i);
-        midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, woodwindsCcNumbers[i], value), 0);
+        const int cc = woodwindsCcNumbers[i];
+        const int value = shouldSendAllOff ? 0
+                         : useCombi       ? getCombiPresetValueForCc (cc)
+                                          : getWoodwindsPresetValueForIndex (i);
+
+        midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, cc, value), 0);
     }
 
-    // Phase 1H: Brass emits individual full-score track CC output.
     for (int i = 0; i < numBrassRows; ++i)
     {
-        const int value = shouldSendAllOff ? 0 : getBrassPresetValueForIndex (i);
-        midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, brassCcNumbers[i], value), 0);
+        const int cc = brassCcNumbers[i];
+        const int value = shouldSendAllOff ? 0
+                         : useCombi       ? getCombiPresetValueForCc (cc)
+                                          : getBrassPresetValueForIndex (i);
+
+        midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, cc, value), 0);
     }
 
-    // Phase 1H: Melodic percussion emits full-score track CC output.
     for (int i = 0; i < numPercussionRows; ++i)
     {
-        const int value = shouldSendAllOff ? 0 : getPercussionPresetValueForIndex (i);
-        midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, percussionCcNumbers[i], value), 0);
+        const int cc = percussionCcNumbers[i];
+        const int value = shouldSendAllOff ? 0
+                         : useCombi       ? getCombiPresetValueForCc (cc)
+                                          : getPercussionPresetValueForIndex (i);
+
+        midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, cc, value), 0);
+    }
+
+    midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, 49, 0), 0);
+
+    for (int i = 0; i < numRows; ++i)
+    {
+        const int cc = ccNumbers[i];
+        const int value = shouldSendAllOff ? 0
+                         : useCombi       ? getCombiPresetValueForCc (cc)
+                                          : getPresetValueForIndex (i);
+
+        midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, cc, value), 0);
     }
 }
 
@@ -264,9 +280,63 @@ int OrchConductorAudioProcessor::getCombiPresetId() const
 void OrchConductorAudioProcessor::setCombiPresetId (int presetId)
 {
     if (presetId >= minCombiPresetId && presetId <= maxCombiPresetId)
+    {
+        const bool changed = combiPresetId != presetId;
         combiPresetId = presetId;
+
+        if (changed && sendOnPresetChange)
+            requestSendPreset();
+    }
 }
 
+
+bool OrchConductorAudioProcessor::isCombiModeActive() const
+{
+    return combiPresetId != static_cast<int> (CombiPreset::manualSections);
+}
+
+juce::String OrchConductorAudioProcessor::getCombiPresetName() const
+{
+    switch (static_cast<CombiPreset> (combiPresetId))
+    {
+        case CombiPreset::manualSections: return "Manual Sections";
+
+        case CombiPreset::utilityAllOff: return "[Utility] All Off";
+        case CombiPreset::utilityFullOrchestra: return "[Utility] Full Orchestra";
+        case CombiPreset::utilityFullOrchestraNoPercussion: return "[Utility] Full Orchestra No Percussion";
+        case CombiPreset::utilityChamberOrchestra: return "[Utility] Chamber Orchestra";
+        case CombiPreset::utilityFullStrings: return "[Utility] Full Strings";
+        case CombiPreset::utilityFullWoodwinds: return "[Utility] Full Woodwinds";
+        case CombiPreset::utilityFullBrass: return "[Utility] Full Brass";
+        case CombiPreset::utilityFullWinds: return "[Utility] Full Winds";
+        case CombiPreset::utilityHighOrchestra: return "[Utility] High Orchestra";
+        case CombiPreset::utilityLowOrchestra: return "[Utility] Low Orchestra";
+        case CombiPreset::utilityMiddleOrchestra: return "[Utility] Middle Orchestra";
+
+        case CombiPreset::romanticWarmStringsHorns: return "[Romantic] Warm Strings + Horns";
+        case CombiPreset::romanticOboeStrings: return "[Romantic] Oboe + Strings";
+        case CombiPreset::romanticFluteViolins: return "[Romantic] Flute + Violins";
+        case CombiPreset::romanticBassoonCelli: return "[Romantic] Bassoon + Celli";
+        case CombiPreset::romanticHornChoirStrings: return "[Romantic] Horn Choir + Strings";
+
+        case CombiPreset::cinematicHeroicBrassStrings: return "[Cinematic] Heroic Brass + Strings";
+        case CombiPreset::cinematicDarkTrailerBed: return "[Cinematic] Dark Trailer Bed";
+        case CombiPreset::cinematicHighWindsShimmer: return "[Cinematic] High Winds Shimmer";
+        case CombiPreset::cinematicEpicLowPulse: return "[Cinematic] Epic Low Pulse";
+
+        case CombiPreset::herrmannLowReeds: return "[Herrmann] Low Reeds";
+        case CombiPreset::herrmannHornKnives: return "[Herrmann] Horn Knives";
+        case CombiPreset::herrmannPsychoStrings: return "[Herrmann] Psycho Strings";
+        case CombiPreset::herrmannSuspenseWinds: return "[Herrmann] Suspense Winds";
+
+        case CombiPreset::modernistPointillistWinds: return "[Modernist] Pointillist Winds";
+        case CombiPreset::modernistSparseExtremes: return "[Modernist] Sparse Extremes";
+        case CombiPreset::shimmerSilverShimmer: return "[Shimmer] Silver Shimmer";
+        case CombiPreset::soloEnglishHornLament: return "[Solo] English Horn Lament";
+    }
+
+    return "Unknown Combi";
+}
 int OrchConductorAudioProcessor::getSectionPresetId (Section section) const
 {
     switch (section)
@@ -611,6 +681,126 @@ int OrchConductorAudioProcessor::getPercussionPresetValueForIndex (int index) co
             return (index >= 1 && index <= 5) ? 127 : 0;
 
         case 8: return 127;                      // Full Melodic Percussion
+    }
+
+    return 0;
+}
+
+
+int OrchConductorAudioProcessor::getCombiPresetValueForCc (int ccNumber) const
+{
+    if (ccNumber == 49)
+        return 0; // Harp reserved.
+
+    const auto combi = static_cast<CombiPreset> (combiPresetId);
+
+    switch (combi)
+    {
+        case CombiPreset::manualSections:
+            return 0;
+
+        case CombiPreset::utilityAllOff:
+            return 0;
+
+        case CombiPreset::utilityFullOrchestra:
+            return ((ccNumber >= 20 && ccNumber <= 48) || (ccNumber >= 50 && ccNumber <= 54)) ? 127 : 0;
+
+        case CombiPreset::utilityFullOrchestraNoPercussion:
+            return ((ccNumber >= 20 && ccNumber <= 42) || (ccNumber >= 50 && ccNumber <= 54)) ? 127 : 0;
+
+        case CombiPreset::utilityChamberOrchestra:
+            return (ccNumber == 21 || ccNumber == 23 || ccNumber == 26 || ccNumber == 29 || ccNumber == 32
+                 || ccNumber == 50 || ccNumber == 51 || ccNumber == 52 || ccNumber == 53 || ccNumber == 54) ? 127 : 0;
+
+        case CombiPreset::utilityFullStrings:
+            return (ccNumber >= 50 && ccNumber <= 54) ? 127 : 0;
+
+        case CombiPreset::utilityFullWoodwinds:
+            return (ccNumber >= 20 && ccNumber <= 31) ? 127 : 0;
+
+        case CombiPreset::utilityFullBrass:
+            return (ccNumber >= 32 && ccNumber <= 42) ? 127 : 0;
+
+        case CombiPreset::utilityFullWinds:
+            return (ccNumber >= 20 && ccNumber <= 42) ? 127 : 0;
+
+        case CombiPreset::utilityHighOrchestra:
+            return (ccNumber == 20 || ccNumber == 21 || ccNumber == 22 || ccNumber == 23 || ccNumber == 24
+                 || ccNumber == 36 || ccNumber == 37 || ccNumber == 38
+                 || ccNumber == 44 || ccNumber == 45 || ccNumber == 47 || ccNumber == 48
+                 || ccNumber == 50 || ccNumber == 51) ? 127 : 0;
+
+        case CombiPreset::utilityLowOrchestra:
+            return (ccNumber == 28 || ccNumber == 29 || ccNumber == 30 || ccNumber == 31
+                 || ccNumber == 39 || ccNumber == 40 || ccNumber == 41 || ccNumber == 42
+                 || ccNumber == 43 || ccNumber == 52 || ccNumber == 53 || ccNumber == 54) ? 127 : 0;
+
+        case CombiPreset::utilityMiddleOrchestra:
+            return (ccNumber == 25 || ccNumber == 26 || ccNumber == 27
+                 || ccNumber == 32 || ccNumber == 33 || ccNumber == 34 || ccNumber == 35
+                 || ccNumber == 46 || ccNumber == 47
+                 || ccNumber == 51 || ccNumber == 52 || ccNumber == 53) ? 127 : 0;
+
+        case CombiPreset::romanticWarmStringsHorns:
+            return ((ccNumber >= 32 && ccNumber <= 35) || (ccNumber >= 50 && ccNumber <= 54)) ? 127 : 0;
+
+        case CombiPreset::romanticOboeStrings:
+            return (ccNumber == 23 || ccNumber == 50 || ccNumber == 51 || ccNumber == 52 || ccNumber == 53) ? 127 : 0;
+
+        case CombiPreset::romanticFluteViolins:
+            return (ccNumber == 21 || ccNumber == 22 || ccNumber == 50 || ccNumber == 51) ? 127 : 0;
+
+        case CombiPreset::romanticBassoonCelli:
+            return (ccNumber == 29 || ccNumber == 30 || ccNumber == 53 || ccNumber == 54) ? 127 : 0;
+
+        case CombiPreset::romanticHornChoirStrings:
+            return ((ccNumber >= 32 && ccNumber <= 35) || (ccNumber >= 50 && ccNumber <= 54)) ? 127 : 0;
+
+        case CombiPreset::cinematicHeroicBrassStrings:
+            return ((ccNumber >= 32 && ccNumber <= 42) || (ccNumber >= 50 && ccNumber <= 54) || ccNumber == 43) ? 127 : 0;
+
+        case CombiPreset::cinematicDarkTrailerBed:
+            return (ccNumber == 28 || ccNumber == 31 || ccNumber == 41 || ccNumber == 42
+                 || ccNumber == 43 || ccNumber == 53 || ccNumber == 54) ? 127 : 0;
+
+        case CombiPreset::cinematicHighWindsShimmer:
+            return (ccNumber == 20 || ccNumber == 21 || ccNumber == 22
+                 || ccNumber == 44 || ccNumber == 47 || ccNumber == 48
+                 || ccNumber == 50 || ccNumber == 51) ? 127 : 0;
+
+        case CombiPreset::cinematicEpicLowPulse:
+            return (ccNumber == 28 || ccNumber == 31 || ccNumber == 39 || ccNumber == 40 || ccNumber == 41 || ccNumber == 42
+                 || ccNumber == 43 || ccNumber == 53 || ccNumber == 54) ? 127 : 0;
+
+        case CombiPreset::herrmannLowReeds:
+            return (ccNumber == 28 || ccNumber == 29 || ccNumber == 30 || ccNumber == 31 || ccNumber == 53 || ccNumber == 54) ? 127 : 0;
+
+        case CombiPreset::herrmannHornKnives:
+            return (ccNumber == 32 || ccNumber == 33 || ccNumber == 34 || ccNumber == 35 || ccNumber == 52 || ccNumber == 53) ? 127 : 0;
+
+        case CombiPreset::herrmannPsychoStrings:
+            return (ccNumber == 50 || ccNumber == 51 || ccNumber == 52 || ccNumber == 53) ? 127 : 0;
+
+        case CombiPreset::herrmannSuspenseWinds:
+            return (ccNumber == 23 || ccNumber == 25 || ccNumber == 26 || ccNumber == 28 || ccNumber == 29 || ccNumber == 30) ? 127 : 0;
+
+        case CombiPreset::modernistPointillistWinds:
+            return (ccNumber == 20 || ccNumber == 23 || ccNumber == 26 || ccNumber == 29) ? 127 : 0;
+
+        case CombiPreset::modernistSparseExtremes:
+            return (ccNumber == 20 || ccNumber == 31 || ccNumber == 36 || ccNumber == 41 || ccNumber == 45 || ccNumber == 50 || ccNumber == 54) ? 127 : 0;
+
+        case CombiPreset::shimmerSilverShimmer:
+            return (ccNumber == 20 || ccNumber == 21 || ccNumber == 22
+                 || ccNumber == 44 || ccNumber == 47 || ccNumber == 48
+                 || ccNumber == 50 || ccNumber == 51) ? 127 : 0;
+
+        case CombiPreset::soloEnglishHornLament:
+            if (ccNumber == 25) return 127;
+            if (ccNumber == 52) return 127;
+            if (ccNumber == 53) return 127;
+            if (ccNumber == 54) return 64;
+            return 0;
     }
 
     return 0;
