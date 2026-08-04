@@ -55,6 +55,7 @@ target_sources(OrchConductor
         Source/OrchConductorEmbeddedFactoryJson.cpp
         Source/OrchConductorEmbeddedFactoryJson.h
         Source/OrchConductorRuntimePresetSource.cpp
+        Source/OrchConductorRuntimePresetCatalog.cpp
         Source/OrchConductorRuntimePresetSource.h
 )
 
@@ -203,6 +204,7 @@ target_sources(OrchConductorProcessorJsonProbeCheck
         Source/OrchConductorPresetLibraryJson.cpp
         Source/OrchConductorEmbeddedFactoryJson.cpp
         Source/OrchConductorRuntimePresetSource.cpp
+        Source/OrchConductorRuntimePresetCatalog.cpp
 )
 
 target_link_libraries(OrchConductorProcessorJsonProbeCheck
@@ -247,6 +249,7 @@ target_sources(OrchConductorProcessorMidiRegressionCheck
         Source/OrchConductorPresetLibraryJson.cpp
         Source/OrchConductorEmbeddedFactoryJson.cpp
         Source/OrchConductorRuntimePresetSource.cpp
+        Source/OrchConductorRuntimePresetCatalog.cpp
 )
 
 target_link_libraries(OrchConductorProcessorMidiRegressionCheck
@@ -273,5 +276,45 @@ target_compile_definitions(OrchConductorProcessorMidiRegressionCheck
         JUCE_USE_CURL=0
         JUCE_VST3_CAN_REPLACE_VST2=0
         JucePlugin_Name=\"OrchConductor\"
+)
+
+# Developer-only read-only runtime preset catalog adapter verification target.
+juce_add_console_app(OrchConductorRuntimePresetCatalogCheck
+    PRODUCT_NAME "OrchConductorRuntimePresetCatalogCheck"
+)
+
+juce_generate_juce_header(OrchConductorRuntimePresetCatalogCheck)
+
+target_sources(OrchConductorRuntimePresetCatalogCheck
+    PRIVATE
+        Tools/OrchConductorRuntimePresetCatalogCheck.cpp
+        Source/OrchConductorPresetLibrary.cpp
+        Source/OrchConductorPresetLibraryJson.cpp
+        Source/OrchConductorEmbeddedFactoryJson.cpp
+        Source/OrchConductorRuntimePresetSource.cpp
+        Source/OrchConductorRuntimePresetCatalog.cpp
+)
+
+target_link_libraries(OrchConductorRuntimePresetCatalogCheck
+    PRIVATE
+        juce::juce_core
+        OrchConductorFactoryJsonData
+
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)
+
+target_include_directories(OrchConductorRuntimePresetCatalogCheck
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Tools
+)
+
+target_compile_definitions(OrchConductorRuntimePresetCatalogCheck
+    PRIVATE
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0
+        JUCE_VST3_CAN_REPLACE_VST2=0
 )
 
