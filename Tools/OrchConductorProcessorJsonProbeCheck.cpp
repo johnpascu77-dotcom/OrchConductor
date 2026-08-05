@@ -113,17 +113,53 @@ bool verifyProcessorRuntimeCatalogAuthorityProbe(OrchConductorAudioProcessor& pr
 
     return ok;
 }
+bool verifyProcessorRuntimeCatalogPayloadEquivalenceProbe(OrchConductorAudioProcessor& processor)
+{
+    bool ok = true;
+
+    ok = checkPass(processor.getRuntimeCatalogPayloadEquivalenceProbeDiagnostic().isNotEmpty(),
+                   "processor runtime catalog payload equivalence probe diagnostic message is present") && ok;
+
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+    if (processor.doesRuntimePresetCatalogAuthorityProbeRequireFallback())
+    {
+        ok = checkPass(! processor.wasRuntimeCatalogPayloadEquivalenceProbeRun(),
+                       "processor runtime catalog payload equivalence probe does not run against fallback catalog") && ok;
+        ok = checkPass(processor.wasRuntimeCatalogPayloadEquivalenceProbeBlockedByFallback(),
+                       "processor runtime catalog payload equivalence probe reports fallback block") && ok;
+    }
+    else
+    {
+        ok = checkPass(processor.wasRuntimeCatalogPayloadEquivalenceProbeRun(),
+                       "processor runtime catalog payload equivalence probe runs against source-backed catalog") && ok;
+        ok = checkPass(processor.didRuntimeCatalogPayloadEquivalenceProbePass(),
+                       "processor runtime catalog payload equivalence probe passes for sentinel hardcoded presets") && ok;
+        ok = checkPass(! processor.wasRuntimeCatalogPayloadEquivalenceProbeBlockedByFallback(),
+                       "processor runtime catalog payload equivalence probe is not fallback-blocked with source-backed catalog") && ok;
+    }
+#else
+    ok = checkPass(! processor.wasRuntimeCatalogPayloadEquivalenceProbeRun(),
+                   "processor runtime catalog payload equivalence probe inactive with runtime JSON OFF") && ok;
+    ok = checkPass(! processor.didRuntimeCatalogPayloadEquivalenceProbePass(),
+                   "processor runtime catalog payload equivalence probe does not report pass with runtime JSON OFF") && ok;
+    ok = checkPass(processor.wasRuntimeCatalogPayloadEquivalenceProbeBlockedByFallback(),
+                   "processor runtime catalog payload equivalence probe blocked with runtime JSON OFF") && ok;
+#endif
+
+    return ok;
+}
 } // namespace
 
 int main()
 {
-    std::cout << "OrchConductor processor-side runtime catalog authority probe check" << std::endl;
+    std::cout << "OrchConductor processor runtime catalog payload equivalence probe check" << std::endl;
     std::cout << "---------------------------------------------------------------------" << std::endl;
 
     OrchConductorAudioProcessor processor;
 
     std::cout << "[INFO] Source probe diagnostic: " << processor.getRuntimeJsonPresetProbeDiagnostic() << std::endl;
     std::cout << "[INFO] Catalog authority probe diagnostic: " << processor.getRuntimePresetCatalogAuthorityProbeDiagnostic() << std::endl;
+    std::cout << "[INFO] Payload equivalence probe diagnostic: " << processor.getRuntimeCatalogPayloadEquivalenceProbeDiagnostic() << std::endl;
 
     bool ok = true;
 
@@ -153,6 +189,7 @@ int main()
 #endif
 
     ok = verifyProcessorRuntimeCatalogAuthorityProbe(processor) && ok;
+    ok = verifyProcessorRuntimeCatalogPayloadEquivalenceProbe(processor) && ok;
     ok = verifyHardcodedBehaviorStillAvailable(processor) && ok;
 
     if (! ok)
@@ -168,9 +205,11 @@ int main()
 
     std::cout << "[PASS] Hardcoded preset behavior remains authoritative." << std::endl;
     std::cout << "[PASS] Processor runtime catalog authority probe remains passive." << std::endl;
-    std::cout << "[PASS] Phase 5B processor-side runtime catalog authority probe satisfied." << std::endl;
+    std::cout << "[PASS] Processor runtime catalog payload equivalence probe remains passive." << std::endl;
+    std::cout << "[PASS] Phase 5C processor runtime catalog payload equivalence probe satisfied." << std::endl;
 
     return 0;
 }
+
 
 

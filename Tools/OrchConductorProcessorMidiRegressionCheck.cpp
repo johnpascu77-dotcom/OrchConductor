@@ -281,6 +281,8 @@ bool verifyProbeDiagnosticsPresentAndNonAuthoritative()
 
     ok = checkPass(processor.getRuntimeJsonPresetProbeDiagnostic().isNotEmpty(),
                    "processor JSON probe diagnostic is present") && ok;
+    ok = checkPass(processor.getRuntimeCatalogPayloadEquivalenceProbeDiagnostic().isNotEmpty(),
+                   "processor runtime catalog payload equivalence probe diagnostic is present") && ok;
 
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     ok = checkPass(processor.getRuntimeJsonPresetProbeDiagnostic().isNotEmpty(),
@@ -307,11 +309,21 @@ bool verifyProbeDiagnosticsPresentAndNonAuthoritative()
     {
         ok = checkPass(processor.doesRuntimeJsonPresetProbeRequireFallback(),
                        "processor runtime catalog authority probe fallback follows source fallback in ON MIDI regression build") && ok;
+        ok = checkPass(! processor.wasRuntimeCatalogPayloadEquivalenceProbeRun(),
+                       "processor runtime catalog payload equivalence probe does not run against fallback catalog in ON MIDI regression build") && ok;
+        ok = checkPass(processor.wasRuntimeCatalogPayloadEquivalenceProbeBlockedByFallback(),
+                       "processor runtime catalog payload equivalence probe reports fallback block in ON MIDI regression build") && ok;
     }
     else
     {
         ok = checkPass(processor.wasRuntimeJsonPresetProbeLoaded(),
                        "processor runtime catalog authority probe uses loaded source in ON MIDI regression build") && ok;
+        ok = checkPass(processor.wasRuntimeCatalogPayloadEquivalenceProbeRun(),
+                       "processor runtime catalog payload equivalence probe runs against source-backed catalog in ON MIDI regression build") && ok;
+        ok = checkPass(processor.didRuntimeCatalogPayloadEquivalenceProbePass(),
+                       "processor runtime catalog payload equivalence probe passes in ON MIDI regression build") && ok;
+        ok = checkPass(! processor.wasRuntimeCatalogPayloadEquivalenceProbeBlockedByFallback(),
+                       "processor runtime catalog payload equivalence probe is not fallback-blocked in ON MIDI regression build") && ok;
     }
 #else
     ok = checkPass(! processor.wasRuntimeJsonPresetProbeLoaded(),
@@ -319,6 +331,12 @@ bool verifyProbeDiagnosticsPresentAndNonAuthoritative()
 
     ok = checkPass(processor.doesRuntimeJsonPresetProbeRequireFallback(),
                    "processor JSON probe requires fallback in OFF MIDI regression build") && ok;
+    ok = checkPass(! processor.wasRuntimeCatalogPayloadEquivalenceProbeRun(),
+                   "processor runtime catalog payload equivalence probe inactive in OFF MIDI regression build") && ok;
+    ok = checkPass(! processor.didRuntimeCatalogPayloadEquivalenceProbePass(),
+                   "processor runtime catalog payload equivalence probe does not pass in OFF MIDI regression build") && ok;
+    ok = checkPass(processor.wasRuntimeCatalogPayloadEquivalenceProbeBlockedByFallback(),
+                   "processor runtime catalog payload equivalence probe blocked in OFF MIDI regression build") && ok;
 #endif
 
     processor.setSectionPresetId(OrchConductorAudioProcessor::Section::strings,
@@ -371,9 +389,13 @@ int main()
     std::cout << "[PASS] Hardcoded MIDI behavior remains authoritative." << std::endl;
 
     std::cout << "[PASS] Phase 5B processor-side runtime catalog authority probe preserved MIDI behavior." << std::endl;
+    std::cout << "[PASS] Phase 5C processor runtime catalog payload equivalence probe preserved MIDI behavior." << std::endl;
 
     return 0;
 }
+
+
+
 
 
 

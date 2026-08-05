@@ -6,6 +6,121 @@
 
 namespace
 {
+
+    struct ExpectedRuntimeCatalogValue
+    {
+        int ccNumber = -1;
+        int value = -1;
+    };
+
+    bool runtimeCatalogValueMatches(const OrchConductorRuntimePresetValueView& actual,
+                                    const ExpectedRuntimeCatalogValue& expected)
+    {
+        return actual.isValid
+            && actual.ccNumber == expected.ccNumber
+            && actual.value == expected.value;
+    }
+
+    bool runtimeCatalogPresetMatchesExpectedValues(const OrchConductorRuntimePresetCatalog& catalog,
+                                                   const juce::String& sectionId,
+                                                   int presetIndex,
+                                                   const ExpectedRuntimeCatalogValue* expectedValues,
+                                                   int expectedValueCount)
+    {
+        if (catalog.getSectionPresetValueCount(sectionId, presetIndex) != expectedValueCount)
+            return false;
+
+        for (int i = 0; i < expectedValueCount; ++i)
+        {
+            if (! runtimeCatalogValueMatches(catalog.getSectionPresetValue(sectionId, presetIndex, i),
+                                             expectedValues[i]))
+                return false;
+        }
+
+        return true;
+    }
+
+    bool runtimeCatalogCombiPresetMatchesExpectedValues(const OrchConductorRuntimePresetCatalog& catalog,
+                                                        int presetIndex,
+                                                        const ExpectedRuntimeCatalogValue* expectedValues,
+                                                        int expectedValueCount)
+    {
+        if (catalog.getCombiPresetValueCount(presetIndex) != expectedValueCount)
+            return false;
+
+        for (int i = 0; i < expectedValueCount; ++i)
+        {
+            if (! runtimeCatalogValueMatches(catalog.getCombiPresetValue(presetIndex, i),
+                                             expectedValues[i]))
+                return false;
+        }
+
+        return true;
+    }
+
+    bool verifyRuntimeCatalogPayloadEquivalenceSentinels(const OrchConductorRuntimePresetCatalog& catalog)
+    {
+        // Hardcoded processor sentinel: strings preset 1, "Low Strings".
+        const ExpectedRuntimeCatalogValue lowStringsExpected[] =
+        {
+            { 50, 0 },
+            { 51, 0 },
+            { 52, 64 },
+            { 53, 127 },
+            { 54, 127 }
+        };
+
+        // Hardcoded processor sentinel: combi preset 1, "Solo English Horn Lament".
+        // Full 35-CC payload, including reserved CC49.
+        const ExpectedRuntimeCatalogValue soloEnglishHornLamentExpected[] =
+        {
+            { 20, 0 },
+            { 21, 0 },
+            { 22, 0 },
+            { 23, 0 },
+            { 24, 0 },
+            { 25, 127 },
+            { 26, 0 },
+            { 27, 0 },
+            { 28, 0 },
+            { 29, 0 },
+            { 30, 0 },
+            { 31, 0 },
+            { 32, 0 },
+            { 33, 0 },
+            { 34, 0 },
+            { 35, 0 },
+            { 36, 0 },
+            { 37, 0 },
+            { 38, 0 },
+            { 39, 0 },
+            { 40, 0 },
+            { 41, 0 },
+            { 42, 0 },
+            { 43, 0 },
+            { 44, 0 },
+            { 45, 0 },
+            { 46, 0 },
+            { 47, 0 },
+            { 48, 0 },
+            { 49, 0 },
+            { 50, 0 },
+            { 51, 0 },
+            { 52, 127 },
+            { 53, 127 },
+            { 54, 64 }
+        };
+
+        return runtimeCatalogPresetMatchesExpectedValues(catalog,
+                                                         "strings",
+                                                         1,
+                                                         lowStringsExpected,
+                                                         static_cast<int>(std::size(lowStringsExpected)))
+            && runtimeCatalogCombiPresetMatchesExpectedValues(catalog,
+                                                              1,
+                                                              soloEnglishHornLamentExpected,
+                                                              static_cast<int>(std::size(soloEnglishHornLamentExpected)));
+    }
     
     OrchConductorAudioProcessor::OutputRow makeOutputRow (const juce::String& instrumentName, int ccNumber, int value)
     {
@@ -134,6 +249,29 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
     runtimePresetCatalogAuthorityProbeRequiresFallback = runtimePresetCatalogAuthorityProbe.requiresFallback();
     runtimePresetCatalogAuthorityProbeHasExpectedFactoryShape = runtimePresetCatalogAuthorityProbe.hasExpectedFactoryShape();
     runtimePresetCatalogAuthorityProbeDiagnostic = runtimePresetCatalogAuthorityProbe.getDiagnosticMessage();
+
+    if (runtimePresetCatalogAuthorityProbe.isReady()
+        && runtimePresetCatalogAuthorityProbe.hasExpectedFactoryShape()
+        && ! runtimePresetCatalogAuthorityProbe.requiresFallback())
+    {
+        runtimeCatalogPayloadEquivalenceProbeRun = true;
+        runtimeCatalogPayloadEquivalenceProbeBlockedByFallback = false;
+        runtimeCatalogPayloadEquivalenceProbePassed =
+            verifyRuntimeCatalogPayloadEquivalenceSentinels(runtimePresetCatalogAuthorityProbe);
+
+        runtimeCatalogPayloadEquivalenceProbeDiagnostic =
+            runtimeCatalogPayloadEquivalenceProbePassed
+                ? "Runtime catalog payload equivalence probe passed for sentinel hardcoded presets."
+                : "Runtime catalog payload equivalence probe failed for sentinel hardcoded presets.";
+    }
+    else
+    {
+        runtimeCatalogPayloadEquivalenceProbeRun = false;
+        runtimeCatalogPayloadEquivalenceProbePassed = false;
+        runtimeCatalogPayloadEquivalenceProbeBlockedByFallback = true;
+        runtimeCatalogPayloadEquivalenceProbeDiagnostic =
+            "Runtime catalog payload equivalence probe blocked because runtime catalog requires fallback or is not source-backed.";
+    }
 #else
     runtimeJsonPresetProbeLoaded = false;
     runtimeJsonPresetProbeRequiresFallback = true;
@@ -143,6 +281,12 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
     runtimePresetCatalogAuthorityProbeRequiresFallback = true;
     runtimePresetCatalogAuthorityProbeHasExpectedFactoryShape = false;
     runtimePresetCatalogAuthorityProbeDiagnostic = "Runtime preset catalog authority probe is inactive because runtime JSON presets are disabled.";
+
+    runtimeCatalogPayloadEquivalenceProbeRun = false;
+    runtimeCatalogPayloadEquivalenceProbePassed = false;
+    runtimeCatalogPayloadEquivalenceProbeBlockedByFallback = true;
+    runtimeCatalogPayloadEquivalenceProbeDiagnostic =
+        "Runtime catalog payload equivalence probe is inactive because runtime JSON presets are disabled.";
 #endif
 }
 
@@ -232,6 +376,26 @@ bool OrchConductorAudioProcessor::doesRuntimePresetCatalogAuthorityProbeHaveExpe
 juce::String OrchConductorAudioProcessor::getRuntimePresetCatalogAuthorityProbeDiagnostic() const
 {
     return runtimePresetCatalogAuthorityProbeDiagnostic;
+}
+
+bool OrchConductorAudioProcessor::wasRuntimeCatalogPayloadEquivalenceProbeRun() const
+{
+    return runtimeCatalogPayloadEquivalenceProbeRun;
+}
+
+bool OrchConductorAudioProcessor::didRuntimeCatalogPayloadEquivalenceProbePass() const
+{
+    return runtimeCatalogPayloadEquivalenceProbePassed;
+}
+
+bool OrchConductorAudioProcessor::wasRuntimeCatalogPayloadEquivalenceProbeBlockedByFallback() const
+{
+    return runtimeCatalogPayloadEquivalenceProbeBlockedByFallback;
+}
+
+juce::String OrchConductorAudioProcessor::getRuntimeCatalogPayloadEquivalenceProbeDiagnostic() const
+{
+    return runtimeCatalogPayloadEquivalenceProbeDiagnostic;
 }
 
 int OrchConductorAudioProcessor::getDefaultMaxPlayersForCc (int ccNumber) const
@@ -945,6 +1109,7 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
+
 
 
 
