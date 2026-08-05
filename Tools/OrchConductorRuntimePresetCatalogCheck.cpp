@@ -255,6 +255,86 @@ bool verifyFallbackCatalog()
     return ok;
 }
 
+bool verifyControlledRuntimeJsonAuthorityTrial(const orchconductor::RuntimePresetSourceResult& source,
+                                               const OrchConductorRuntimePresetCatalog& catalog)
+{
+    bool ok = true;
+
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+    ok = checkPass(source.wasLoaded(),
+                   "controlled runtime JSON authority trial source is loaded with runtime JSON ON") && ok;
+    ok = checkPass(! source.requiresHardcodedFallback(),
+                   "controlled runtime JSON authority trial source does not require fallback with runtime JSON ON") && ok;
+    ok = checkPass(catalog.isReady(),
+                   "controlled runtime JSON authority trial catalog is ready with runtime JSON ON") && ok;
+    ok = checkPass(! catalog.requiresFallback(),
+                   "controlled runtime JSON authority trial catalog does not require fallback with runtime JSON ON") && ok;
+    ok = checkPass(catalog.hasExpectedFactoryShape(),
+                   "controlled runtime JSON authority trial catalog has expected factory shape with runtime JSON ON") && ok;
+
+    ok = checkPass(catalog.getSectionPresetLabel("woodwinds", 0) == source.library.woodwindPresets.front().name,
+                   "controlled runtime JSON authority trial woodwind label payload mirrors source") && ok;
+    ok = checkPass(catalog.getSectionPresetLabel("brass", 0) == source.library.brassPresets.front().name,
+                   "controlled runtime JSON authority trial brass label payload mirrors source") && ok;
+    ok = checkPass(catalog.getSectionPresetLabel("percussion", 0) == source.library.percussionPresets.front().name,
+                   "controlled runtime JSON authority trial percussion label payload mirrors source") && ok;
+    ok = checkPass(catalog.getSectionPresetLabel("strings", 0) == source.library.stringPresets.front().name,
+                   "controlled runtime JSON authority trial string label payload mirrors source") && ok;
+    ok = checkPass(catalog.getCombiPresetLabel(0) == source.library.combiPresets.front().name,
+                   "controlled runtime JSON authority trial combi label payload mirrors source") && ok;
+
+    ok = checkPass(catalog.getSectionPresetValueCount("woodwinds", 0) == static_cast<int>(source.library.woodwindPresets.front().values.size()),
+                   "controlled runtime JSON authority trial woodwind value payload count mirrors source") && ok;
+    ok = checkPass(catalog.getSectionPresetValueCount("brass", 0) == static_cast<int>(source.library.brassPresets.front().values.size()),
+                   "controlled runtime JSON authority trial brass value payload count mirrors source") && ok;
+    ok = checkPass(catalog.getSectionPresetValueCount("percussion", 0) == static_cast<int>(source.library.percussionPresets.front().values.size()),
+                   "controlled runtime JSON authority trial percussion value payload count mirrors source") && ok;
+    ok = checkPass(catalog.getSectionPresetValueCount("strings", 0) == static_cast<int>(source.library.stringPresets.front().values.size()),
+                   "controlled runtime JSON authority trial string value payload count mirrors source") && ok;
+    ok = checkPass(catalog.getCombiPresetValueCount(0) == static_cast<int>(source.library.combiPresets.front().values.size()),
+                   "controlled runtime JSON authority trial combi value payload count mirrors source") && ok;
+
+    if (! source.library.woodwindPresets.front().values.empty())
+    {
+        const auto catalogValue = catalog.getSectionPresetValue("woodwinds", 0, 0);
+        const auto& sourceValue = source.library.woodwindPresets.front().values.front();
+
+        ok = checkPass(catalogValue.isValid,
+                       "controlled runtime JSON authority trial woodwind typed value payload is valid") && ok;
+        ok = checkPass(catalogValue.ccNumber == sourceValue.ccNumber,
+                       "controlled runtime JSON authority trial woodwind typed value CC mirrors source") && ok;
+        ok = checkPass(catalogValue.value == sourceValue.value,
+                       "controlled runtime JSON authority trial woodwind typed value amount mirrors source") && ok;
+    }
+
+    if (! source.library.combiPresets.front().values.empty())
+    {
+        const auto catalogValue = catalog.getCombiPresetValue(0, 0);
+        const auto& sourceValue = source.library.combiPresets.front().values.front();
+
+        ok = checkPass(catalogValue.isValid,
+                       "controlled runtime JSON authority trial combi typed value payload is valid") && ok;
+        ok = checkPass(catalogValue.ccNumber == sourceValue.ccNumber,
+                       "controlled runtime JSON authority trial combi typed value CC mirrors source") && ok;
+        ok = checkPass(catalogValue.value == sourceValue.value,
+                       "controlled runtime JSON authority trial combi typed value amount mirrors source") && ok;
+    }
+
+    ok = checkPass(ok,
+                   "controlled runtime JSON authority trial payload parity verified with runtime JSON ON") && ok;
+#else
+    ok = checkPass(! source.wasLoaded(),
+                   "controlled runtime JSON authority trial source is not loaded with runtime JSON OFF") && ok;
+    ok = checkPass(source.requiresHardcodedFallback(),
+                   "controlled runtime JSON authority trial source requires fallback with runtime JSON OFF") && ok;
+    ok = checkPass(catalog.requiresFallback(),
+                   "controlled runtime JSON authority trial catalog remains fallback-only with runtime JSON OFF") && ok;
+    ok = checkPass(ok,
+                   "controlled runtime JSON authority trial inactive with runtime JSON OFF") && ok;
+#endif
+
+    return ok;
+}
 bool verifyRuntimeSourceCatalog()
 {
     const auto source = orchconductor::RuntimePresetSource::loadEmbeddedFactoryJsonIfEnabled();
@@ -267,6 +347,7 @@ bool verifyRuntimeSourceCatalog()
     ok = verifyExpectedFactoryShape(catalog, "runtime-source catalog") && ok;
     ok = verifySafeLabelAccess(catalog, "runtime-source catalog") && ok;
     ok = verifySafeValueAccess(catalog, "runtime-source catalog") && ok;
+    ok = verifyControlledRuntimeJsonAuthorityTrial(source, catalog) && ok;
 
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     ok = checkPass(source.wasLoaded(), "runtime source loaded in ON catalog check build") && ok;
@@ -292,7 +373,7 @@ bool verifyRuntimeSourceCatalog()
 
 int main()
 {
-    std::cout << "OrchConductor runtime preset catalog value access and parity verification check" << std::endl;
+    std::cout << "OrchConductor controlled runtime JSON authority trial check" << std::endl;
     std::cout << "------------------------------------------------------------" << std::endl;
 
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
@@ -319,8 +400,10 @@ int main()
 
     std::cout << "[PASS] Catalog value access and parity remains non-authoritative." << std::endl;
     std::cout << "[PASS] Phase 4P final non-authoritative runtime catalog parity summary satisfied." << std::endl;
+    std::cout << "[PASS] Phase 5A controlled runtime JSON authority trial satisfied." << std::endl;
 
     return 0;
 }
+
 
 
