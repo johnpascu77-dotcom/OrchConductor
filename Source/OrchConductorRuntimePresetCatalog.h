@@ -12,6 +12,13 @@
 // It does not participate in editor population.
 // It does not participate in MIDI generation.
 // It does not parse JSON directly.
+struct OrchConductorRuntimePresetValueView
+{
+    int ccNumber = -1;
+    int value = -1;
+    bool isValid = false;
+};
+
 class OrchConductorRuntimePresetCatalog
 {
 public:
@@ -31,6 +38,15 @@ public:
     juce::String getSectionPresetLabel(const juce::String& sectionId, int presetIndex) const;
     juce::String getCombiPresetLabel(int presetIndex) const;
 
+    int getSectionPresetValueCount(const juce::String& sectionId, int presetIndex) const noexcept;
+    int getCombiPresetValueCount(int presetIndex) const noexcept;
+
+    OrchConductorRuntimePresetValueView getSectionPresetValue(const juce::String& sectionId,
+                                                              int presetIndex,
+                                                              int valueIndex) const noexcept;
+    OrchConductorRuntimePresetValueView getCombiPresetValue(int presetIndex,
+                                                            int valueIndex) const noexcept;
+
 private:
     OrchConductorRuntimePresetCatalog(bool ready,
                                       bool fallbackRequired,
@@ -42,3 +58,4 @@ private:
     juce::String diagnosticMessage_;
     orchconductor::PresetLibraryDefinition library_;
 };
+

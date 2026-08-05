@@ -96,6 +96,42 @@ const std::vector<orchconductor::SectionPresetDefinition>* findSectionPresets(
     return nullptr;
 }
 
+const std::vector<orchconductor::PresetValue>* findSectionPresetValues(
+    const orchconductor::PresetLibraryDefinition& library,
+    const juce::String& sectionId,
+    int presetIndex) noexcept
+{
+    if (presetIndex < 0)
+        return nullptr;
+
+    const auto* presets = findSectionPresets(library, sectionId);
+
+    if (presets == nullptr)
+        return nullptr;
+
+    const auto index = static_cast<size_t>(presetIndex);
+
+    if (index >= presets->size())
+        return nullptr;
+
+    return &(*presets)[index].values;
+}
+
+const std::vector<orchconductor::PresetValue>* findCombiPresetValues(
+    const orchconductor::PresetLibraryDefinition& library,
+    int presetIndex) noexcept
+{
+    if (presetIndex < 0)
+        return nullptr;
+
+    const auto index = static_cast<size_t>(presetIndex);
+
+    if (index >= library.combiPresets.size())
+        return nullptr;
+
+    return &library.combiPresets[index].values;
+}
+
 } // namespace
 
 OrchConductorRuntimePresetCatalog OrchConductorRuntimePresetCatalog::createFallbackCatalog()
@@ -222,6 +258,72 @@ juce::String OrchConductorRuntimePresetCatalog::getCombiPresetLabel(int presetIn
     return library_.combiPresets[index].name;
 }
 
+int OrchConductorRuntimePresetCatalog::getSectionPresetValueCount(const juce::String& sectionId,
+                                                                  int presetIndex) const noexcept
+{
+    const auto* values = findSectionPresetValues(library_, sectionId, presetIndex);
+
+    if (values == nullptr)
+        return 0;
+
+    return static_cast<int>(values->size());
+}
+
+int OrchConductorRuntimePresetCatalog::getCombiPresetValueCount(int presetIndex) const noexcept
+{
+    const auto* values = findCombiPresetValues(library_, presetIndex);
+
+    if (values == nullptr)
+        return 0;
+
+    return static_cast<int>(values->size());
+}
+
+OrchConductorRuntimePresetValueView OrchConductorRuntimePresetCatalog::getSectionPresetValue(
+    const juce::String& sectionId,
+    int presetIndex,
+    int valueIndex) const noexcept
+{
+    if (valueIndex < 0)
+        return {};
+
+    const auto* values = findSectionPresetValues(library_, sectionId, presetIndex);
+
+    if (values == nullptr)
+        return {};
+
+    const auto index = static_cast<size_t>(valueIndex);
+
+    if (index >= values->size())
+        return {};
+
+    const auto& presetValue = (*values)[index];
+
+    return { presetValue.ccNumber, presetValue.value, true };
+}
+
+OrchConductorRuntimePresetValueView OrchConductorRuntimePresetCatalog::getCombiPresetValue(
+    int presetIndex,
+    int valueIndex) const noexcept
+{
+    if (valueIndex < 0)
+        return {};
+
+    const auto* values = findCombiPresetValues(library_, presetIndex);
+
+    if (values == nullptr)
+        return {};
+
+    const auto index = static_cast<size_t>(valueIndex);
+
+    if (index >= values->size())
+        return {};
+
+    const auto& presetValue = (*values)[index];
+
+    return { presetValue.ccNumber, presetValue.value, true };
+}
+
 OrchConductorRuntimePresetCatalog::OrchConductorRuntimePresetCatalog(
     bool ready,
     bool fallbackRequired,
@@ -233,3 +335,4 @@ OrchConductorRuntimePresetCatalog::OrchConductorRuntimePresetCatalog(
       library_(std::move(library))
 {
 }
+
