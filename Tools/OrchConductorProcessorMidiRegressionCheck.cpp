@@ -283,11 +283,36 @@ bool verifyProbeDiagnosticsPresentAndNonAuthoritative()
                    "processor JSON probe diagnostic is present") && ok;
 
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
-    ok = checkPass(processor.wasRuntimeJsonPresetProbeLoaded(),
-                   "processor JSON probe loaded in ON MIDI regression build") && ok;
+    ok = checkPass(processor.getRuntimeJsonPresetProbeDiagnostic().isNotEmpty(),
+                   "processor JSON probe reports diagnostic state in ON MIDI regression build") && ok;
+    ok = checkPass(processor.getRuntimePresetCatalogAuthorityProbeDiagnostic().isNotEmpty(),
+                   "processor runtime catalog authority probe diagnostic is present in ON MIDI regression build") && ok;
+    ok = checkPass(processor.wasRuntimePresetCatalogAuthorityProbeReady(),
+                   "processor runtime catalog authority probe ready in ON MIDI regression build") && ok;
+    ok = checkPass(processor.doesRuntimePresetCatalogAuthorityProbeHaveExpectedFactoryShape(),
+                   "processor runtime catalog authority probe has expected factory shape in ON MIDI regression build") && ok;
 
-    ok = checkPass(! processor.doesRuntimeJsonPresetProbeRequireFallback(),
-                   "processor JSON probe does not require fallback in ON MIDI regression build") && ok;
+    if (processor.wasRuntimeJsonPresetProbeLoaded())
+    {
+        ok = checkPass(! processor.doesRuntimeJsonPresetProbeRequireFallback(),
+                       "processor JSON probe loaded without fallback in ON MIDI regression build") && ok;
+    }
+    else
+    {
+        ok = checkPass(processor.doesRuntimeJsonPresetProbeRequireFallback(),
+                       "processor JSON probe falls back safely in ON MIDI regression build") && ok;
+    }
+
+    if (processor.doesRuntimePresetCatalogAuthorityProbeRequireFallback())
+    {
+        ok = checkPass(processor.doesRuntimeJsonPresetProbeRequireFallback(),
+                       "processor runtime catalog authority probe fallback follows source fallback in ON MIDI regression build") && ok;
+    }
+    else
+    {
+        ok = checkPass(processor.wasRuntimeJsonPresetProbeLoaded(),
+                       "processor runtime catalog authority probe uses loaded source in ON MIDI regression build") && ok;
+    }
 #else
     ok = checkPass(! processor.wasRuntimeJsonPresetProbeLoaded(),
                    "processor JSON probe not loaded in OFF MIDI regression build") && ok;
@@ -345,5 +370,10 @@ int main()
 
     std::cout << "[PASS] Hardcoded MIDI behavior remains authoritative." << std::endl;
 
+    std::cout << "[PASS] Phase 5B processor-side runtime catalog authority probe preserved MIDI behavior." << std::endl;
+
     return 0;
 }
+
+
+

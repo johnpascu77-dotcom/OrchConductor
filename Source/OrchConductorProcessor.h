@@ -148,6 +148,10 @@ public:
     bool doesRuntimeJsonPresetProbeRequireFallback() const;
     juce::String getRuntimeJsonPresetProbeDiagnostic() const;
 
+    bool wasRuntimePresetCatalogAuthorityProbeReady() const;
+    bool doesRuntimePresetCatalogAuthorityProbeRequireFallback() const;
+    bool doesRuntimePresetCatalogAuthorityProbeHaveExpectedFactoryShape() const;
+    juce::String getRuntimePresetCatalogAuthorityProbeDiagnostic() const;
 private:
     static constexpr int minCombiPresetId = 0;
     static constexpr int maxCombiPresetId = static_cast<int> (CombiPreset::soloEnglishHornLament);
@@ -177,6 +181,11 @@ private:
     bool runtimeJsonPresetProbeRequiresFallback { true };
     juce::String runtimeJsonPresetProbeDiagnostic { "Runtime JSON presets are disabled by ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS." };
 
+    bool runtimePresetCatalogAuthorityProbeReady { false };
+    bool runtimePresetCatalogAuthorityProbeRequiresFallback { true };
+    bool runtimePresetCatalogAuthorityProbeHasExpectedFactoryShape { false };
+    juce::String runtimePresetCatalogAuthorityProbeDiagnostic { "Runtime preset catalog authority probe is inactive because runtime JSON presets are disabled." };
+
     int getPresetValueForIndex (int index) const;
     int getWoodwindsPresetValueForIndex (int index) const;
     int getBrassPresetValueForIndex (int index) const;
@@ -185,6 +194,7 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };
+
 
 
 

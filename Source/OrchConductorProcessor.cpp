@@ -2,6 +2,7 @@
 #include <cmath>
 #include "OrchConductorEditor.h"
 #include "OrchConductorRuntimePresetSource.h"
+#include "OrchConductorRuntimePresetCatalog.h"
 
 namespace
 {
@@ -125,10 +126,23 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
     runtimeJsonPresetProbeLoaded = runtimeJsonPresetProbe.wasLoaded();
     runtimeJsonPresetProbeRequiresFallback = runtimeJsonPresetProbe.requiresHardcodedFallback();
     runtimeJsonPresetProbeDiagnostic = runtimeJsonPresetProbe.diagnosticMessage;
+
+    const auto runtimePresetCatalogAuthorityProbe =
+        OrchConductorRuntimePresetCatalog::createFromRuntimeSource(runtimeJsonPresetProbe);
+
+    runtimePresetCatalogAuthorityProbeReady = runtimePresetCatalogAuthorityProbe.isReady();
+    runtimePresetCatalogAuthorityProbeRequiresFallback = runtimePresetCatalogAuthorityProbe.requiresFallback();
+    runtimePresetCatalogAuthorityProbeHasExpectedFactoryShape = runtimePresetCatalogAuthorityProbe.hasExpectedFactoryShape();
+    runtimePresetCatalogAuthorityProbeDiagnostic = runtimePresetCatalogAuthorityProbe.getDiagnosticMessage();
 #else
     runtimeJsonPresetProbeLoaded = false;
     runtimeJsonPresetProbeRequiresFallback = true;
     runtimeJsonPresetProbeDiagnostic = "Runtime JSON presets are disabled by ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS.";
+
+    runtimePresetCatalogAuthorityProbeReady = false;
+    runtimePresetCatalogAuthorityProbeRequiresFallback = true;
+    runtimePresetCatalogAuthorityProbeHasExpectedFactoryShape = false;
+    runtimePresetCatalogAuthorityProbeDiagnostic = "Runtime preset catalog authority probe is inactive because runtime JSON presets are disabled.";
 #endif
 }
 
@@ -198,6 +212,26 @@ bool OrchConductorAudioProcessor::doesRuntimeJsonPresetProbeRequireFallback() co
 juce::String OrchConductorAudioProcessor::getRuntimeJsonPresetProbeDiagnostic() const
 {
     return runtimeJsonPresetProbeDiagnostic;
+}
+
+bool OrchConductorAudioProcessor::wasRuntimePresetCatalogAuthorityProbeReady() const
+{
+    return runtimePresetCatalogAuthorityProbeReady;
+}
+
+bool OrchConductorAudioProcessor::doesRuntimePresetCatalogAuthorityProbeRequireFallback() const
+{
+    return runtimePresetCatalogAuthorityProbeRequiresFallback;
+}
+
+bool OrchConductorAudioProcessor::doesRuntimePresetCatalogAuthorityProbeHaveExpectedFactoryShape() const
+{
+    return runtimePresetCatalogAuthorityProbeHasExpectedFactoryShape;
+}
+
+juce::String OrchConductorAudioProcessor::getRuntimePresetCatalogAuthorityProbeDiagnostic() const
+{
+    return runtimePresetCatalogAuthorityProbeDiagnostic;
 }
 
 int OrchConductorAudioProcessor::getDefaultMaxPlayersForCc (int ccNumber) const
@@ -911,6 +945,8 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
+
+
 
 
 
