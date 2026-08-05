@@ -1,4 +1,4 @@
-﻿#include <JuceHeader.h>
+#include <JuceHeader.h>
 
 #include "../Source/OrchConductorProcessor.h"
 
@@ -113,6 +113,42 @@ bool verifyProcessorRuntimeCatalogAuthorityProbe(OrchConductorAudioProcessor& pr
 
     return ok;
 }
+bool verifyProcessorRuntimeCatalogCoverageAudit(OrchConductorAudioProcessor& processor)
+{
+    bool ok = true;
+
+    ok = checkPass(processor.getRuntimeCatalogCoverageAuditDiagnostic().isNotEmpty(),
+                   "processor runtime catalog coverage audit diagnostic message is present") && ok;
+
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+    if (processor.doesRuntimePresetCatalogAuthorityProbeRequireFallback())
+    {
+        ok = checkPass(! processor.wasRuntimeCatalogCoverageAuditRun(),
+                       "processor runtime catalog coverage audit does not run against fallback catalog") && ok;
+        ok = checkPass(processor.wasRuntimeCatalogCoverageAuditBlockedByFallback(),
+                       "processor runtime catalog coverage audit reports fallback block") && ok;
+    }
+    else
+    {
+        ok = checkPass(processor.wasRuntimeCatalogCoverageAuditRun(),
+                       "processor runtime catalog coverage audit runs against source-backed catalog") && ok;
+        ok = checkPass(processor.didRuntimeCatalogCoverageAuditPass(),
+                       "processor runtime catalog coverage audit passes for expected factory catalog shape") && ok;
+        ok = checkPass(! processor.wasRuntimeCatalogCoverageAuditBlockedByFallback(),
+                       "processor runtime catalog coverage audit is not fallback-blocked with source-backed catalog") && ok;
+    }
+#else
+    ok = checkPass(! processor.wasRuntimeCatalogCoverageAuditRun(),
+                   "processor runtime catalog coverage audit inactive with runtime JSON OFF") && ok;
+    ok = checkPass(! processor.didRuntimeCatalogCoverageAuditPass(),
+                   "processor runtime catalog coverage audit does not report pass with runtime JSON OFF") && ok;
+    ok = checkPass(processor.wasRuntimeCatalogCoverageAuditBlockedByFallback(),
+                   "processor runtime catalog coverage audit blocked with runtime JSON OFF") && ok;
+#endif
+
+    return ok;
+}
+
 bool verifyProcessorRuntimeCatalogPayloadEquivalenceProbe(OrchConductorAudioProcessor& processor)
 {
     bool ok = true;
@@ -133,7 +169,7 @@ bool verifyProcessorRuntimeCatalogPayloadEquivalenceProbe(OrchConductorAudioProc
         ok = checkPass(processor.wasRuntimeCatalogPayloadEquivalenceProbeRun(),
                        "processor runtime catalog payload equivalence probe runs against source-backed catalog") && ok;
         ok = checkPass(processor.didRuntimeCatalogPayloadEquivalenceProbePass(),
-                       "processor runtime catalog payload equivalence probe passes for sentinel hardcoded presets") && ok;
+                       "processor runtime catalog payload equivalence probe passes for broadened sentinel hardcoded presets") && ok;
         ok = checkPass(! processor.wasRuntimeCatalogPayloadEquivalenceProbeBlockedByFallback(),
                        "processor runtime catalog payload equivalence probe is not fallback-blocked with source-backed catalog") && ok;
     }
@@ -160,6 +196,7 @@ int main()
     std::cout << "[INFO] Source probe diagnostic: " << processor.getRuntimeJsonPresetProbeDiagnostic() << std::endl;
     std::cout << "[INFO] Catalog authority probe diagnostic: " << processor.getRuntimePresetCatalogAuthorityProbeDiagnostic() << std::endl;
     std::cout << "[INFO] Payload equivalence probe diagnostic: " << processor.getRuntimeCatalogPayloadEquivalenceProbeDiagnostic() << std::endl;
+    std::cout << "[INFO] Coverage audit diagnostic: " << processor.getRuntimeCatalogCoverageAuditDiagnostic() << std::endl;
 
     bool ok = true;
 
@@ -190,6 +227,7 @@ int main()
 
     ok = verifyProcessorRuntimeCatalogAuthorityProbe(processor) && ok;
     ok = verifyProcessorRuntimeCatalogPayloadEquivalenceProbe(processor) && ok;
+    ok = verifyProcessorRuntimeCatalogCoverageAudit(processor) && ok;
     ok = verifyHardcodedBehaviorStillAvailable(processor) && ok;
 
     if (! ok)
@@ -206,10 +244,14 @@ int main()
     std::cout << "[PASS] Hardcoded preset behavior remains authoritative." << std::endl;
     std::cout << "[PASS] Processor runtime catalog authority probe remains passive." << std::endl;
     std::cout << "[PASS] Processor runtime catalog payload equivalence probe remains passive." << std::endl;
-    std::cout << "[PASS] Phase 5C processor runtime catalog payload equivalence probe satisfied." << std::endl;
+    std::cout << "[PASS] Processor runtime catalog coverage audit remains passive." << std::endl;
+    std::cout << "[PASS] Phase 5D broadened processor runtime catalog payload equivalence coverage satisfied." << std::endl;
+    std::cout << "[PASS] Phase 5E runtime catalog coverage audit satisfied." << std::endl;
 
     return 0;
 }
+
+
 
 
 

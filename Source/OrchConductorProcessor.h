@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <JuceHeader.h>
 
@@ -157,6 +157,11 @@ public:
     bool didRuntimeCatalogPayloadEquivalenceProbePass() const;
     bool wasRuntimeCatalogPayloadEquivalenceProbeBlockedByFallback() const;
     juce::String getRuntimeCatalogPayloadEquivalenceProbeDiagnostic() const;
+
+    bool wasRuntimeCatalogCoverageAuditRun() const;
+    bool didRuntimeCatalogCoverageAuditPass() const;
+    bool wasRuntimeCatalogCoverageAuditBlockedByFallback() const;
+    juce::String getRuntimeCatalogCoverageAuditDiagnostic() const;
 private:
     static constexpr int minCombiPresetId = 0;
     static constexpr int maxCombiPresetId = static_cast<int> (CombiPreset::soloEnglishHornLament);
@@ -196,6 +201,11 @@ private:
     bool runtimeCatalogPayloadEquivalenceProbeBlockedByFallback { true };
     juce::String runtimeCatalogPayloadEquivalenceProbeDiagnostic { "Runtime catalog payload equivalence probe is inactive because runtime JSON presets are disabled." };
 
+    bool runtimeCatalogCoverageAuditRun { false };
+    bool runtimeCatalogCoverageAuditPassed { false };
+    bool runtimeCatalogCoverageAuditBlockedByFallback { true };
+    juce::String runtimeCatalogCoverageAuditDiagnostic { "Runtime catalog coverage audit is inactive because runtime JSON presets are disabled." };
+
     int getPresetValueForIndex (int index) const;
     int getWoodwindsPresetValueForIndex (int index) const;
     int getBrassPresetValueForIndex (int index) const;
@@ -204,6 +214,7 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };
+
 
 
 
