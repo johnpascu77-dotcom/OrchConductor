@@ -1,4 +1,4 @@
-#include <JuceHeader.h>
+﻿#include <JuceHeader.h>
 
 #include "../Source/OrchConductorProcessor.h"
 
@@ -149,6 +149,53 @@ bool verifyProcessorRuntimeCatalogCoverageAudit(OrchConductorAudioProcessor& pro
     return ok;
 }
 
+
+bool verifyProcessorRuntimeCatalogAuthorityTrialDiagnostic(OrchConductorAudioProcessor& processor)
+{
+    bool ok = true;
+
+    ok = checkPass(processor.getRuntimeCatalogAuthorityTrialDiagnostic().isNotEmpty(),
+                   "processor runtime catalog authority trial diagnostic message is present") && ok;
+
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+    if (processor.doesRuntimePresetCatalogAuthorityProbeRequireFallback())
+    {
+        ok = checkPass(! processor.wasRuntimeCatalogAuthorityTrialRun(),
+                       "processor runtime catalog authority trial does not run against fallback catalog") && ok;
+        ok = checkPass(processor.wasRuntimeCatalogAuthorityTrialBlocked(),
+                       "processor runtime catalog authority trial reports fallback block") && ok;
+        ok = checkPass(! processor.didRuntimeCatalogAuthorityTrialPass(),
+                       "processor runtime catalog authority trial does not report pass when fallback-blocked") && ok;
+    }
+    else
+    {
+    #if ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL
+        ok = checkPass(processor.wasRuntimeCatalogAuthorityTrialRun(),
+                       "processor runtime catalog authority trial runs against source-backed catalog when enabled") && ok;
+        ok = checkPass(processor.didRuntimeCatalogAuthorityTrialPass(),
+                       "processor runtime catalog authority trial passes for selected factory authority sentinels") && ok;
+        ok = checkPass(! processor.wasRuntimeCatalogAuthorityTrialBlocked(),
+                       "processor runtime catalog authority trial is not blocked with source-backed catalog when enabled") && ok;
+    #else
+        ok = checkPass(! processor.wasRuntimeCatalogAuthorityTrialRun(),
+                       "processor runtime catalog authority trial remains inactive when authority trial feature gate is OFF") && ok;
+        ok = checkPass(! processor.didRuntimeCatalogAuthorityTrialPass(),
+                       "processor runtime catalog authority trial does not report pass when authority trial feature gate is OFF") && ok;
+        ok = checkPass(processor.wasRuntimeCatalogAuthorityTrialBlocked(),
+                       "processor runtime catalog authority trial reports blocked when authority trial feature gate is OFF") && ok;
+    #endif
+    }
+#else
+    ok = checkPass(! processor.wasRuntimeCatalogAuthorityTrialRun(),
+                   "processor runtime catalog authority trial inactive with runtime JSON OFF") && ok;
+    ok = checkPass(! processor.didRuntimeCatalogAuthorityTrialPass(),
+                   "processor runtime catalog authority trial does not report pass with runtime JSON OFF") && ok;
+    ok = checkPass(processor.wasRuntimeCatalogAuthorityTrialBlocked(),
+                   "processor runtime catalog authority trial blocked with runtime JSON OFF") && ok;
+#endif
+
+    return ok;
+}
 bool verifyProcessorRuntimeCatalogPayloadEquivalenceProbe(OrchConductorAudioProcessor& processor)
 {
     bool ok = true;
@@ -197,6 +244,7 @@ int main()
     std::cout << "[INFO] Catalog authority probe diagnostic: " << processor.getRuntimePresetCatalogAuthorityProbeDiagnostic() << std::endl;
     std::cout << "[INFO] Payload equivalence probe diagnostic: " << processor.getRuntimeCatalogPayloadEquivalenceProbeDiagnostic() << std::endl;
     std::cout << "[INFO] Coverage audit diagnostic: " << processor.getRuntimeCatalogCoverageAuditDiagnostic() << std::endl;
+    std::cout << "[INFO] Authority trial diagnostic: " << processor.getRuntimeCatalogAuthorityTrialDiagnostic() << std::endl;
 
     bool ok = true;
 
@@ -228,6 +276,7 @@ int main()
     ok = verifyProcessorRuntimeCatalogAuthorityProbe(processor) && ok;
     ok = verifyProcessorRuntimeCatalogPayloadEquivalenceProbe(processor) && ok;
     ok = verifyProcessorRuntimeCatalogCoverageAudit(processor) && ok;
+    ok = verifyProcessorRuntimeCatalogAuthorityTrialDiagnostic(processor) && ok;
     ok = verifyHardcodedBehaviorStillAvailable(processor) && ok;
 
     if (! ok)
@@ -247,11 +296,8 @@ int main()
     std::cout << "[PASS] Processor runtime catalog coverage audit remains passive." << std::endl;
     std::cout << "[PASS] Phase 5D broadened processor runtime catalog payload equivalence coverage satisfied." << std::endl;
     std::cout << "[PASS] Phase 5E runtime catalog coverage audit satisfied." << std::endl;
+    std::cout << "[PASS] Processor runtime catalog authority trial diagnostic remains passive." << std::endl;
+    std::cout << "[PASS] Phase 5G runtime catalog authority trial diagnostic satisfied." << std::endl;
 
     return 0;
 }
-
-
-
-
-

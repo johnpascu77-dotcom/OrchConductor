@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <JuceHeader.h>
 
@@ -19,7 +19,6 @@ public:
     bool hasEditor() const override;
 
     const juce::String getName() const override;
-
     bool acceptsMidi() const override;
     bool producesMidi() const override;
     bool isMidiEffect() const override;
@@ -162,6 +161,10 @@ public:
     bool didRuntimeCatalogCoverageAuditPass() const;
     bool wasRuntimeCatalogCoverageAuditBlockedByFallback() const;
     juce::String getRuntimeCatalogCoverageAuditDiagnostic() const;
+    bool wasRuntimeCatalogAuthorityTrialRun() const;
+    bool didRuntimeCatalogAuthorityTrialPass() const;
+    bool wasRuntimeCatalogAuthorityTrialBlocked() const;
+    juce::String getRuntimeCatalogAuthorityTrialDiagnostic() const;
 private:
     static constexpr int minCombiPresetId = 0;
     static constexpr int maxCombiPresetId = static_cast<int> (CombiPreset::soloEnglishHornLament);
@@ -206,6 +209,11 @@ private:
     bool runtimeCatalogCoverageAuditBlockedByFallback { true };
     juce::String runtimeCatalogCoverageAuditDiagnostic { "Runtime catalog coverage audit is inactive because runtime JSON presets are disabled." };
 
+    bool runtimeCatalogAuthorityTrialRun{ false };
+    bool runtimeCatalogAuthorityTrialPass{ false };
+    bool runtimeCatalogAuthorityTrialBlocked{ true };
+    juce::String runtimeCatalogAuthorityTrialDiagnostic{ "Runtime catalog authority trial is disabled by ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL." };
+
     int getPresetValueForIndex (int index) const;
     int getWoodwindsPresetValueForIndex (int index) const;
     int getBrassPresetValueForIndex (int index) const;
@@ -214,12 +222,3 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };
-
-
-
-
-
-
-
-
-

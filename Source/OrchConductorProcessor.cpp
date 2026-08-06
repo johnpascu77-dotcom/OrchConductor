@@ -1,4 +1,4 @@
-#include "OrchConductorProcessor.h"
+﻿#include "OrchConductorProcessor.h"
 #include <cmath>
 #include "OrchConductorEditor.h"
 #include "OrchConductorRuntimePresetSource.h"
@@ -139,6 +139,46 @@ namespace
             && verifyRuntimeCatalogCombiPresetRange(catalog, 0, 28);
     }
 
+    bool verifyRuntimeCatalogAuthorityTrialSentinels(const OrchConductorRuntimePresetCatalog& catalog)
+    {
+        // Phase 5G authority-trial sentinels.
+        // This is still diagnostic-only. It does not route MIDI or change preset authority.
+
+        const ExpectedRuntimeCatalogValue lowStringsExpected[] =
+        {
+            { 50, 0 },
+            { 51, 0 },
+            { 52, 64 },
+            { 53, 127 },
+            { 54, 127 }
+        };
+
+        const ExpectedRuntimeCatalogValue fullStringsExpected[] =
+        {
+            { 50, 127 },
+            { 51, 127 },
+            { 52, 127 },
+            { 53, 127 },
+            { 54, 127 }
+        };
+
+        const ExpectedRuntimeCatalogValue soloEnglishHornLamentExpected[] =
+        {
+            { 20, 0 },   { 21, 0 },   { 22, 0 },   { 23, 127 },
+            { 24, 0 },   { 25, 0 },   { 26, 0 },   { 27, 0 },
+            { 28, 0 },   { 29, 0 },   { 30, 0 },   { 31, 0 },
+            { 32, 0 },   { 33, 0 },   { 34, 0 },   { 35, 0 },
+            { 36, 0 },   { 37, 0 },   { 38, 0 },   { 39, 0 },
+            { 40, 0 },   { 41, 0 },   { 42, 0 },   { 43, 0 },
+            { 44, 0 },   { 45, 0 },   { 46, 0 },   { 47, 0 },
+            { 48, 0 },   { 49, 0 },   { 50, 0 },   { 51, 0 },
+            { 52, 0 },   { 53, 0 },   { 54, 64 }
+        };
+
+        return runtimeCatalogPresetMatchesExpectedValues(catalog, "strings", 8, lowStringsExpected, 5)
+            && runtimeCatalogPresetMatchesExpectedValues(catalog, "strings", 12, fullStringsExpected, 5)
+            && runtimeCatalogCombiPresetMatchesExpectedValues(catalog, 28, soloEnglishHornLamentExpected, 35);
+    }
 
 
     bool verifyRuntimeCatalogPayloadEquivalenceSentinels(const OrchConductorRuntimePresetCatalog& catalog)
@@ -422,6 +462,24 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
             runtimeCatalogCoverageAuditPassed
                 ? "Runtime catalog coverage audit passed for expected factory catalog shape."
                 : "Runtime catalog coverage audit failed for expected factory catalog shape.";
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL
+        runtimeCatalogAuthorityTrialRun = true;
+        runtimeCatalogAuthorityTrialBlocked = false;
+        runtimeCatalogAuthorityTrialPass =
+            verifyRuntimeCatalogAuthorityTrialSentinels(runtimePresetCatalogAuthorityProbe);
+
+        runtimeCatalogAuthorityTrialDiagnostic =
+            runtimeCatalogAuthorityTrialPass
+                ? "Runtime catalog authority trial diagnostic passed."
+                : "Runtime catalog authority trial diagnostic failed: sentinel payloads do not match expected factory authority values.";
+#else
+        runtimeCatalogAuthorityTrialRun = false;
+        runtimeCatalogAuthorityTrialPass = false;
+        runtimeCatalogAuthorityTrialBlocked = true;
+        runtimeCatalogAuthorityTrialDiagnostic =
+            "Runtime catalog authority trial is disabled by ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL.";
+#endif
+
     }
     else
     {
@@ -436,6 +494,12 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
         runtimeCatalogCoverageAuditBlockedByFallback = true;
         runtimeCatalogCoverageAuditDiagnostic =
             "Runtime catalog coverage audit blocked because runtime catalog requires fallback or is not source-backed.";
+
+        runtimeCatalogAuthorityTrialRun = false;
+        runtimeCatalogAuthorityTrialPass = false;
+        runtimeCatalogAuthorityTrialBlocked = true;
+        runtimeCatalogAuthorityTrialDiagnostic =
+            "Runtime catalog authority trial diagnostic was blocked because runtime catalog requires fallback or is not source-backed.";
     }
 #else
     runtimeJsonPresetProbeLoaded = false;
@@ -458,6 +522,12 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
     runtimeCatalogCoverageAuditBlockedByFallback = true;
     runtimeCatalogCoverageAuditDiagnostic =
         "Runtime catalog coverage audit is inactive because runtime JSON presets are disabled.";
+
+    runtimeCatalogAuthorityTrialRun = false;
+    runtimeCatalogAuthorityTrialPass = false;
+    runtimeCatalogAuthorityTrialBlocked = true;
+    runtimeCatalogAuthorityTrialDiagnostic =
+        "Runtime catalog authority trial is inactive because runtime JSON presets are disabled.";
 #endif
 }
 
@@ -588,6 +658,27 @@ juce::String OrchConductorAudioProcessor::getRuntimeCatalogCoverageAuditDiagnost
 {
     return runtimeCatalogCoverageAuditDiagnostic;
 }
+
+bool OrchConductorAudioProcessor::wasRuntimeCatalogAuthorityTrialRun() const
+{
+    return runtimeCatalogAuthorityTrialRun;
+}
+
+bool OrchConductorAudioProcessor::didRuntimeCatalogAuthorityTrialPass() const
+{
+    return runtimeCatalogAuthorityTrialPass;
+}
+
+bool OrchConductorAudioProcessor::wasRuntimeCatalogAuthorityTrialBlocked() const
+{
+    return runtimeCatalogAuthorityTrialBlocked;
+}
+
+juce::String OrchConductorAudioProcessor::getRuntimeCatalogAuthorityTrialDiagnostic() const
+{
+    return runtimeCatalogAuthorityTrialDiagnostic;
+}
+
 
 int OrchConductorAudioProcessor::getDefaultMaxPlayersForCc (int ccNumber) const
 {
@@ -1300,12 +1391,3 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
-
-
-
-
-
-
-
-
-
