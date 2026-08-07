@@ -1,4 +1,4 @@
-﻿# OrchConductor Session Context
+# OrchConductor Session Context
 
 ## Collaboration Workflow Charter
 
