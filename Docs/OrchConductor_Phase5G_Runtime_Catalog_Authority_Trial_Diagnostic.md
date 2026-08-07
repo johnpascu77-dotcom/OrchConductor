@@ -1,4 +1,4 @@
-﻿# OrchConductor Phase 5G Runtime Catalog Authority Trial Diagnostic
+# OrchConductor Phase 5G Runtime Catalog Authority Trial Diagnostic
 
 ## Purpose
 
@@ -90,9 +90,9 @@ Expected values:
 | 20 | 0 |
 | 21 | 0 |
 | 22 | 0 |
-| 23 | 127 |
+| 23 | 0 |
 | 24 | 0 |
-| 25 | 0 |
+| 25 | 127 |
 | 26 | 0 |
 | 27 | 0 |
 | 28 | 0 |
@@ -119,8 +119,8 @@ Expected values:
 | 49 | 0 |
 | 50 | 0 |
 | 51 | 0 |
-| 52 | 0 |
-| 53 | 0 |
+| 52 | 127 |
+| 53 | 127 |
 | 54 | 64 |
 
 ## Processor Accessors
