@@ -1,588 +1,448 @@
-# \# OrchConductor Session Context
+﻿# OrchConductor Session Context
 
-# 
+## Collaboration Workflow Charter
 
-# \## Collaboration Workflow Charter
+This repository uses the online Git repository as the shared **intelligence buffer** between the local development machine and the AI assistant.
 
-# 
+The purpose of this workflow is to reduce manual snippet-pasting, avoid stale assumptions, and make future sessions safer and less painful.
 
-# This repository uses the online Git repository as the shared \*\*intelligence buffer\*\* between the local development machine and the AI assistant.
+---
 
-# 
+## Core Model
 
-# The purpose of this workflow is to reduce manual snippet-pasting, avoid stale assumptions, and make future sessions safer and less painful.
+```text
 
-# 
+Local repository = build truth and working machine
 
-# \---
+GitHub branch    = shared readable source snapshot / intelligence buffer
 
-# 
+AI assistant     = reads pushed source, reasons about changes, proposes patches
 
-# \## Core Model
+```
 
-# 
+The AI assistant cannot directly inspect the local filesystem, run CMake, run Git, or execute the probe tools on the developer machine.
 
-# ```text
+Therefore:
 
-# Local repository = build truth and working machine
+- GitHub is used for source inspection.
 
-# GitHub branch    = shared readable source snapshot / intelligence buffer
+- The local terminal is used for build/probe validation.
 
-# AI assistant     = reads pushed source, reasons about changes, proposes patches
+- Compiler errors and probe output are pasted back only when needed.
 
-# ```
+---
 
-# 
+## Session Start Protocol
 
-# The AI assistant cannot directly inspect the local filesystem, run CMake, run Git, or execute the probe tools on the developer machine.
+At the start of each development session, the developer should provide:
 
-# 
+```text
 
-# Therefore:
+Repo:
 
-# 
+Branch:
 
-# \- GitHub is used for source inspection.
+Current commit:
 
-# \- The local terminal is used for build/probe validation.
+Goal:
 
-# \- Compiler errors and probe output are pasted back only when needed.
+```
 
-# 
+Example:
 
-# \---
+```text
 
-# 
+Repo: https://github.com/<user>/OrchConductor
 
-# \## Session Start Protocol
+Branch: phase-5G-runtime-catalog-authority-trial-diagnostic
 
-# 
+Current commit: a0abc77
 
-# At the start of each development session, the developer should provide:
+Goal: start Phase 5H
 
-# 
+```
 
-# ```text
+Before proposing patches, the assistant should inspect the pushed branch when a repository URL/branch is available.
 
-# Repo:
+The assistant should avoid asking for source snippets that are already available in the pushed branch.
 
-# Branch:
+---
 
-# Current commit:
+## Push Early, Inspect Remotely
 
-# Goal:
+When beginning a new phase or when the assistant needs source context, push the current branch:
 
-# ```
+```powershell
 
-# 
+git status --short
 
-# Example:
+git branch --show-current
 
-# 
+git push -u origin HEAD
 
-# ```text
+```
 
-# Repo: https://github.com/<user>/OrchConductor
+If the branch is pushed, the assistant should treat GitHub as the default source-reading mechanism.
 
-# Branch: phase-5G-runtime-catalog-authority-trial-diagnostic
+The assistant should only ask for pasted source snippets when:
 
-# Current commit: a0abc77
+1. the relevant changes are local and unpushed,
 
-# Goal: start Phase 5H
+2. the repo/branch is inaccessible,
 
-# ```
+3. the issue involves generated files or build artifacts,
 
-# 
+4. the issue depends on local compiler/build output,
 
-# Before proposing patches, the assistant should inspect the pushed branch when a repository URL/branch is available.
+5. GitHub is stale relative to the failing local state.
 
-# 
+---
 
-# The assistant should avoid asking for source snippets that are already available in the pushed branch.
+## Local Machine Responsibilities
 
-# 
+The developerâ€™s local machine remains authoritative for:
 
-# \---
+- CMake configuration
 
-# 
+- compiler errors
 
-# \## Push Early, Inspect Remotely
+- build success/failure
 
-# 
+- executable paths
 
-# When beginning a new phase or when the assistant needs source context, push the current branch:
+- probe output
 
-# 
+- local uncommitted changes
 
-# ```powershell
+- platform-specific behavior
 
-# git status --short
+- generated files and build directories
 
-# git branch --show-current
+For build failures, the developer should paste:
 
-# git push -u origin HEAD
+- the first compiler error block,
 
-# ```
+- relevant CMake error output,
 
-# 
+- or the final probe PASS/FAIL output.
 
-# If the branch is pushed, the assistant should treat GitHub as the default source-reading mechanism.
+The assistant should not ask for broad file dumps unless remote inspection is impossible or stale.
 
-# 
+---
 
-# The assistant should only ask for pasted source snippets when:
+## Preferred Patch Flow
 
-# 
+Prefer Git-native patches when practical:
 
-# 1\. the relevant changes are local and unpushed,
+```powershell
 
-# 2\. the repo/branch is inaccessible,
+git apply --check .\\phase.patch
 
-# 3\. the issue involves generated files or build artifacts,
+git apply .\\phase.patch
 
-# 4\. the issue depends on local compiler/build output,
+```
 
-# 5\. GitHub is stale relative to the failing local state.
+PowerShell patch scripts are acceptable when they are safer or easier on Windows, but should be used carefully and idempotently.
 
-# 
+Preferred order:
 
-# \---
+1. inspect pushed branch,
 
-# 
+2. propose minimal patch,
 
-# \## Local Machine Responsibilities
+3. developer applies patch,
 
-# 
+4. developer builds locally,
 
-# The developer’s local machine remains authoritative for:
+5. developer runs probe/test locally,
 
-# 
+6. developer reports only build/probe result,
 
-# \- CMake configuration
+7. fix if needed,
 
-# \- compiler errors
+8. commit,
 
-# \- build success/failure
+9. push.
 
-# \- executable paths
+---
 
-# \- probe output
+## Handling Local Uncommitted Failure States
 
-# \- local uncommitted changes
+If a build failure occurs after local uncommitted edits, GitHub may not reflect the failing state.
 
-# \- platform-specific behavior
+In that case, use one of these options.
 
-# \- generated files and build directories
+### Option A: Commit and push WIP on the feature branch
 
-# 
+```powershell
 
-# For build failures, the developer should paste:
+git add .
 
-# 
+git commit -m "WIP local failure state"
 
-# \- the first compiler error block,
+git push
 
-# \- relevant CMake error output,
+```
 
-# \- or the final probe PASS/FAIL output.
+### Option B: Push a temporary debug branch
 
-# 
+```powershell
 
-# The assistant should not ask for broad file dumps unless remote inspection is impossible or stale.
+git checkout -b debug/<phase>-local-failure
 
-# 
+git add .
 
-# \---
+git commit -m "Debug local failure state"
 
-# 
+git push -u origin HEAD
 
-# \## Preferred Patch Flow
+```
 
-# 
+### Option C: Export a local diff
 
-# Prefer Git-native patches when practical:
+```powershell
 
-# 
+git diff > local_failure.patch
 
-# ```powershell
+```
 
-# git apply --check .\\phase.patch
+Then provide only the relevant diff/error context.
 
-# git apply .\\phase.patch
+---
 
-# ```
+## Build Artifacts and Temporary Files
 
-# 
+Build directories and temporary scripts should not be committed.
 
-# PowerShell patch scripts are acceptable when they are safer or easier on Windows, but should be used carefully and idempotently.
+Common cleanup:
 
-# 
+```powershell
 
-# Preferred order:
+Remove-Item .\\build-* -Recurse -Force -ErrorAction SilentlyContinue
 
-# 
+Remove-Item .\\phase*_*.ps1 -ErrorAction SilentlyContinue
 
-# 1\. inspect pushed branch,
+Remove-Item .\\phase*_*.txt -ErrorAction SilentlyContinue
 
-# 2\. propose minimal patch,
+```
 
-# 3\. developer applies patch,
+Before commit:
 
-# 4\. developer builds locally,
+```powershell
 
-# 5\. developer runs probe/test locally,
+git status --short
 
-# 6\. developer reports only build/probe result,
+git diff --cached --check
 
-# 7\. fix if needed,
+```
 
-# 8\. commit,
+Expected tracked project changes should be deliberate and minimal.
 
-# 9\. push.
+---
 
-# 
+## Commit Protocol
 
-# \---
+Before committing:
 
-# 
+```powershell
 
-# \## Handling Local Uncommitted Failure States
+git status --short
 
-# 
+git diff --stat
 
-# If a build failure occurs after local uncommitted edits, GitHub may not reflect the failing state.
+git diff --check
 
-# 
+```
 
-# In that case, use one of these options.
+Then stage only intended files:
 
-# 
+```powershell
 
-# \### Option A: Commit and push WIP on the feature branch
+git add <intended-files>
 
-# 
+git diff --cached --stat
 
-# ```powershell
+git diff --cached --check
 
-# git add .
+```
 
-# git commit -m "WIP local failure state"
+Commit only when `git diff --cached --check` reports no whitespace errors.
 
-# git push
+Example commit:
 
-# ```
+```powershell
 
-# 
+git commit -m "Add passive runtime catalog authority trial diagnostic"
 
-# \### Option B: Push a temporary debug branch
+```
 
-# 
+After commit, push:
 
-# ```powershell
+```powershell
 
-# git checkout -b debug/<phase>-local-failure
+git push
 
-# git add .
+```
 
-# git commit -m "Debug local failure state"
+---
 
-# git push -u origin HEAD
+## Assistant Operating Rules for This Repository
 
-# ```
+When a GitHub branch is available, the assistant should:
 
-# 
+1. inspect the pushed files before proposing source changes,
 
-# \### Option C: Export a local diff
+2. avoid asking for pasted snippets from files already available remotely,
 
-# 
+3. clearly distinguish remote pushed state from local uncommitted state,
 
-# ```powershell
+4. prefer minimal, reviewable patches,
 
-# git diff > local\_failure.patch
+5. prefer `git apply` patches when feasible,
 
-# ```
+6. use PowerShell patch scripts only when appropriate,
 
-# 
+7. keep diagnostics passive unless explicitly instructed otherwise,
 
-# Then provide only the relevant diff/error context.
+8. preserve existing build and probe behavior unless the phase goal requires a change,
 
-# 
+9. ask for local build/probe output only when needed,
 
-# \---
+10. avoid â€œmanual patching just like thatâ€ without first establishing source context.
 
-# 
+---
 
-# \## Build Artifacts and Temporary Files
+## Validation Pattern
 
-# 
+For each phase, record:
 
-# Build directories and temporary scripts should not be committed.
+```text
 
-# 
+Phase:
 
-# Common cleanup:
+Branch:
 
-# 
+Commit:
 
-# ```powershell
+Build command:
 
-# Remove-Item .\\build-\* -Recurse -Force -ErrorAction SilentlyContinue
+Probe/test command:
 
-# Remove-Item .\\phase\*\_\*.ps1 -ErrorAction SilentlyContinue
+Result:
 
-# Remove-Item .\\phase\*\_\*.txt -ErrorAction SilentlyContinue
+Notes:
 
-# ```
+```
 
-# 
+Example:
 
-# Before commit:
+```text
 
-# 
+Phase: 5G runtime catalog authority trial diagnostic
 
-# ```powershell
+Branch: phase-5G-runtime-catalog-authority-trial-diagnostic
 
-# git status --short
+Commit: a0abc77
 
-# git diff --cached --check
+Build command:
 
-# ```
+  cmake -S . -B build-phase5G-authority-on -DORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS=ON -DORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL=ON
 
-# 
+  cmake --build build-phase5G-authority-on --target OrchConductorProcessorJsonProbeCheck --config Debug
 
-# Expected tracked project changes should be deliberate and minimal.
+Probe/test command:
 
-# 
+  .\\build-phase5G-authority-on\\OrchConductorProcessorJsonProbeCheck_artefacts\\Debug\\OrchConductorProcessorJsonProbeCheck.exe
 
-# \---
+Result:
 
-# 
+  PASS
 
-# \## Commit Protocol
+Notes:
 
-# 
+  Authority trial diagnostic remains passive and source-backed.
 
-# Before committing:
+```
 
-# 
+---
 
-# ```powershell
+## Current Stable Milestone
 
-# git status --short
+Phase 5G is committed.
 
-# git diff --stat
+```text
 
-# git diff --check
+Commit: a0abc77
 
-# ```
+Message: Add passive runtime catalog authority trial diagnostic
 
-# 
+Result: PASS
 
-# Then stage only intended files:
+```
 
-# 
+Phase 5G added a passive runtime catalog authority trial diagnostic that is:
 
-# ```powershell
+- feature-gated,
 
-# git add <intended-files>
+- fallback-blocked,
 
-# git diff --cached --stat
+- source-backed catalog aware,
 
-# git diff --cached --check
+- probe-verified,
 
-# ```
+- documented.
 
-# 
+---
 
-# Commit only when `git diff --cached --check` reports no whitespace errors.
+## Next Session Reminder
 
-# 
+At the beginning of the next session:
 
-# Example commit:
+1. push the current branch if not already pushed,
 
-# 
+2. provide repo URL, branch, commit, and goal,
 
-# ```powershell
+3. assistant should inspect GitHub before proposing changes,
 
-# git commit -m "Add passive runtime catalog authority trial diagnostic"
+4. local build/probe output should be pasted only when needed.
 
-# ```
+## AI Agent Operating Rules
 
-# 
+An AI Agent may be used as a supervised local build/debug worker.
 
-# After commit, push:
+The Agentâ€™s role is execution and inspection, not architectural decision-making.
 
-# 
+Allowed tasks:
 
-# ```powershell
+- inspect repository files,
+- summarize relevant source locations,
+- run `git status`, `git diff`, and `git diff --check`,
+- apply explicitly provided patches,
+- run CMake configure/build commands,
+- run probe/test executables,
+- collect and summarize first compiler/probe failures,
+- remove temporary scripts/build artifacts when instructed.
 
-# git push
+Default restrictions:
 
-# ```
+- do not commit unless explicitly instructed,
+- do not push unless explicitly instructed,
+- do not perform broad refactors,
+- do not format unrelated files,
+- do not change phase goals,
+- do not edit files outside the requested scope,
+- do not hide build errors,
+- do not continue after a failed patch/build without reporting the failure.
 
-# 
+Preferred Agent report format:
 
-# \---
-
-# 
-
-# \## Assistant Operating Rules for This Repository
-
-# 
-
-# When a GitHub branch is available, the assistant should:
-
-# 
-
-# 1\. inspect the pushed files before proposing source changes,
-
-# 2\. avoid asking for pasted snippets from files already available remotely,
-
-# 3\. clearly distinguish remote pushed state from local uncommitted state,
-
-# 4\. prefer minimal, reviewable patches,
-
-# 5\. prefer `git apply` patches when feasible,
-
-# 6\. use PowerShell patch scripts only when appropriate,
-
-# 7\. keep diagnostics passive unless explicitly instructed otherwise,
-
-# 8\. preserve existing build and probe behavior unless the phase goal requires a change,
-
-# 9\. ask for local build/probe output only when needed,
-
-# 10\. avoid “manual patching just like that” without first establishing source context.
-
-# 
-
-# \---
-
-# 
-
-# \## Validation Pattern
-
-# 
-
-# For each phase, record:
-
-# 
-
-# ```text
-
-# Phase:
-
-# Branch:
-
-# Commit:
-
-# Build command:
-
-# Probe/test command:
-
-# Result:
-
-# Notes:
-
-# ```
-
-# 
-
-# Example:
-
-# 
-
-# ```text
-
-# Phase: 5G runtime catalog authority trial diagnostic
-
-# Branch: phase-5G-runtime-catalog-authority-trial-diagnostic
-
-# Commit: a0abc77
-
-# Build command:
-
-# &#x20; cmake -S . -B build-phase5G-authority-on -DORCHCONDUCTOR\_ENABLE\_RUNTIME\_JSON\_PRESETS=ON -DORCHCONDUCTOR\_ENABLE\_RUNTIME\_CATALOG\_AUTHORITY\_TRIAL=ON
-
-# &#x20; cmake --build build-phase5G-authority-on --target OrchConductorProcessorJsonProbeCheck --config Debug
-
-# Probe/test command:
-
-# &#x20; .\\build-phase5G-authority-on\\OrchConductorProcessorJsonProbeCheck\_artefacts\\Debug\\OrchConductorProcessorJsonProbeCheck.exe
-
-# Result:
-
-# &#x20; PASS
-
-# Notes:
-
-# &#x20; Authority trial diagnostic remains passive and source-backed.
-
-# ```
-
-# 
-
-# \---
-
-# 
-
-# \## Current Stable Milestone
-
-# 
-
-# Phase 5G is committed.
-
-# 
-
-# ```text
-
-# Commit: a0abc77
-
-# Message: Add passive runtime catalog authority trial diagnostic
-
-# Result: PASS
-
-# ```
-
-# 
-
-# Phase 5G added a passive runtime catalog authority trial diagnostic that is:
-
-# 
-
-# \- feature-gated,
-
-# \- fallback-blocked,
-
-# \- source-backed catalog aware,
-
-# \- probe-verified,
-
-# \- documented.
-
-# 
-
-# \---
-
-# 
-
-# \## Next Session Reminder
-
-# 
-
-# At the beginning of the next session:
-
-# 
-
-# 1\. push the current branch if not already pushed,
-
-# 2\. provide repo URL, branch, commit, and goal,
-
-# 3\. assistant should inspect GitHub before proposing changes,
-
-# 4\. local build/probe output should be pasted only when needed.
-
-# 
-
-# 
+```text
+Task:
+Commands run:
+Files changed:
+Build/probe result:
+First error, if any:
+Git status:
+Recommendation:
+```
 
