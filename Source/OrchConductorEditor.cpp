@@ -159,7 +159,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 2B", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 6A", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -259,9 +259,12 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         updateOutputTable();
 
         if (audioProcessor.getSendOnPresetChange())
-            statusLabel.setText ("Auto-send requested: " + audioProcessor.getPresetName(), juce::dontSendNotification);
-        else
-            updateStatus();
+        {
+            ++sendRequestCount;
+            lastActionText = "Last action: Auto-send requested: " + audioProcessor.getPresetName();
+        }
+
+        updateStatus();
     };
 
     sendOnChangeToggle.setButtonText ("Send on Preset Change");
@@ -283,11 +286,13 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     sendButton.onClick = [this]
     {
         audioProcessor.requestSendPreset();
-        statusLabel.setText ("Requested send: "
-                             + (audioProcessor.isCombiModeActive() ? audioProcessor.getCombiPresetName()
-                                                                    : audioProcessor.getPresetName())
-                             + " | Full-score MIDI gates active | Harp reserved",
-                             juce::dontSendNotification);
+        ++sendRequestCount;
+
+        lastActionText = "Last action: Send Current Presets requested: "
+                         + (audioProcessor.isCombiModeActive() ? audioProcessor.getCombiPresetName()
+                                                                : audioProcessor.getPresetName());
+
+        updateStatus();
     };
 
     allOffButton.setButtonText ("Send All Off");
@@ -298,7 +303,9 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     allOffButton.onClick = [this]
     {
         audioProcessor.requestSendAllOff();
-        statusLabel.setText ("Requested send: All Off", juce::dontSendNotification);
+        ++sendRequestCount;
+        lastActionText = "Last action: Send All Off requested";
+        updateStatus();
     };
 
     midiMapButton.setButtonText ("Show MIDI Map");
@@ -378,7 +385,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     // Hidden in main UI.
 
     ccMapLabel.setText (
-        "Phase 2B: Full-score CC20-CC54 | Combi Presets | Active Players | CC49 reserved for Harp",
+        "Phase 6A: Full-score CC20-CC54 | Combi Presets | Active Players | CC49 reserved for Harp | UI feedback active",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -426,7 +433,7 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colour::fromRGB (120, 140, 155));
     g.setFont (juce::FontOptions (13.0f, juce::Font::plain));
-    g.drawText ("Phase 2B: Active player metadata enabled | Future: JSON library / travel modes",
+    g.drawText ("Phase 6A: Active player metadata enabled | Runtime JSON diagnostics passive | UI feedback active",
                 futureArea.toNearestInt().reduced (16, 8),
                 juce::Justification::centred);
 }
@@ -525,6 +532,7 @@ void OrchConductorAudioProcessorEditor::updateStatus()
 {
     const juce::String autoSendText = audioProcessor.getSendOnPresetChange() ? " | Auto-send: On" : " | Auto-send: Off";
     const juce::String activePlayersText = " | Active players: " + juce::String (audioProcessor.getTotalActivePlayers());
+    const juce::String sendFeedbackText = " | " + lastActionText + " | Send requests: " + juce::String (sendRequestCount);
 
     if (audioProcessor.isCombiModeActive())
     {
@@ -532,7 +540,8 @@ void OrchConductorAudioProcessorEditor::updateStatus()
             "Combi active: " + audioProcessor.getCombiPresetName()
             + activePlayersText
             + " | Harp reserved"
-            + autoSendText,
+            + autoSendText
+            + sendFeedbackText,
             juce::dontSendNotification);
 
         return;
@@ -542,7 +551,8 @@ void OrchConductorAudioProcessorEditor::updateStatus()
         "Manual Sections | Strings: " + audioProcessor.getPresetName()
         + activePlayersText
         + " | Harp reserved"
-        + autoSendText,
+        + autoSendText
+        + sendFeedbackText,
         juce::dontSendNotification);
 }
 
@@ -687,6 +697,7 @@ void OrchConductorAudioProcessorEditor::updatePercussionOutputTable()
 
     percussionTableRowsLabel.setText (rows, juce::dontSendNotification);
 }
+
 
 
 

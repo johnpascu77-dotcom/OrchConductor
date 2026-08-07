@@ -54,6 +54,9 @@ private:
     juce::TextButton allOffButton;
     juce::TextButton midiMapButton;
 
+    
+    juce::String lastActionText { "Last action: None" };
+    int sendRequestCount { 0 };
     void updateStatus();
     void updateOutputTable();
     void updateWoodwindsOutputTable();
@@ -65,6 +68,8 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessorEditor)
 };
+
+
 
 
 
