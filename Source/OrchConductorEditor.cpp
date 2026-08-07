@@ -159,7 +159,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 6C-1", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 6C-2", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -385,7 +385,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     // Hidden in main UI.
 
     ccMapLabel.setText (
-        "Phase 6C-1: Full-score CC20-CC54 | Automatable Combi Preset | CC49 reserved for Harp | UI feedback active",
+        "Phase 6C-2: Full-score CC20-CC54 | Automatable Combi + Sections | CC49 reserved for Harp | UI feedback active",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -433,7 +433,7 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colour::fromRGB (120, 140, 155));
     g.setFont (juce::FontOptions (13.0f, juce::Font::plain));
-    g.drawText ("Phase 6C-1: Combi automation parameter active | Runtime JSON diagnostics passive | UI feedback active",
+    g.drawText ("Phase 6C-2: Combi and section automation parameters active | Runtime JSON diagnostics passive | UI feedback active",
                 futureArea.toNearestInt().reduced (16, 8),
                 juce::Justification::centred);
 }

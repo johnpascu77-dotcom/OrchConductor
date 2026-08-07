@@ -430,6 +430,39 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
         minCombiPresetId,
         maxCombiPresetId,
         static_cast<int> (CombiPreset::manualSections)));
+
+    addParameter (woodwindsPresetParameter = new juce::AudioParameterInt (
+        juce::ParameterID { "woodwindsPreset", 1 },
+        "Woodwinds Preset",
+        minSectionPresetId,
+        maxWoodwindsPresetId,
+        0));
+
+    addParameter (brassPresetParameter = new juce::AudioParameterInt (
+        juce::ParameterID { "brassPreset", 1 },
+        "Brass Preset",
+        minSectionPresetId,
+        maxBrassPresetId,
+        0));
+
+    addParameter (percussionPresetParameter = new juce::AudioParameterInt (
+        juce::ParameterID { "percussionPreset", 1 },
+        "Percussion Preset",
+        minSectionPresetId,
+        maxPercussionPresetId,
+        0));
+
+    addParameter (stringsPresetParameter = new juce::AudioParameterInt (
+        juce::ParameterID { "stringsPreset", 1 },
+        "Strings Preset",
+        minStringsPresetId,
+        maxStringsPresetId,
+        static_cast<int> (Preset::allOff)));
+
+    addParameter (sendOnPresetChangeParameter = new juce::AudioParameterBool (
+        juce::ParameterID { "sendOnPresetChange", 1 },
+        "Send on Preset Change",
+        sendOnPresetChange));
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     const auto runtimeJsonPresetProbe = orchconductor::RuntimePresetSource::loadEmbeddedFactoryJsonIfEnabled();
 
@@ -743,15 +776,54 @@ bool OrchConductorAudioProcessor::isBusesLayoutSupported (const BusesLayout&) co
 
 void OrchConductorAudioProcessor::syncAutomatedParameters()
 {
-    if (combiPresetParameter == nullptr)
-        return;
+    if (combiPresetParameter != nullptr)
+    {
+        const int automatedCombiPresetId = combiPresetParameter->get();
 
-    const int automatedCombiPresetId = combiPresetParameter->get();
+        if (automatedCombiPresetId != combiPresetId)
+            setCombiPresetId (automatedCombiPresetId);
+    }
 
-    if (automatedCombiPresetId != combiPresetId)
-        setCombiPresetId (automatedCombiPresetId);
+    if (woodwindsPresetParameter != nullptr)
+    {
+        const int value = woodwindsPresetParameter->get();
+
+        if (value != woodwindsPresetId)
+            setSectionPresetId (Section::woodwinds, value);
+    }
+
+    if (brassPresetParameter != nullptr)
+    {
+        const int value = brassPresetParameter->get();
+
+        if (value != brassPresetId)
+            setSectionPresetId (Section::brass, value);
+    }
+
+    if (percussionPresetParameter != nullptr)
+    {
+        const int value = percussionPresetParameter->get();
+
+        if (value != percussionPresetId)
+            setSectionPresetId (Section::percussion, value);
+    }
+
+    if (stringsPresetParameter != nullptr)
+    {
+        const int value = stringsPresetParameter->get();
+
+        if (value != stringsPresetId)
+            setSectionPresetId (Section::strings, value);
+    }
+
+    if (sendOnPresetChangeParameter != nullptr)
+    {
+        const bool value = sendOnPresetChangeParameter->get();
+
+        if (value != sendOnPresetChange)
+            sendOnPresetChange = value;
+    }
 }
-
 void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     buffer.clear();

@@ -215,7 +215,11 @@ private:
     juce::String runtimeCatalogAuthorityTrialDiagnostic{ "Runtime catalog authority trial is disabled by ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL." };
 
     juce::AudioParameterInt* combiPresetParameter { nullptr };
-
+    juce::AudioParameterInt* woodwindsPresetParameter { nullptr };
+    juce::AudioParameterInt* brassPresetParameter { nullptr };
+    juce::AudioParameterInt* percussionPresetParameter { nullptr };
+    juce::AudioParameterInt* stringsPresetParameter { nullptr };
+    juce::AudioParameterBool* sendOnPresetChangeParameter { nullptr };
     void syncAutomatedParameters();
 
     int getPresetValueForIndex (int index) const;
