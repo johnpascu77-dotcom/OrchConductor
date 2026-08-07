@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <JuceHeader.h>
 
@@ -213,6 +213,10 @@ private:
     bool runtimeCatalogAuthorityTrialPass{ false };
     bool runtimeCatalogAuthorityTrialBlocked{ true };
     juce::String runtimeCatalogAuthorityTrialDiagnostic{ "Runtime catalog authority trial is disabled by ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL." };
+
+    juce::AudioParameterInt* combiPresetParameter { nullptr };
+
+    void syncAutomatedParameters();
 
     int getPresetValueForIndex (int index) const;
     int getWoodwindsPresetValueForIndex (int index) const;

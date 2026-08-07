@@ -424,6 +424,12 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
      : AudioProcessor (BusesProperties())
 #endif
 {
+    addParameter (combiPresetParameter = new juce::AudioParameterInt (
+        juce::ParameterID { "combiPreset", 1 },
+        "Combi Preset",
+        minCombiPresetId,
+        maxCombiPresetId,
+        static_cast<int> (CombiPreset::manualSections)));
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     const auto runtimeJsonPresetProbe = orchconductor::RuntimePresetSource::loadEmbeddedFactoryJsonIfEnabled();
 
@@ -735,9 +741,22 @@ bool OrchConductorAudioProcessor::isBusesLayoutSupported (const BusesLayout&) co
     return true;
 }
 
+void OrchConductorAudioProcessor::syncAutomatedParameters()
+{
+    if (combiPresetParameter == nullptr)
+        return;
+
+    const int automatedCombiPresetId = combiPresetParameter->get();
+
+    if (automatedCombiPresetId != combiPresetId)
+        setCombiPresetId (automatedCombiPresetId);
+}
+
 void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     buffer.clear();
+
+    syncAutomatedParameters();
 
     const bool shouldSendAllOff = consumeSendAllOffRequest();
     const bool shouldSendPreset = consumeSendPresetRequest();
