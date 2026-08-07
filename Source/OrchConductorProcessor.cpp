@@ -1065,6 +1065,64 @@ void OrchConductorAudioProcessor::setSectionPresetId (Section section, int prese
         requestSendPreset();
 }
 
+void OrchConductorAudioProcessor::setCombiPresetIdFromUI (int presetId)
+{
+    if (combiPresetParameter != nullptr)
+    {
+        combiPresetParameter->beginChangeGesture();
+        combiPresetParameter->setValueNotifyingHost (
+            combiPresetParameter->convertTo0to1 (static_cast<float> (presetId)));
+        combiPresetParameter->endChangeGesture();
+    }
+
+    setCombiPresetId (presetId);
+}
+
+void OrchConductorAudioProcessor::setSectionPresetIdFromUI (Section section, int presetId)
+{
+    juce::AudioParameterInt* parameter = nullptr;
+
+    switch (section)
+    {
+        case Section::woodwinds:
+            parameter = woodwindsPresetParameter;
+            break;
+
+        case Section::brass:
+            parameter = brassPresetParameter;
+            break;
+
+        case Section::percussion:
+            parameter = percussionPresetParameter;
+            break;
+
+        case Section::strings:
+            parameter = stringsPresetParameter;
+            break;
+    }
+
+    if (parameter != nullptr)
+    {
+        parameter->beginChangeGesture();
+        parameter->setValueNotifyingHost (
+            parameter->convertTo0to1 (static_cast<float> (presetId)));
+        parameter->endChangeGesture();
+    }
+
+    setSectionPresetId (section, presetId);
+}
+
+void OrchConductorAudioProcessor::setSendOnPresetChangeFromUI (bool shouldSend)
+{
+    if (sendOnPresetChangeParameter != nullptr)
+    {
+        sendOnPresetChangeParameter->beginChangeGesture();
+        sendOnPresetChangeParameter->setValueNotifyingHost (shouldSend ? 1.0f : 0.0f);
+        sendOnPresetChangeParameter->endChangeGesture();
+    }
+
+    setSendOnPresetChange (shouldSend);
+}
 void OrchConductorAudioProcessor::setPreset (Preset newPreset)
 {
     setSectionPresetId (Section::strings, static_cast<int> (newPreset));

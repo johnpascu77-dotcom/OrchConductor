@@ -108,9 +108,11 @@ public:
 
     int getCombiPresetId() const;
     void setCombiPresetId (int presetId);
+    void setCombiPresetIdFromUI (int presetId);
 
     int getSectionPresetId (Section section) const;
     void setSectionPresetId (Section section, int presetId);
+    void setSectionPresetIdFromUI (Section section, int presetId);
 
     void setPreset (Preset newPreset);
     Preset getPreset() const;
@@ -122,6 +124,7 @@ public:
     bool consumeSendAllOffRequest();
 
     void setSendOnPresetChange (bool shouldSend);
+    void setSendOnPresetChangeFromUI (bool shouldSend);
     bool getSendOnPresetChange() const;
 
     juce::String getPresetName() const;

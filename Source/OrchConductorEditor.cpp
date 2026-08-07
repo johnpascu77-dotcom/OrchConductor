@@ -159,7 +159,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 6C-2", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 6C-3", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -177,7 +177,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     combiPresetBox.onChange = [this]
     {
         const int selected = combiPresetBox.getSelectedId() - 1;
-        audioProcessor.setCombiPresetId (selected);
+        audioProcessor.setCombiPresetIdFromUI (selected);
         updateStatus();
     };
 
@@ -225,7 +225,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     woodwindsPresetBox.onChange = [this]
     {
         const int selected = woodwindsPresetBox.getSelectedId() - 1;
-        audioProcessor.setSectionPresetId (OrchConductorAudioProcessor::Section::woodwinds, selected);
+        audioProcessor.setSectionPresetIdFromUI (OrchConductorAudioProcessor::Section::woodwinds, selected);
         updateWoodwindsOutputTable();
         updateStatus();
     };
@@ -233,7 +233,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     brassPresetBox.onChange = [this]
     {
         const int selected = brassPresetBox.getSelectedId() - 1;
-        audioProcessor.setSectionPresetId (OrchConductorAudioProcessor::Section::brass, selected);
+        audioProcessor.setSectionPresetIdFromUI (OrchConductorAudioProcessor::Section::brass, selected);
         updateBrassOutputTable();
         updateStatus();
     };
@@ -241,7 +241,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     percussionPresetBox.onChange = [this]
     {
         const int selected = percussionPresetBox.getSelectedId() - 1;
-        audioProcessor.setSectionPresetId (OrchConductorAudioProcessor::Section::percussion, selected);
+        audioProcessor.setSectionPresetIdFromUI (OrchConductorAudioProcessor::Section::percussion, selected);
         updatePercussionOutputTable();
     updateStatus();
 
@@ -254,7 +254,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         const int selected = presetBox.getSelectedId() - 1;
 
         if (selected >= 0 && selected <= static_cast<int> (OrchConductorAudioProcessor::Preset::tutti))
-            audioProcessor.setSectionPresetId (OrchConductorAudioProcessor::Section::strings, selected);
+            audioProcessor.setSectionPresetIdFromUI (OrchConductorAudioProcessor::Section::strings, selected);
 
         updateOutputTable();
 
@@ -274,7 +274,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
 
     sendOnChangeToggle.onClick = [this]
     {
-        audioProcessor.setSendOnPresetChange (sendOnChangeToggle.getToggleState());
+        audioProcessor.setSendOnPresetChangeFromUI (sendOnChangeToggle.getToggleState());
         updateStatus();
     };
 
@@ -385,7 +385,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     // Hidden in main UI.
 
     ccMapLabel.setText (
-        "Phase 6C-2: Full-score CC20-CC54 | Automatable Combi + Sections | CC49 reserved for Harp | UI feedback active",
+        "Phase 6C-3: Full-score CC20-CC54 | Bidirectional automatable controls | CC49 reserved for Harp | UI feedback active",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -433,7 +433,7 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colour::fromRGB (120, 140, 155));
     g.setFont (juce::FontOptions (13.0f, juce::Font::plain));
-    g.drawText ("Phase 6C-2: Combi and section automation parameters active | Runtime JSON diagnostics passive | UI feedback active",
+    g.drawText ("Phase 6C-3: Bidirectional UI-host automation sync active | Runtime JSON diagnostics passive | UI feedback active",
                 futureArea.toNearestInt().reduced (16, 8),
                 juce::Justification::centred);
 }
