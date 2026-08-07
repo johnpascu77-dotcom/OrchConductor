@@ -6,3 +6,8 @@ out/
 *.VC.db
 *.VC.VC.opendb
 .DS_Store
+
+# CMake build directories
+build*/
+cmake-build*/
+out/
