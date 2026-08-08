@@ -136,11 +136,8 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         const int selected = percussionPresetBox.getSelectedId() - 1;
         audioProcessor.setSectionPresetIdFromUI (OrchConductorAudioProcessor::Section::percussion, selected);
         updatePercussionOutputTable();
-    updateStatus();
-
-    // Phase 2A: keep UI synced when host restores plugin state after editor creation.
-    startTimerHz (10);
-};
+        updateStatus();
+    };
 
     presetBox.onChange = [this]
     {
@@ -590,13 +587,3 @@ void OrchConductorAudioProcessorEditor::updatePercussionOutputTable()
 
     percussionTableRowsLabel.setText (rows, juce::dontSendNotification);
 }
-
-
-
-
-
-
-
-
-
-
