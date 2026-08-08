@@ -951,17 +951,19 @@ int OrchConductorAudioProcessor::getCombiPresetId() const
 
 void OrchConductorAudioProcessor::setCombiPresetId (int presetId)
 {
-    if (presetId >= minCombiPresetId && presetId <= maxCombiPresetId)
-    {
-        const bool changed = combiPresetId != presetId;
-        combiPresetId = presetId;
+    if (presetId < minCombiPresetId || presetId > maxCombiPresetId)
+        return;
 
-        if (changed && sendOnPresetChange)
-            requestSendPreset();
-    }
+    const bool changed = combiPresetId != presetId;
+
+    combiPresetId = presetId;
+
+    if (combiPresetParameter != nullptr && combiPresetParameter->get() != presetId)
+        *combiPresetParameter = presetId;
+
+    if (changed && sendOnPresetChange)
+        requestSendPreset();
 }
-
-
 bool OrchConductorAudioProcessor::isCombiModeActive() const
 {
     return combiPresetId != static_cast<int> (CombiPreset::manualSections);
@@ -1140,47 +1142,52 @@ int OrchConductorAudioProcessor::getSectionPresetId (Section section) const
 
 void OrchConductorAudioProcessor::setSectionPresetId (Section section, int presetId)
 {
-    bool changed = false;
+    juce::AudioParameterInt* parameter = nullptr;
+    int* targetPresetId = nullptr;
+    int minPresetId = minSectionPresetId;
+    int maxPresetId = minSectionPresetId;
 
     switch (section)
     {
         case Section::woodwinds:
-            if (presetId >= minSectionPresetId && presetId <= maxWoodwindsPresetId)
-            {
-                woodwindsPresetId = presetId;
-                changed = true;
-            }
+            parameter = woodwindsPresetParameter;
+            targetPresetId = &woodwindsPresetId;
+            maxPresetId = maxWoodwindsPresetId;
             break;
 
         case Section::brass:
-            if (presetId >= minSectionPresetId && presetId <= maxBrassPresetId)
-            {
-                brassPresetId = presetId;
-                changed = true;
-            }
+            parameter = brassPresetParameter;
+            targetPresetId = &brassPresetId;
+            maxPresetId = maxBrassPresetId;
             break;
 
         case Section::percussion:
-            if (presetId >= minSectionPresetId && presetId <= maxPercussionPresetId)
-            {
-                percussionPresetId = presetId;
-                changed = true;
-            }
+            parameter = percussionPresetParameter;
+            targetPresetId = &percussionPresetId;
+            maxPresetId = maxPercussionPresetId;
             break;
 
         case Section::strings:
-            if (presetId >= minStringsPresetId && presetId <= maxStringsPresetId)
-            {
-                stringsPresetId = presetId;
-                changed = true;
-            }
+            parameter = stringsPresetParameter;
+            targetPresetId = &stringsPresetId;
+            minPresetId = minStringsPresetId;
+            maxPresetId = maxStringsPresetId;
             break;
     }
+
+    if (targetPresetId == nullptr || presetId < minPresetId || presetId > maxPresetId)
+        return;
+
+    const bool changed = *targetPresetId != presetId;
+
+    *targetPresetId = presetId;
+
+    if (parameter != nullptr && parameter->get() != presetId)
+        *parameter = presetId;
 
     if (changed && sendOnPresetChange)
         requestSendPreset();
 }
-
 void OrchConductorAudioProcessor::setCombiPresetIdFromUI (int presetId)
 {
     if (combiPresetParameter != nullptr)
