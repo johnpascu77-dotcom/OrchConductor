@@ -13,45 +13,71 @@ namespace
         int value = -1;
     };
 
-    bool runtimeCatalogValueMatches(const OrchConductorRuntimePresetValueView& actual,
-                                    const ExpectedRuntimeCatalogValue& expected)
+    // Phase 6D: per-CC lookup helpers.
+    // The factory JSON uses sparse encoding: zero-value CCs are omitted.
+    // These helpers scan stored values by CC number and return 0 for any CC absent from the catalog.
+    // This matches the runtime payload semantic: omitted CC => value 0.
+
+    int catalogSectionPresetValueForCc(const OrchConductorRuntimePresetCatalog& catalog,
+                                       const juce::String& sectionId,
+                                       int presetIndex,
+                                       int ccNumber)
     {
-        return actual.isValid
-            && actual.ccNumber == expected.ccNumber
-            && actual.value == expected.value;
+        const int count = catalog.getSectionPresetValueCount(sectionId, presetIndex);
+
+        for (int i = 0; i < count; ++i)
+        {
+            const auto v = catalog.getSectionPresetValue(sectionId, presetIndex, i);
+
+            if (v.isValid && v.ccNumber == ccNumber)
+                return v.value;
+        }
+
+        return 0;
     }
 
-    bool runtimeCatalogPresetMatchesExpectedValues(const OrchConductorRuntimePresetCatalog& catalog,
-                                                   const juce::String& sectionId,
-                                                   int presetIndex,
-                                                   const ExpectedRuntimeCatalogValue* expectedValues,
-                                                   int expectedValueCount)
+    int catalogCombiPresetValueForCc(const OrchConductorRuntimePresetCatalog& catalog,
+                                     int presetIndex,
+                                     int ccNumber)
     {
-        if (catalog.getSectionPresetValueCount(sectionId, presetIndex) != expectedValueCount)
-            return false;
+        const int count = catalog.getCombiPresetValueCount(presetIndex);
 
+        for (int i = 0; i < count; ++i)
+        {
+            const auto v = catalog.getCombiPresetValue(presetIndex, i);
+
+            if (v.isValid && v.ccNumber == ccNumber)
+                return v.value;
+        }
+
+        return 0;
+    }
+
+    bool sectionPresetCcMatches(const OrchConductorRuntimePresetCatalog& catalog,
+                                const juce::String& sectionId,
+                                int presetIndex,
+                                const ExpectedRuntimeCatalogValue* expectedValues,
+                                int expectedValueCount)
+    {
         for (int i = 0; i < expectedValueCount; ++i)
         {
-            if (! runtimeCatalogValueMatches(catalog.getSectionPresetValue(sectionId, presetIndex, i),
-                                             expectedValues[i]))
+            if (catalogSectionPresetValueForCc(catalog, sectionId, presetIndex, expectedValues[i].ccNumber)
+                    != expectedValues[i].value)
                 return false;
         }
 
         return true;
     }
 
-    bool runtimeCatalogCombiPresetMatchesExpectedValues(const OrchConductorRuntimePresetCatalog& catalog,
-                                                        int presetIndex,
-                                                        const ExpectedRuntimeCatalogValue* expectedValues,
-                                                        int expectedValueCount)
+    bool combiPresetCcMatches(const OrchConductorRuntimePresetCatalog& catalog,
+                              int presetIndex,
+                              const ExpectedRuntimeCatalogValue* expectedValues,
+                              int expectedValueCount)
     {
-        if (catalog.getCombiPresetValueCount(presetIndex) != expectedValueCount)
-            return false;
-
         for (int i = 0; i < expectedValueCount; ++i)
         {
-            if (! runtimeCatalogValueMatches(catalog.getCombiPresetValue(presetIndex, i),
-                                             expectedValues[i]))
+            if (catalogCombiPresetValueForCc(catalog, presetIndex, expectedValues[i].ccNumber)
+                    != expectedValues[i].value)
                 return false;
         }
 
@@ -78,9 +104,6 @@ namespace
             if (valueCount < 0)
                 return false;
 
-            if (presetId != 0 && valueCount <= 0)
-                return false;
-
             for (int valueIndex = 0; valueIndex < valueCount; ++valueIndex)
             {
                 if (! runtimeCatalogValueIsMidiSafe(catalog.getSectionPresetValue(sectionId, presetId, valueIndex)))
@@ -100,9 +123,6 @@ namespace
             const int valueCount = catalog.getCombiPresetValueCount(presetId);
 
             if (valueCount < 0)
-                return false;
-
-            if (presetId != 0 && valueCount <= 0)
                 return false;
 
             bool sawReservedCc49 = false;
@@ -143,25 +163,23 @@ namespace
     {
         // Phase 5G authority-trial sentinels.
         // This is still diagnostic-only. It does not route MIDI or change preset authority.
+        //
+        // Phase 6D: rewritten to compare by CC number using per-CC lookup.
+        // Omitted CCs resolve to 0, matching runtime dense-payload semantics.
 
+        // strings preset 8 "Low Strings": CC50=0, CC51=0, CC52=64, CC53=127, CC54=127
         const ExpectedRuntimeCatalogValue lowStringsExpected[] =
         {
-            { 50, 0 },
-            { 51, 0 },
-            { 52, 64 },
-            { 53, 127 },
-            { 54, 127 }
+            { 50, 0 }, { 51, 0 }, { 52, 64 }, { 53, 127 }, { 54, 127 }
         };
 
+        // strings preset 12 "Full Strings": CC50-54 all 127
         const ExpectedRuntimeCatalogValue fullStringsExpected[] =
         {
-            { 50, 127 },
-            { 51, 127 },
-            { 52, 127 },
-            { 53, 127 },
-            { 54, 127 }
+            { 50, 127 }, { 51, 127 }, { 52, 127 }, { 53, 127 }, { 54, 127 }
         };
 
+        // combi preset 28 "[Solo] English Horn Lament": only CC25, CC52, CC53, CC54 non-zero
         const ExpectedRuntimeCatalogValue soloEnglishHornLamentExpected[] =
         {
             { 20, 0 },   { 21, 0 },   { 22, 0 },   { 23, 0 },
@@ -175,25 +193,28 @@ namespace
             { 52, 127 }, { 53, 127 }, { 54, 64 }
         };
 
-        return runtimeCatalogPresetMatchesExpectedValues(catalog, "strings", 8, lowStringsExpected, 5)
-            && runtimeCatalogPresetMatchesExpectedValues(catalog, "strings", 12, fullStringsExpected, 5)
-            && runtimeCatalogCombiPresetMatchesExpectedValues(catalog, 28, soloEnglishHornLamentExpected, 35);
+        return sectionPresetCcMatches(catalog, "strings", 8, lowStringsExpected,
+                                      static_cast<int>(std::size(lowStringsExpected)))
+            && sectionPresetCcMatches(catalog, "strings", 12, fullStringsExpected,
+                                      static_cast<int>(std::size(fullStringsExpected)))
+            && combiPresetCcMatches(catalog, 28, soloEnglishHornLamentExpected,
+                                    static_cast<int>(std::size(soloEnglishHornLamentExpected)));
     }
 
 
     bool verifyRuntimeCatalogPayloadEquivalenceSentinels(const OrchConductorRuntimePresetCatalog& catalog)
     {
-        // Phase 5D broadened hardcoded processor sentinel: strings preset 8, "Low Strings".
+        // Phase 6D: rewritten to compare by CC number using per-CC lookup.
+        // Omitted CCs resolve to 0, matching runtime dense-payload semantics.
+        // The factory JSON is sparse; zero-value CCs are not stored.
+
+        // strings preset 8 "Low Strings": CC50=0, CC51=0, CC52=64, CC53=127, CC54=127
         const ExpectedRuntimeCatalogValue lowStringsExpected[] =
         {
-            { 50, 0 },
-            { 51, 0 },
-            { 52, 64 },
-            { 53, 127 },
-            { 54, 127 }
+            { 50, 0 }, { 51, 0 }, { 52, 64 }, { 53, 127 }, { 54, 127 }
         };
 
-        // Phase 5D broadened hardcoded processor sentinel: woodwinds preset 19, "Full Woodwinds".
+        // woodwinds preset 19 "Full Woodwinds": CC20-31 all 127
         const ExpectedRuntimeCatalogValue fullWoodwindsExpected[] =
         {
             { 20, 127 }, { 21, 127 }, { 22, 127 }, { 23, 127 },
@@ -201,7 +222,7 @@ namespace
             { 28, 127 }, { 29, 127 }, { 30, 127 }, { 31, 127 }
         };
 
-        // Phase 5D broadened hardcoded processor sentinel: brass preset 16, "Full Brass".
+        // brass preset 16 "Full Brass": CC32-42 all 127
         const ExpectedRuntimeCatalogValue fullBrassExpected[] =
         {
             { 32, 127 }, { 33, 127 }, { 34, 127 }, { 35, 127 },
@@ -209,21 +230,20 @@ namespace
             { 40, 127 }, { 41, 127 }, { 42, 127 }
         };
 
-        // Phase 5D broadened hardcoded processor sentinel: percussion preset 8, "Full Melodic Percussion".
+        // percussion preset 8 "Full Melodic Percussion": CC43-48 all 127
         const ExpectedRuntimeCatalogValue fullMelodicPercussionExpected[] =
         {
             { 43, 127 }, { 44, 127 }, { 45, 127 },
             { 46, 127 }, { 47, 127 }, { 48, 127 }
         };
 
-        // Phase 5D broadened hardcoded processor sentinel: strings preset 12, "Full Strings".
+        // strings preset 12 "Full Strings": CC50-54 all 127
         const ExpectedRuntimeCatalogValue fullStringsExpected[] =
         {
             { 50, 127 }, { 51, 127 }, { 52, 127 }, { 53, 127 }, { 54, 127 }
         };
 
-        // Phase 5D broadened hardcoded processor sentinel: combi preset 2, "[Utility] Full Orchestra".
-        // Full 35-CC payload, including reserved CC49.
+        // combi preset 2 "[Utility] Full Orchestra": CC20-48 all 127, CC49=0 (reserved), CC50-54 all 127
         const ExpectedRuntimeCatalogValue fullOrchestraExpected[] =
         {
             { 20, 127 }, { 21, 127 }, { 22, 127 }, { 23, 127 }, { 24, 127 },
@@ -235,80 +255,34 @@ namespace
             { 50, 127 }, { 51, 127 }, { 52, 127 }, { 53, 127 }, { 54, 127 }
         };
 
-        // Hardcoded processor sentinel: combi preset 28, "[Solo] English Horn Lament".
-        // Full 35-CC payload, including reserved CC49.
+        // combi preset 28 "[Solo] English Horn Lament": only CC25, CC52, CC53, CC54 non-zero
         const ExpectedRuntimeCatalogValue soloEnglishHornLamentExpected[] =
         {
-            { 20, 0 },
-            { 21, 0 },
-            { 22, 0 },
-            { 23, 0 },
-            { 24, 0 },
-            { 25, 127 },
-            { 26, 0 },
-            { 27, 0 },
-            { 28, 0 },
-            { 29, 0 },
-            { 30, 0 },
-            { 31, 0 },
-            { 32, 0 },
-            { 33, 0 },
-            { 34, 0 },
-            { 35, 0 },
-            { 36, 0 },
-            { 37, 0 },
-            { 38, 0 },
-            { 39, 0 },
-            { 40, 0 },
-            { 41, 0 },
-            { 42, 0 },
-            { 43, 0 },
-            { 44, 0 },
-            { 45, 0 },
-            { 46, 0 },
-            { 47, 0 },
-            { 48, 0 },
-            { 49, 0 },
-            { 50, 0 },
-            { 51, 0 },
-            { 52, 127 },
-            { 53, 127 },
-            { 54, 64 }
+            { 20, 0 },   { 21, 0 },   { 22, 0 },   { 23, 0 },
+            { 24, 0 },   { 25, 127 }, { 26, 0 },   { 27, 0 },
+            { 28, 0 },   { 29, 0 },   { 30, 0 },   { 31, 0 },
+            { 32, 0 },   { 33, 0 },   { 34, 0 },   { 35, 0 },
+            { 36, 0 },   { 37, 0 },   { 38, 0 },   { 39, 0 },
+            { 40, 0 },   { 41, 0 },   { 42, 0 },   { 43, 0 },
+            { 44, 0 },   { 45, 0 },   { 46, 0 },   { 47, 0 },
+            { 48, 0 },   { 49, 0 },   { 50, 0 },   { 51, 0 },
+            { 52, 127 }, { 53, 127 }, { 54, 64 }
         };
 
-        return runtimeCatalogPresetMatchesExpectedValues(catalog,
-                                                         "strings",
-                                                         8,
-                                                         lowStringsExpected,
-                                                         static_cast<int>(std::size(lowStringsExpected)))
-            && runtimeCatalogPresetMatchesExpectedValues(catalog,
-                                                         "woodwinds",
-                                                         19,
-                                                         fullWoodwindsExpected,
-                                                         static_cast<int>(std::size(fullWoodwindsExpected)))
-            && runtimeCatalogPresetMatchesExpectedValues(catalog,
-                                                         "brass",
-                                                         16,
-                                                         fullBrassExpected,
-                                                         static_cast<int>(std::size(fullBrassExpected)))
-            && runtimeCatalogPresetMatchesExpectedValues(catalog,
-                                                         "percussion",
-                                                         8,
-                                                         fullMelodicPercussionExpected,
-                                                         static_cast<int>(std::size(fullMelodicPercussionExpected)))
-            && runtimeCatalogPresetMatchesExpectedValues(catalog,
-                                                         "strings",
-                                                         12,
-                                                         fullStringsExpected,
-                                                         static_cast<int>(std::size(fullStringsExpected)))
-            && runtimeCatalogCombiPresetMatchesExpectedValues(catalog,
-                                                              2,
-                                                              fullOrchestraExpected,
-                                                              static_cast<int>(std::size(fullOrchestraExpected)))
-            && runtimeCatalogCombiPresetMatchesExpectedValues(catalog,
-                                                              28,
-                                                              soloEnglishHornLamentExpected,
-                                                              static_cast<int>(std::size(soloEnglishHornLamentExpected)));
+        return sectionPresetCcMatches(catalog, "strings", 8, lowStringsExpected,
+                                      static_cast<int>(std::size(lowStringsExpected)))
+            && sectionPresetCcMatches(catalog, "woodwinds", 19, fullWoodwindsExpected,
+                                      static_cast<int>(std::size(fullWoodwindsExpected)))
+            && sectionPresetCcMatches(catalog, "brass", 16, fullBrassExpected,
+                                      static_cast<int>(std::size(fullBrassExpected)))
+            && sectionPresetCcMatches(catalog, "percussion", 8, fullMelodicPercussionExpected,
+                                      static_cast<int>(std::size(fullMelodicPercussionExpected)))
+            && sectionPresetCcMatches(catalog, "strings", 12, fullStringsExpected,
+                                      static_cast<int>(std::size(fullStringsExpected)))
+            && combiPresetCcMatches(catalog, 2, fullOrchestraExpected,
+                                    static_cast<int>(std::size(fullOrchestraExpected)))
+            && combiPresetCcMatches(catalog, 28, soloEnglishHornLamentExpected,
+                                    static_cast<int>(std::size(soloEnglishHornLamentExpected)));
     }
     
     OrchConductorAudioProcessor::OutputRow makeOutputRow (const juce::String& instrumentName, int ccNumber, int value)
@@ -485,7 +459,7 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
         runtimeCatalogPayloadEquivalenceProbeRun = true;
         runtimeCatalogPayloadEquivalenceProbeBlockedByFallback = false;
         runtimeCatalogPayloadEquivalenceProbePassed =
-            verifyRuntimeCatalogPayloadEquivalenceSentinels(runtimePresetCatalog);
+            verifyRuntimeCatalogPayloadEquivalenceSentinels(runtimePresetCatalogAuthorityProbe);
 
         runtimeCatalogPayloadEquivalenceProbeDiagnostic =
             runtimeCatalogPayloadEquivalenceProbePassed
@@ -495,7 +469,7 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
         runtimeCatalogCoverageAuditRun = true;
         runtimeCatalogCoverageAuditBlockedByFallback = false;
         runtimeCatalogCoverageAuditPassed =
-            verifyRuntimeCatalogCoverageAudit(runtimePresetCatalog);
+            verifyRuntimeCatalogCoverageAudit(runtimePresetCatalogAuthorityProbe);
 
         runtimeCatalogCoverageAuditDiagnostic =
             runtimeCatalogCoverageAuditPassed
@@ -505,7 +479,7 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
         runtimeCatalogAuthorityTrialRun = true;
         runtimeCatalogAuthorityTrialBlocked = false;
         runtimeCatalogAuthorityTrialPass =
-            verifyRuntimeCatalogAuthorityTrialSentinels(runtimePresetCatalog);
+            verifyRuntimeCatalogAuthorityTrialSentinels(runtimePresetCatalogAuthorityProbe);
 
         runtimeCatalogAuthorityTrialDiagnostic =
             runtimeCatalogAuthorityTrialPass
