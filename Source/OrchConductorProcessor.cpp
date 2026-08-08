@@ -692,6 +692,36 @@ juce::String OrchConductorAudioProcessor::getRuntimeCatalogAuthorityTrialDiagnos
     return runtimeCatalogAuthorityTrialDiagnostic;
 }
 
+bool OrchConductorAudioProcessor::isRuntimePresetCatalogAuthorityActive() const
+{
+    return runtimePresetCatalogAuthorityActive;
+}
+
+juce::String OrchConductorAudioProcessor::getRuntimePresetCatalogAuthorityStatus() const
+{
+    if (runtimePresetCatalogAuthorityActive)
+    {
+        if (runtimeCatalogCoverageAuditRun && runtimeCatalogCoverageAuditPassed)
+            return "Runtime JSON: Active | Factory catalog source-backed | Coverage audit passed";
+
+        if (runtimeCatalogPayloadEquivalenceProbeRun && runtimeCatalogPayloadEquivalenceProbePassed)
+            return "Runtime JSON: Active | Factory catalog source-backed | Payload probe passed";
+
+        if (runtimePresetCatalogAuthorityProbeReady
+            && runtimePresetCatalogAuthorityProbeHasExpectedFactoryShape
+            && ! runtimePresetCatalogAuthorityProbeRequiresFallback)
+            return "Runtime JSON: Active | Factory catalog source-backed";
+
+        return "Runtime JSON: Active | Runtime catalog authority enabled";
+    }
+
+    if (runtimePresetCatalogAuthorityProbeRequiresFallback
+        || runtimeCatalogCoverageAuditBlockedByFallback
+        || runtimeCatalogPayloadEquivalenceProbeBlockedByFallback)
+        return "Runtime JSON: Fallback required | Hardcoded preset authority active";
+
+    return "Runtime JSON: Inactive | Hardcoded preset authority active";
+}
 
 int OrchConductorAudioProcessor::getDefaultMaxPlayersForCc (int ccNumber) const
 {

@@ -52,7 +52,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 6D-2", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 6E", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -323,7 +323,7 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colour::fromRGB (120, 140, 155));
     g.setFont (juce::FontOptions (13.0f, juce::Font::plain));
-    g.drawText ("Phase 6D-2: Runtime catalog labels active when JSON authority is ready | Automation sync active",
+    g.drawText ("Phase 6E: " + audioProcessor.getRuntimePresetCatalogAuthorityStatus() + " | Automation sync active",
                 futureArea.toNearestInt().reduced (16, 8),
                 juce::Justification::centred);
 }
