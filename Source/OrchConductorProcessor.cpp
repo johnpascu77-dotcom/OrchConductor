@@ -485,7 +485,7 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
         runtimeCatalogPayloadEquivalenceProbeRun = true;
         runtimeCatalogPayloadEquivalenceProbeBlockedByFallback = false;
         runtimeCatalogPayloadEquivalenceProbePassed =
-            verifyRuntimeCatalogPayloadEquivalenceSentinels(runtimePresetCatalogAuthorityProbe);
+            verifyRuntimeCatalogPayloadEquivalenceSentinels(runtimePresetCatalog);
 
         runtimeCatalogPayloadEquivalenceProbeDiagnostic =
             runtimeCatalogPayloadEquivalenceProbePassed
@@ -495,7 +495,7 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
         runtimeCatalogCoverageAuditRun = true;
         runtimeCatalogCoverageAuditBlockedByFallback = false;
         runtimeCatalogCoverageAuditPassed =
-            verifyRuntimeCatalogCoverageAudit(runtimePresetCatalogAuthorityProbe);
+            verifyRuntimeCatalogCoverageAudit(runtimePresetCatalog);
 
         runtimeCatalogCoverageAuditDiagnostic =
             runtimeCatalogCoverageAuditPassed
@@ -505,7 +505,7 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
         runtimeCatalogAuthorityTrialRun = true;
         runtimeCatalogAuthorityTrialBlocked = false;
         runtimeCatalogAuthorityTrialPass =
-            verifyRuntimeCatalogAuthorityTrialSentinels(runtimePresetCatalogAuthorityProbe);
+            verifyRuntimeCatalogAuthorityTrialSentinels(runtimePresetCatalog);
 
         runtimeCatalogAuthorityTrialDiagnostic =
             runtimeCatalogAuthorityTrialPass

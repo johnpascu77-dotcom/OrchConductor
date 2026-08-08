@@ -1,6 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "OrchConductorRuntimePresetCatalog.h"
 
 class OrchConductorAudioProcessor  : public juce::AudioProcessor
 {
@@ -168,6 +169,9 @@ public:
     bool didRuntimeCatalogAuthorityTrialPass() const;
     bool wasRuntimeCatalogAuthorityTrialBlocked() const;
     juce::String getRuntimeCatalogAuthorityTrialDiagnostic() const;
+
+    bool isRuntimePresetCatalogAuthorityActive() const;
+    juce::String getRuntimePresetCatalogAuthorityStatus() const;
 private:
     static constexpr int minCombiPresetId = 0;
     static constexpr int maxCombiPresetId = static_cast<int> (CombiPreset::soloEnglishHornLament);
