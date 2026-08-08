@@ -130,6 +130,10 @@ public:
 
     juce::String getPresetName() const;
     juce::String getCombiPresetName() const;
+    juce::String getCombiPresetLabel (int presetId) const;
+    juce::String getSectionPresetLabel (Section section, int presetId) const;
+    int getMaxCombiPresetId() const;
+    int getMaxSectionPresetId (Section section) const;
     bool isCombiModeActive() const;
 
     static int getNumOutputRows();
@@ -196,6 +200,10 @@ private:
     bool sendPresetRequested { false };
     bool sendAllOffRequested { false };
     bool sendOnPresetChange { false };
+
+    OrchConductorRuntimePresetCatalog runtimePresetCatalog { OrchConductorRuntimePresetCatalog::createFallbackCatalog() };
+    bool runtimePresetCatalogAuthorityActive { false };
+    juce::String runtimePresetCatalogAuthorityStatus { "Runtime preset catalog authority is inactive." };
 
     bool runtimeJsonPresetProbeLoaded { false };
     bool runtimeJsonPresetProbeRequiresFallback { true };

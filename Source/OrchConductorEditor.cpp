@@ -17,130 +17,23 @@ namespace
         box.setEnabled (enabled);
     }
 
-    void addCombiPresetItems (juce::ComboBox& box)
+    void addCombiPresetItems (juce::ComboBox& box, const OrchConductorAudioProcessor& processor)
     {
-        box.addItem ("Manual Sections", 1);
+        box.clear (juce::dontSendNotification);
 
-        box.addItem ("[Utility] All Off", 2);
-        box.addItem ("[Utility] Full Orchestra", 3);
-        box.addItem ("[Utility] Full Orchestra No Percussion", 4);
-        box.addItem ("[Utility] Chamber Orchestra", 5);
-        box.addItem ("[Utility] Full Strings", 6);
-        box.addItem ("[Utility] Full Woodwinds", 7);
-        box.addItem ("[Utility] Full Brass", 8);
-        box.addItem ("[Utility] Full Winds", 9);
-        box.addItem ("[Utility] High Orchestra", 10);
-        box.addItem ("[Utility] Low Orchestra", 11);
-        box.addItem ("[Utility] Middle Orchestra", 12);
-
-        box.addItem ("[Romantic] Warm Strings + Horns", 13);
-        box.addItem ("[Romantic] Oboe + Strings", 14);
-        box.addItem ("[Romantic] Flute + Violins", 15);
-        box.addItem ("[Romantic] Bassoon + Celli", 16);
-        box.addItem ("[Romantic] Horn Choir + Strings", 17);
-
-        box.addItem ("[Cinematic] Heroic Brass + Strings", 18);
-        box.addItem ("[Cinematic] Dark Trailer Bed", 19);
-        box.addItem ("[Cinematic] High Winds Shimmer", 20);
-        box.addItem ("[Cinematic] Epic Low Pulse", 21);
-
-        box.addItem ("[Herrmann] Low Reeds", 22);
-        box.addItem ("[Herrmann] Horn Knives", 23);
-        box.addItem ("[Herrmann] Psycho Strings", 24);
-        box.addItem ("[Herrmann] Suspense Winds", 25);
-
-        box.addItem ("[Modernist] Pointillist Winds", 26);
-        box.addItem ("[Modernist] Sparse Extremes", 27);
-        box.addItem ("[Shimmer] Silver Shimmer", 28);
-        box.addItem ("[Solo] English Horn Lament", 29);
-    }
-    void addWoodwindsPresetItems (juce::ComboBox& box)
-    {
-        box.addItem ("All Off", 1);
-
-        box.addItem ("Piccolo Only", 2);
-
-        box.addItem ("Flutes", 3);
-        box.addItem ("Flute 1 Only", 4);
-        box.addItem ("Flute 2 Only", 5);
-
-        box.addItem ("Oboes", 6);
-        box.addItem ("Oboe 1 Only", 7);
-        box.addItem ("Oboe 2 Only", 8);
-        box.addItem ("English Horn Only", 9);
-
-        box.addItem ("Clarinets", 10);
-        box.addItem ("Clarinet 1 Only", 11);
-        box.addItem ("Clarinet 2 Only", 12);
-        box.addItem ("Bass Clarinet Only", 13);
-
-        box.addItem ("Bassoons", 14);
-        box.addItem ("Bassoon 1 Only", 15);
-        box.addItem ("Bassoon 2 Only", 16);
-        box.addItem ("Contrabassoon Only", 17);
-
-        box.addItem ("High Woodwinds", 18);
-        box.addItem ("Low Woodwinds", 19);
-        box.addItem ("Full Woodwinds", 20);
+        for (int presetId = 0; presetId <= processor.getMaxCombiPresetId(); ++presetId)
+            box.addItem (processor.getCombiPresetLabel (presetId), presetId + 1);
     }
 
-    void addBrassPresetItems (juce::ComboBox& box)
+    void addSectionPresetItems (juce::ComboBox& box,
+                                const OrchConductorAudioProcessor& processor,
+                                OrchConductorAudioProcessor::Section section)
     {
-        box.addItem ("All Off", 1);
+        box.clear (juce::dontSendNotification);
 
-        box.addItem ("Horns", 2);
-        box.addItem ("Horn 1 Only", 3);
-        box.addItem ("Horn 2 Only", 4);
-        box.addItem ("Horn 3 Only", 5);
-        box.addItem ("Horn 4 Only", 6);
-
-        box.addItem ("Trumpets", 7);
-        box.addItem ("Trumpet 1 Only", 8);
-        box.addItem ("Trumpet 2 Only", 9);
-        box.addItem ("Trumpet 3 Only", 10);
-
-        box.addItem ("Trombones", 11);
-        box.addItem ("Trombone 1 Only", 12);
-        box.addItem ("Trombone 2 Only", 13);
-        box.addItem ("Bass Trombone Only", 14);
-
-        box.addItem ("Tuba Only", 15);
-
-        box.addItem ("Low Brass", 16);
-        box.addItem ("Full Brass", 17);
-    }
-
-    void addPercussionPresetItems (juce::ComboBox& box)
-    {
-        box.addItem ("All Off", 1);
-        box.addItem ("Timpani Only", 2);
-        box.addItem ("Glockenspiel Only", 3);
-        box.addItem ("Xylophone Only", 4);
-        box.addItem ("Marimba Only", 5);
-        box.addItem ("Vibraphone Only", 6);
-        box.addItem ("Tubular Bells Only", 7);
-        box.addItem ("Mallets", 8);
-        box.addItem ("Full Melodic Percussion", 9);
-    }
-
-    void addStringsPresetItems (juce::ComboBox& box)
-    {
-        box.addItem ("All Off", 1);
-        box.addItem ("Violin I Only", 2);
-        box.addItem ("Violin II Only", 3);
-        box.addItem ("Violins Only", 4);
-        box.addItem ("Violas Only", 5);
-        box.addItem ("Cellos Only", 6);
-        box.addItem ("Basses Only", 7);
-        box.addItem ("Upper Strings", 8);
-        box.addItem ("Low Strings", 9);
-        box.addItem ("String Quartet", 10);
-        box.addItem ("Viola + Cello", 11);
-        box.addItem ("Cello + Bass", 12);
-        box.addItem ("Full Strings", 13);
-        box.addItem ("Tutti", 14);
-    }
-}
+        for (int presetId = 0; presetId <= processor.getMaxSectionPresetId (section); ++presetId)
+            box.addItem (processor.getSectionPresetLabel (section, presetId), presetId + 1);
+    }}
 
 OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConductorAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
@@ -159,7 +52,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 6C-3", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 6D-2", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -169,7 +62,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     styleLabel (combiPresetLabel, juce::Colours::white, 14.0f, juce::Font::bold);
     addAndMakeVisible (combiPresetLabel);
 
-    addCombiPresetItems (combiPresetBox);
+    addCombiPresetItems (combiPresetBox, audioProcessor);
     combiPresetBox.setSelectedId (audioProcessor.getCombiPresetId() + 1, juce::dontSendNotification);
     styleComboBox (combiPresetBox, true);
     addAndMakeVisible (combiPresetBox);
@@ -202,22 +95,22 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     styleLabel (stringsPresetLabel, juce::Colours::white, 14.0f, juce::Font::bold);
     addAndMakeVisible (stringsPresetLabel);
 
-    addWoodwindsPresetItems (woodwindsPresetBox);
+    addSectionPresetItems (woodwindsPresetBox, audioProcessor, OrchConductorAudioProcessor::Section::woodwinds);
     woodwindsPresetBox.setSelectedId (audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::woodwinds) + 1, juce::dontSendNotification);
     styleComboBox (woodwindsPresetBox, true);
     addAndMakeVisible (woodwindsPresetBox);
 
-    addBrassPresetItems (brassPresetBox);
+    addSectionPresetItems (brassPresetBox, audioProcessor, OrchConductorAudioProcessor::Section::brass);
     brassPresetBox.setSelectedId (audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::brass) + 1, juce::dontSendNotification);
     styleComboBox (brassPresetBox, true);
     addAndMakeVisible (brassPresetBox);
 
-    addPercussionPresetItems (percussionPresetBox);
+    addSectionPresetItems (percussionPresetBox, audioProcessor, OrchConductorAudioProcessor::Section::percussion);
     percussionPresetBox.setSelectedId (audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::percussion) + 1, juce::dontSendNotification);
     styleComboBox (percussionPresetBox, true);
     addAndMakeVisible (percussionPresetBox);
 
-    addStringsPresetItems (presetBox);
+    addSectionPresetItems (presetBox, audioProcessor, OrchConductorAudioProcessor::Section::strings);
     presetBox.setSelectedId (audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::strings) + 1, juce::dontSendNotification);
     styleComboBox (presetBox, true);
     addAndMakeVisible (presetBox);
@@ -433,7 +326,7 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colour::fromRGB (120, 140, 155));
     g.setFont (juce::FontOptions (13.0f, juce::Font::plain));
-    g.drawText ("Phase 6C-3: Bidirectional UI-host automation sync active | Runtime JSON diagnostics passive | UI feedback active",
+    g.drawText ("Phase 6D-2: Runtime catalog labels active when JSON authority is ready | Automation sync active",
                 futureArea.toNearestInt().reduced (16, 8),
                 juce::Justification::centred);
 }

@@ -969,7 +969,23 @@ bool OrchConductorAudioProcessor::isCombiModeActive() const
 
 juce::String OrchConductorAudioProcessor::getCombiPresetName() const
 {
-    switch (static_cast<CombiPreset> (combiPresetId))
+    return getCombiPresetLabel (combiPresetId);
+}
+
+juce::String OrchConductorAudioProcessor::getCombiPresetLabel (int presetId) const
+{
+    if (presetId < minCombiPresetId || presetId > maxCombiPresetId)
+        return "Unknown Combi";
+
+    if (runtimePresetCatalogAuthorityActive)
+    {
+        const auto label = runtimePresetCatalog.getCombiPresetLabel (presetId);
+
+        if (label.isNotEmpty())
+            return label;
+    }
+
+    switch (static_cast<CombiPreset> (presetId))
     {
         case CombiPreset::manualSections: return "Manual Sections";
 
@@ -1008,6 +1024,106 @@ juce::String OrchConductorAudioProcessor::getCombiPresetName() const
     }
 
     return "Unknown Combi";
+}
+
+juce::String OrchConductorAudioProcessor::getSectionPresetLabel (Section section, int presetId) const
+{
+    if (presetId < minSectionPresetId || presetId > getMaxSectionPresetId (section))
+        return "Unknown";
+
+    if (runtimePresetCatalogAuthorityActive)
+    {
+        juce::String sectionId;
+
+        switch (section)
+        {
+            case Section::woodwinds:  sectionId = "woodwinds"; break;
+            case Section::brass:      sectionId = "brass"; break;
+            case Section::percussion: sectionId = "percussion"; break;
+            case Section::strings:    sectionId = "strings"; break;
+        }
+
+        const auto label = runtimePresetCatalog.getSectionPresetLabel (sectionId, presetId);
+
+        if (label.isNotEmpty())
+            return label;
+    }
+
+    static const char* const woodwinds[] =
+    {
+        "All Off", "Piccolo Only", "Flutes", "Flute 1 Only", "Flute 2 Only",
+        "Oboes", "Oboe 1 Only", "Oboe 2 Only", "English Horn Only",
+        "Clarinets", "Clarinet 1 Only", "Clarinet 2 Only", "Bass Clarinet Only",
+        "Bassoons", "Bassoon 1 Only", "Bassoon 2 Only", "Contrabassoon Only",
+        "High Woodwinds", "Low Woodwinds", "Full Woodwinds"
+    };
+
+    static const char* const brass[] =
+    {
+        "All Off", "Horns", "Horn 1 Only", "Horn 2 Only", "Horn 3 Only", "Horn 4 Only",
+        "Trumpets", "Trumpet 1 Only", "Trumpet 2 Only", "Trumpet 3 Only",
+        "Trombones", "Trombone 1 Only", "Trombone 2 Only", "Bass Trombone Only",
+        "Tuba Only", "Low Brass", "Full Brass"
+    };
+
+    static const char* const percussion[] =
+    {
+        "All Off", "Timpani Only", "Glockenspiel Only", "Xylophone Only", "Marimba Only",
+        "Vibraphone Only", "Tubular Bells Only", "Mallets", "Full Melodic Percussion"
+    };
+
+    switch (section)
+    {
+        case Section::woodwinds:
+            return juce::isPositiveAndBelow (presetId, static_cast<int> (std::size (woodwinds))) ? woodwinds[presetId] : "Unknown Woodwinds";
+
+        case Section::brass:
+            return juce::isPositiveAndBelow (presetId, static_cast<int> (std::size (brass))) ? brass[presetId] : "Unknown Brass";
+
+        case Section::percussion:
+            return juce::isPositiveAndBelow (presetId, static_cast<int> (std::size (percussion))) ? percussion[presetId] : "Unknown Percussion";
+
+        case Section::strings:
+            switch (static_cast<Preset> (presetId))
+            {
+                case Preset::allOff:        return "All Off";
+                case Preset::violinIOnly:   return "Violin I Only";
+                case Preset::violinIIOnly:  return "Violin II Only";
+                case Preset::violinsOnly:   return "Violins Only";
+                case Preset::violasOnly:    return "Violas Only";
+                case Preset::cellosOnly:    return "Cellos Only";
+                case Preset::bassesOnly:    return "Basses Only";
+                case Preset::upperStrings:  return "Upper Strings";
+                case Preset::lowStrings:    return "Low Strings";
+                case Preset::stringQuartet: return "String Quartet";
+                case Preset::violaCello:    return "Viola + Cello";
+                case Preset::celloBass:     return "Cello + Bass";
+                case Preset::fullStrings:   return "Full Strings";
+                case Preset::tutti:         return "Tutti";
+            }
+
+            return "Unknown Strings";
+    }
+
+    return "Unknown";
+}
+
+int OrchConductorAudioProcessor::getMaxCombiPresetId() const
+{
+    return maxCombiPresetId;
+}
+
+int OrchConductorAudioProcessor::getMaxSectionPresetId (Section section) const
+{
+    switch (section)
+    {
+        case Section::woodwinds:  return maxWoodwindsPresetId;
+        case Section::brass:      return maxBrassPresetId;
+        case Section::percussion: return maxPercussionPresetId;
+        case Section::strings:    return maxStringsPresetId;
+    }
+
+    return minSectionPresetId;
 }
 int OrchConductorAudioProcessor::getSectionPresetId (Section section) const
 {
@@ -1173,27 +1289,8 @@ bool OrchConductorAudioProcessor::getSendOnPresetChange() const
 
 juce::String OrchConductorAudioProcessor::getPresetName() const
 {
-    switch (getPreset())
-    {
-        case Preset::allOff:        return "All Off";
-        case Preset::violinIOnly:   return "Violin I Only";
-        case Preset::violinIIOnly:  return "Violin II Only";
-        case Preset::violinsOnly:   return "Violins Only";
-        case Preset::violasOnly:    return "Violas Only";
-        case Preset::cellosOnly:    return "Cellos Only";
-        case Preset::bassesOnly:    return "Basses Only";
-        case Preset::upperStrings:  return "Upper Strings";
-        case Preset::lowStrings:    return "Low Strings";
-        case Preset::stringQuartet: return "String Quartet";
-        case Preset::violaCello:    return "Viola + Cello";
-        case Preset::celloBass:     return "Cello + Bass";
-        case Preset::fullStrings:   return "Full Strings";
-        case Preset::tutti:         return "Tutti";
-    }
-
-    return "Unknown";
+    return getSectionPresetLabel (Section::strings, stringsPresetId);
 }
-
 int OrchConductorAudioProcessor::getNumOutputRows()
 {
     return numRows;
