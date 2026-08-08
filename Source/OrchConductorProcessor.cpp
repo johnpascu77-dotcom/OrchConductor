@@ -493,6 +493,25 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
             "Runtime catalog authority trial is disabled by ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL.";
 #endif
 
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL
+        runtimePresetCatalogAuthorityActive =
+            runtimeCatalogPayloadEquivalenceProbePassed
+            && runtimeCatalogCoverageAuditPassed
+            && runtimeCatalogAuthorityTrialPass;
+#else
+        runtimePresetCatalogAuthorityActive =
+            runtimeCatalogPayloadEquivalenceProbePassed
+            && runtimeCatalogCoverageAuditPassed;
+#endif
+
+        runtimePresetCatalogAuthorityStatus =
+            runtimePresetCatalogAuthorityActive
+                ? "Runtime preset catalog authority is active."
+                : "Runtime preset catalog authority remains inactive because one or more runtime catalog validation gates failed.";
+
+        if (runtimePresetCatalogAuthorityActive)
+            runtimePresetCatalog = runtimePresetCatalogAuthorityProbe;
+
     }
     else
     {
@@ -718,7 +737,21 @@ juce::String OrchConductorAudioProcessor::getRuntimePresetCatalogAuthorityStatus
     if (runtimePresetCatalogAuthorityProbeRequiresFallback
         || runtimeCatalogCoverageAuditBlockedByFallback
         || runtimeCatalogPayloadEquivalenceProbeBlockedByFallback)
+    {
+        if (runtimePresetCatalogAuthorityProbeDiagnostic.isNotEmpty())
+            return "Runtime JSON: Fallback required | " + runtimePresetCatalogAuthorityProbeDiagnostic;
+
+        if (runtimeJsonPresetProbeDiagnostic.isNotEmpty())
+            return "Runtime JSON: Fallback required | " + runtimeJsonPresetProbeDiagnostic;
+
         return "Runtime JSON: Fallback required | Hardcoded preset authority active";
+    }
+
+    if (runtimePresetCatalogAuthorityProbeDiagnostic.isNotEmpty())
+        return "Runtime JSON: Inactive | " + runtimePresetCatalogAuthorityProbeDiagnostic;
+
+    if (runtimeJsonPresetProbeDiagnostic.isNotEmpty())
+        return "Runtime JSON: Inactive | " + runtimeJsonPresetProbeDiagnostic;
 
     return "Runtime JSON: Inactive | Hardcoded preset authority active";
 }
