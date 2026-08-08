@@ -824,6 +824,79 @@ void OrchConductorAudioProcessor::syncAutomatedParameters()
             sendOnPresetChange = value;
     }
 }
+bool OrchConductorAudioProcessor::tryGetRuntimeSectionPresetValueForCc (Section section,
+                                                                        int presetId,
+                                                                        int ccNumber,
+                                                                        int& value) const
+{
+    if (! runtimePresetCatalogAuthorityActive)
+        return false;
+
+    juce::String sectionId;
+
+    switch (section)
+    {
+        case Section::woodwinds:
+            sectionId = "woodwinds";
+            break;
+
+        case Section::brass:
+            sectionId = "brass";
+            break;
+
+        case Section::percussion:
+            sectionId = "percussion";
+            break;
+
+        case Section::strings:
+            sectionId = "strings";
+            break;
+    }
+
+    const int valueCount = runtimePresetCatalog.getSectionPresetValueCount (sectionId, presetId);
+
+    for (int valueIndex = 0; valueIndex < valueCount; ++valueIndex)
+    {
+        const auto runtimeValue = runtimePresetCatalog.getSectionPresetValue (sectionId, presetId, valueIndex);
+
+        if (runtimeValue.isValid
+            && runtimeValue.ccNumber == ccNumber
+            && runtimeValue.value >= 0
+            && runtimeValue.value <= 127)
+        {
+            value = runtimeValue.value;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool OrchConductorAudioProcessor::tryGetRuntimeCombiPresetValueForCc (int presetId,
+                                                                      int ccNumber,
+                                                                      int& value) const
+{
+    if (! runtimePresetCatalogAuthorityActive)
+        return false;
+
+    const int valueCount = runtimePresetCatalog.getCombiPresetValueCount (presetId);
+
+    for (int valueIndex = 0; valueIndex < valueCount; ++valueIndex)
+    {
+        const auto runtimeValue = runtimePresetCatalog.getCombiPresetValue (presetId, valueIndex);
+
+        if (runtimeValue.isValid
+            && runtimeValue.ccNumber == ccNumber
+            && runtimeValue.value >= 0
+            && runtimeValue.value <= 127)
+        {
+            value = runtimeValue.value;
+            return true;
+        }
+    }
+
+    return false;
+}
 void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     buffer.clear();
@@ -841,9 +914,19 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     for (int i = 0; i < numWoodwindsRows; ++i)
     {
         const int cc = woodwindsCcNumbers[i];
-        const int value = shouldSendAllOff ? 0
-                         : useCombi       ? getCombiPresetValueForCc (cc)
-                                          : getWoodwindsPresetValueForIndex (i);
+
+        int value = shouldSendAllOff ? 0
+                  : useCombi        ? getCombiPresetValueForCc (cc)
+                                    : getWoodwindsPresetValueForIndex (i);
+
+        if (! shouldSendAllOff)
+        {
+            if (useCombi)
+                tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+
+            if (! useCombi)
+                tryGetRuntimeSectionPresetValueForCc (Section::woodwinds, woodwindsPresetId, cc, value);
+        }
 
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, cc, value), 0);
     }
@@ -851,9 +934,19 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     for (int i = 0; i < numBrassRows; ++i)
     {
         const int cc = brassCcNumbers[i];
-        const int value = shouldSendAllOff ? 0
-                         : useCombi       ? getCombiPresetValueForCc (cc)
-                                          : getBrassPresetValueForIndex (i);
+
+        int value = shouldSendAllOff ? 0
+                  : useCombi        ? getCombiPresetValueForCc (cc)
+                                    : getBrassPresetValueForIndex (i);
+
+        if (! shouldSendAllOff)
+        {
+            if (useCombi)
+                tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+
+            if (! useCombi)
+                tryGetRuntimeSectionPresetValueForCc (Section::brass, brassPresetId, cc, value);
+        }
 
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, cc, value), 0);
     }
@@ -861,21 +954,46 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     for (int i = 0; i < numPercussionRows; ++i)
     {
         const int cc = percussionCcNumbers[i];
-        const int value = shouldSendAllOff ? 0
-                         : useCombi       ? getCombiPresetValueForCc (cc)
-                                          : getPercussionPresetValueForIndex (i);
+
+        int value = shouldSendAllOff ? 0
+                  : useCombi        ? getCombiPresetValueForCc (cc)
+                                    : getPercussionPresetValueForIndex (i);
+
+        if (! shouldSendAllOff)
+        {
+            if (useCombi)
+                tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+
+            if (! useCombi)
+                tryGetRuntimeSectionPresetValueForCc (Section::percussion, percussionPresetId, cc, value);
+        }
 
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, cc, value), 0);
     }
 
-    midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, 49, 0), 0);
+    int reservedCc49Value = 0;
+
+    if (! shouldSendAllOff && useCombi)
+        tryGetRuntimeCombiPresetValueForCc (combiPresetId, 49, reservedCc49Value);
+
+    midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, 49, reservedCc49Value), 0);
 
     for (int i = 0; i < numRows; ++i)
     {
         const int cc = ccNumbers[i];
-        const int value = shouldSendAllOff ? 0
-                         : useCombi       ? getCombiPresetValueForCc (cc)
-                                          : getPresetValueForIndex (i);
+
+        int value = shouldSendAllOff ? 0
+                  : useCombi        ? getCombiPresetValueForCc (cc)
+                                    : getPresetValueForIndex (i);
+
+        if (! shouldSendAllOff)
+        {
+            if (useCombi)
+                tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+
+            if (! useCombi)
+                tryGetRuntimeSectionPresetValueForCc (Section::strings, stringsPresetId, cc, value);
+        }
 
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, cc, value), 0);
     }
@@ -1644,3 +1762,4 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
+

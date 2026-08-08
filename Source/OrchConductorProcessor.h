@@ -177,6 +177,15 @@ public:
     bool isRuntimePresetCatalogAuthorityActive() const;
     juce::String getRuntimePresetCatalogAuthorityStatus() const;
 private:
+    bool tryGetRuntimeSectionPresetValueForCc (Section section,
+                                               int presetId,
+                                               int ccNumber,
+                                               int& value) const;
+
+    bool tryGetRuntimeCombiPresetValueForCc (int presetId,
+                                             int ccNumber,
+                                             int& value) const;
+
     static constexpr int minCombiPresetId = 0;
     static constexpr int maxCombiPresetId = static_cast<int> (CombiPreset::soloEnglishHornLament);
 

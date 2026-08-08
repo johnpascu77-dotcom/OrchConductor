@@ -1,4 +1,4 @@
-﻿#include "OrchConductorPresetLibraryJson.h"
+#include "OrchConductorPresetLibraryJson.h"
 
 namespace orchconductor
 {
@@ -401,7 +401,12 @@ PresetLibraryJsonLoadResult PresetLibraryJsonLoader::fromJsonText(const juce::St
 {
     PresetLibraryJsonLoadResult result;
 
-    auto parsed = juce::JSON::parse(jsonText);
+    auto textToParse = jsonText;
+
+    if (textToParse.isNotEmpty() && textToParse[0] == 0xfeff)
+        textToParse = textToParse.substring(1);
+
+    auto parsed = juce::JSON::parse(textToParse);
     const auto* rootObject = asObject(parsed);
 
     if (rootObject == nullptr)
