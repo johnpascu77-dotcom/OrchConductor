@@ -1153,6 +1153,16 @@ juce::String OrchConductorAudioProcessor::getCombiPresetLabel (int presetId) con
     if (presetId < minCombiPresetId || presetId > getMaxCombiPresetId())
         return "Unknown Combi";
 
+    if (isUserCombiPresetId (presetId))
+    {
+        const auto it = userCombiPresets.find (presetId);
+
+        if (it != userCombiPresets.end())
+            return it->second.name;
+
+        return "User Combi " + juce::String (presetId);
+    }
+
     if (runtimePresetCatalogAuthorityActive)
     {
         const auto label = runtimePresetCatalog.getCombiPresetLabel (presetId);
@@ -1873,4 +1883,3 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
-
