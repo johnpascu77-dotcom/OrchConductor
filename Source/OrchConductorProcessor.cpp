@@ -176,10 +176,18 @@ namespace
 
     bool verifyRuntimeCatalogCoverageAudit(const OrchConductorRuntimePresetCatalog& catalog)
     {
-        return verifyRuntimeCatalogSectionPresetRange(catalog, "woodwinds", 0, 19)
-            && verifyRuntimeCatalogSectionPresetRange(catalog, "brass", 0, 16)
-            && verifyRuntimeCatalogSectionPresetRange(catalog, "percussion", 0, 8)
-            && verifyRuntimeCatalogSectionPresetRange(catalog, "strings", 0, 12)
+        return verifyRuntimeCatalogSectionPresetRange(catalog, "woodwinds",
+                                                  runtimeSectionPresetAuditMinId,
+                                                  runtimeWoodwindPresetAuditMaxId)
+            && verifyRuntimeCatalogSectionPresetRange(catalog, "brass",
+                                                  runtimeSectionPresetAuditMinId,
+                                                  runtimeBrassPresetAuditMaxId)
+            && verifyRuntimeCatalogSectionPresetRange(catalog, "percussion",
+                                                  runtimeSectionPresetAuditMinId,
+                                                  runtimePercussionPresetAuditMaxId)
+            && verifyRuntimeCatalogSectionPresetRange(catalog, "strings",
+                                                  runtimeSectionPresetAuditMinId,
+                                                  runtimeStringPresetAuditMaxId)
             && verifyRuntimeCatalogCombiPresetRange(catalog,
                                                     runtimeCombiPresetAuditMinId,
                                                     runtimeCombiPresetAuditMaxId);
@@ -1828,6 +1836,7 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
+
 
 
 
