@@ -270,6 +270,11 @@ private:
     int getWoodwindsPresetValueForIndex (int index) const;
     int getBrassPresetValueForIndex (int index) const;
     int getPercussionPresetValueForIndex (int index) const;
+    int getSectionPresetValueForCc (Section section, int presetId, int ccNumber) const;
+    int getStringsPresetValueForIndex (int presetId, int index) const;
+    int getWoodwindsPresetValueForIndex (int presetId, int index) const;
+    int getBrassPresetValueForIndex (int presetId, int index) const;
+    int getPercussionPresetValueForIndex (int presetId, int index) const;
     int getCombiPresetValueForCc (int ccNumber) const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
