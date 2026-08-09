@@ -189,7 +189,8 @@ private:
                                              int& value) const;
 
     static constexpr int minCombiPresetId = 0;
-    static constexpr int maxCombiPresetId = static_cast<int> (CombiPreset::soloEnglishHornLament);
+    static constexpr int maxFactoryCombiPresetId = static_cast<int> (CombiPreset::soloEnglishHornLament);
+    static constexpr int maxCombiPresetParameterId = 127;
 
     static constexpr int minSectionPresetId = 0;
 
@@ -256,4 +257,5 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };
+
 
