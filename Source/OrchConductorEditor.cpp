@@ -491,6 +491,12 @@ void OrchConductorAudioProcessorEditor::timerCallback()
 
 void OrchConductorAudioProcessorEditor::updateStatus()
 {
+    ccMapLabel.setText (
+        audioProcessor.isCombiModeActive()
+            ? "Phase 9B: Combi mode active - section preset controls are overridden until edited | CC49 reserved for Harp"
+            : "Phase 9B: Manual section mode - section preset controls define output | CC49 reserved for Harp",
+        juce::dontSendNotification);
+
     const juce::String autoSendText = audioProcessor.getSendOnPresetChange() ? " | Auto-send: On" : " | Auto-send: Off";
     const juce::String activePlayersText = " | Active players: " + juce::String (audioProcessor.getTotalActivePlayers());
     const juce::String sendFeedbackText = " | " + lastActionText + " | Send requests: " + juce::String (sendRequestCount);
