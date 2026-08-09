@@ -177,6 +177,8 @@ public:
     bool isRuntimePresetCatalogAuthorityActive() const;
     juce::String getRuntimePresetCatalogAuthorityStatus() const;
 private:
+    static juce::String getRuntimeCatalogSectionId (Section section);
+
     bool tryGetRuntimeSectionPresetValueForCc (Section section,
                                                int presetId,
                                                int ccNumber,
@@ -254,3 +256,4 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };
+

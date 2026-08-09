@@ -861,6 +861,19 @@ void OrchConductorAudioProcessor::syncAutomatedParameters()
             sendOnPresetChange = value;
     }
 }
+juce::String OrchConductorAudioProcessor::getRuntimeCatalogSectionId (Section section)
+{
+    switch (section)
+    {
+        case Section::woodwinds:  return "woodwinds";
+        case Section::brass:      return "brass";
+        case Section::percussion: return "percussion";
+        case Section::strings:    return "strings";
+
+    }
+
+    return {};
+}
 bool OrchConductorAudioProcessor::tryGetRuntimeSectionPresetValueForCc (Section section,
                                                                         int presetId,
                                                                         int ccNumber,
@@ -869,26 +882,10 @@ bool OrchConductorAudioProcessor::tryGetRuntimeSectionPresetValueForCc (Section 
     if (! runtimePresetCatalogAuthorityActive)
         return false;
 
-    juce::String sectionId;
+    const auto sectionId = getRuntimeCatalogSectionId (section);
 
-    switch (section)
-    {
-        case Section::woodwinds:
-            sectionId = "woodwinds";
-            break;
-
-        case Section::brass:
-            sectionId = "brass";
-            break;
-
-        case Section::percussion:
-            sectionId = "percussion";
-            break;
-
-        case Section::strings:
-            sectionId = "strings";
-            break;
-    }
+    if (sectionId.isEmpty())
+        return false;
 
     const int valueCount = runtimePresetCatalog.getSectionPresetValueCount (sectionId, presetId);
 
@@ -1190,17 +1187,11 @@ juce::String OrchConductorAudioProcessor::getSectionPresetLabel (Section section
 
     if (runtimePresetCatalogAuthorityActive)
     {
-        juce::String sectionId;
+        const auto sectionId = getRuntimeCatalogSectionId (section);
 
-        switch (section)
-        {
-            case Section::woodwinds:  sectionId = "woodwinds"; break;
-            case Section::brass:      sectionId = "brass"; break;
-            case Section::percussion: sectionId = "percussion"; break;
-            case Section::strings:    sectionId = "strings"; break;
-        }
-
-        const auto label = runtimePresetCatalog.getSectionPresetLabel (sectionId, presetId);
+        const auto label = sectionId.isNotEmpty()
+            ? runtimePresetCatalog.getSectionPresetLabel (sectionId, presetId)
+            : juce::String {};
 
         if (label.isNotEmpty())
             return label;
