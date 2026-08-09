@@ -92,6 +92,20 @@ namespace
             && value.value <= 127;
     }
 
+    bool tryAssignRuntimeCatalogValueForCc(const OrchConductorRuntimePresetValueView& runtimeValue,
+                                            int ccNumber,
+                                            int& value)
+    {
+        if (runtimeCatalogValueIsMidiSafe (runtimeValue)
+            && runtimeValue.ccNumber == ccNumber)
+        {
+            value = runtimeValue.value;
+            return true;
+        }
+
+        return false;
+    }
+
     bool verifyRuntimeCatalogSectionPresetRange(const OrchConductorRuntimePresetCatalog& catalog,
                                                 const juce::String& sectionId,
                                                 int firstPresetId,
@@ -893,12 +907,8 @@ bool OrchConductorAudioProcessor::tryGetRuntimeSectionPresetValueForCc (Section 
     {
         const auto runtimeValue = runtimePresetCatalog.getSectionPresetValue (sectionId, presetId, valueIndex);
 
-        if (runtimeCatalogValueIsMidiSafe (runtimeValue)
-            && runtimeValue.ccNumber == ccNumber)
-        {
-            value = runtimeValue.value;
+        if (tryAssignRuntimeCatalogValueForCc (runtimeValue, ccNumber, value))
             return true;
-        }
     }
 
     return false;
@@ -917,12 +927,8 @@ bool OrchConductorAudioProcessor::tryGetRuntimeCombiPresetValueForCc (int preset
     {
         const auto runtimeValue = runtimePresetCatalog.getCombiPresetValue (presetId, valueIndex);
 
-        if (runtimeCatalogValueIsMidiSafe (runtimeValue)
-            && runtimeValue.ccNumber == ccNumber)
-        {
-            value = runtimeValue.value;
+        if (tryAssignRuntimeCatalogValueForCc (runtimeValue, ccNumber, value))
             return true;
-        }
     }
 
     return false;
