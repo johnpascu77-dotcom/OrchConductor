@@ -6,6 +6,8 @@
 
 namespace
 {
+    constexpr int runtimeCombiPresetAuditMinId = 0;
+    constexpr int runtimeCombiPresetAuditMaxId = 28;
 
     struct ExpectedRuntimeCatalogValue
     {
@@ -170,7 +172,9 @@ namespace
             && verifyRuntimeCatalogSectionPresetRange(catalog, "brass", 0, 16)
             && verifyRuntimeCatalogSectionPresetRange(catalog, "percussion", 0, 8)
             && verifyRuntimeCatalogSectionPresetRange(catalog, "strings", 0, 12)
-            && verifyRuntimeCatalogCombiPresetRange(catalog, 0, 28);
+            && verifyRuntimeCatalogCombiPresetRange(catalog,
+                                                    runtimeCombiPresetAuditMinId,
+                                                    runtimeCombiPresetAuditMaxId);
     }
 
     bool verifyRuntimeCatalogAuthorityTrialSentinels(const OrchConductorRuntimePresetCatalog& catalog)
@@ -1816,4 +1820,6 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
+
+
 
