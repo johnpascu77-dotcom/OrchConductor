@@ -1069,13 +1069,25 @@ void OrchConductorAudioProcessor::getStateInformation (juce::MemoryBlock& destDa
 {
     juce::MemoryOutputStream stream (destData, true);
 
-    stream.writeInt (1);
+    stream.writeInt (2);
     stream.writeInt (combiPresetId);
     stream.writeInt (woodwindsPresetId);
     stream.writeInt (brassPresetId);
     stream.writeInt (percussionPresetId);
     stream.writeInt (stringsPresetId);
     stream.writeBool (sendOnPresetChange);
+
+    stream.writeInt (static_cast<int> (userCombiPresets.size()));
+
+    for (const auto& [id, preset] : userCombiPresets)
+    {
+        stream.writeInt (id);
+        stream.writeString (preset.name);
+        stream.writeInt (preset.woodwindsPresetId);
+        stream.writeInt (preset.brassPresetId);
+        stream.writeInt (preset.percussionPresetId);
+        stream.writeInt (preset.stringsPresetId);
+    }
 }
 
 void OrchConductorAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
@@ -1091,22 +1103,54 @@ void OrchConductorAudioProcessor::setStateInformation (const void* data, int siz
         return;
     }
 
-    if (firstInt == 1)
+    if (firstInt == 1 || firstInt == 2)
     {
+        const auto version = firstInt;
         const auto combi = stream.readInt();
         const auto woodwinds = stream.readInt();
         const auto brass = stream.readInt();
         const auto percussion = stream.readInt();
         const auto strings = stream.readInt();
 
-        setCombiPresetId (combi);
+        auto restoredSendOnPresetChange = sendOnPresetChange;
+
+        if (! stream.isExhausted())
+            restoredSendOnPresetChange = stream.readBool();
+
+        std::map<int, UserCombiPreset> restoredUserCombiPresets;
+
+        if (version >= 2 && ! stream.isExhausted())
+        {
+            const auto count = stream.readInt();
+
+            for (int i = 0; i < count && ! stream.isExhausted(); ++i)
+            {
+                const auto id = stream.readInt();
+                UserCombiPreset preset;
+                preset.name = stream.readString();
+                preset.woodwindsPresetId = stream.readInt();
+                preset.brassPresetId = stream.readInt();
+                preset.percussionPresetId = stream.readInt();
+                preset.stringsPresetId = stream.readInt();
+
+                if (id >= firstUserCombiPresetId && id <= maxCombiPresetParameterId)
+                    restoredUserCombiPresets[id] = preset;
+            }
+        }
+
+        const auto previousSendOnPresetChange = sendOnPresetChange;
+        sendOnPresetChange = false;
+
+        userCombiPresets = std::move (restoredUserCombiPresets);
+
         setSectionPresetId (Section::woodwinds, woodwinds);
         setSectionPresetId (Section::brass, brass);
         setSectionPresetId (Section::percussion, percussion);
         setSectionPresetId (Section::strings, strings);
+        setCombiPresetId (combi);
 
-        if (! stream.isExhausted())
-            setSendOnPresetChange (stream.readBool());
+        sendOnPresetChange = previousSendOnPresetChange;
+        setSendOnPresetChange (restoredSendOnPresetChange);
 
         return;
     }
@@ -2072,6 +2116,3 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
-
-
-
