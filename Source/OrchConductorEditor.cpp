@@ -33,7 +33,39 @@ namespace
 
         for (int presetId = 0; presetId <= processor.getMaxSectionPresetId (section); ++presetId)
             box.addItem (processor.getSectionPresetLabel (section, presetId), presetId + 1);
-    }}
+    }
+    class MidiMapTextComponent final : public juce::Component
+    {
+    public:
+        explicit MidiMapTextComponent (const juce::String& midiMapText)
+        {
+            textEditor.setMultiLine (true);
+            textEditor.setReadOnly (true);
+            textEditor.setScrollbarsShown (true);
+            textEditor.setCaretVisible (false);
+            textEditor.setPopupMenuEnabled (true);
+            textEditor.setText (midiMapText, juce::dontSendNotification);
+            textEditor.setJustification (juce::Justification::topLeft);
+            textEditor.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, juce::Font::plain));
+
+            textEditor.setColour (juce::TextEditor::backgroundColourId, juce::Colour::fromRGB (20, 28, 36));
+            textEditor.setColour (juce::TextEditor::textColourId, juce::Colours::white);
+            textEditor.setColour (juce::TextEditor::outlineColourId, juce::Colour::fromRGB (80, 120, 150));
+            textEditor.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colour::fromRGB (95, 200, 245));
+            textEditor.setColour (juce::TextEditor::highlightColourId, juce::Colour::fromRGB (45, 75, 95));
+
+            addAndMakeVisible (textEditor);
+            setSize (660, 460);
+        }
+
+        void resized() override
+        {
+            textEditor.setBounds (getLocalBounds());
+        }
+
+    private:
+        juce::TextEditor textEditor;
+    };}
 
 OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConductorAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
@@ -52,7 +84,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 7B", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 7C", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -275,7 +307,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     // Hidden in main UI.
 
     ccMapLabel.setText (
-        "Phase 7B: Runtime-backed MIDI map | Automatable controls | CC49 reserved for Harp",
+        "Phase 7C: Scrollable runtime-backed MIDI map | CC49 reserved for Harp",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -323,7 +355,7 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colour::fromRGB (120, 140, 155));
     g.setFont (juce::FontOptions (13.0f, juce::Font::plain));
-    g.drawText ("Phase 7B: " + audioProcessor.getRuntimePresetCatalogAuthorityStatus() + " | MIDI map follows runtime authority",
+    g.drawText ("Phase 7C: " + audioProcessor.getRuntimePresetCatalogAuthorityStatus() + " | Scrollable MIDI map follows runtime authority",
                 futureArea.toNearestInt().reduced (16, 8),
                 juce::Justification::centred);
 }
@@ -568,11 +600,16 @@ juce::String OrchConductorAudioProcessorEditor::buildMidiMapText() const
 
 void OrchConductorAudioProcessorEditor::showMidiMap()
 {
-    juce::AlertWindow::showMessageBoxAsync (
-        juce::AlertWindow::InfoIcon,
+    auto* window = new juce::AlertWindow (
         "OrchConductor MIDI Map",
-        buildMidiMapText(),
-        "OK");
+        "Scrollable runtime-backed MIDI map",
+        juce::AlertWindow::InfoIcon);
+
+    window->addCustomComponent (new MidiMapTextComponent (buildMidiMapText()));
+    window->addButton ("OK", 0, juce::KeyPress (juce::KeyPress::returnKey));
+    window->setColour (juce::AlertWindow::backgroundColourId, juce::Colour::fromRGB (28, 40, 48));
+    window->setColour (juce::AlertWindow::textColourId, juce::Colours::white);
+    window->enterModalState (true, nullptr, true);
 }
 
 void OrchConductorAudioProcessorEditor::updateBrassOutputTable()
