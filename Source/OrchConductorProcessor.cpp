@@ -8,6 +8,8 @@ namespace
 {
     constexpr int runtimeCombiPresetAuditMinId = 0;
     constexpr int runtimeCombiPresetAuditMaxId = 28;
+    constexpr int reservedHarpCcNumber = 49;
+    constexpr int reservedHarpCcValue = 0;
 
     struct ExpectedRuntimeCatalogValue
     {
@@ -150,11 +152,11 @@ namespace
                 if (! runtimeCatalogValueIsMidiSafe(value))
                     return false;
 
-                if (value.ccNumber == 49)
+                if (value.ccNumber == reservedHarpCcNumber)
                 {
                     sawReservedCc49 = true;
 
-                    if (value.value != 0)
+                    if (value.value != reservedHarpCcValue)
                         return false;
                 }
             }
@@ -1014,9 +1016,9 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     int reservedCc49Value = 0;
 
     if (! shouldSendAllOff && useCombi)
-        tryGetRuntimeCombiPresetValueForCc (combiPresetId, 49, reservedCc49Value);
+        tryGetRuntimeCombiPresetValueForCc (combiPresetId, reservedHarpCcNumber, reservedCc49Value);
 
-    midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, 49, reservedCc49Value), 0);
+    midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, reservedHarpCcNumber, reservedCc49Value), 0);
 
     for (int i = 0; i < numRows; ++i)
     {
@@ -1699,7 +1701,7 @@ int OrchConductorAudioProcessor::getPercussionPresetValueForIndex (int index) co
 
 int OrchConductorAudioProcessor::getCombiPresetValueForCc (int ccNumber) const
 {
-    if (ccNumber == 49)
+    if (ccNumber == reservedHarpCcNumber)
         return 0; // Harp reserved.
 
     const auto combi = static_cast<CombiPreset> (combiPresetId);
@@ -1820,6 +1822,7 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
+
 
 
 
