@@ -1302,6 +1302,24 @@ int OrchConductorAudioProcessor::getNextAvailableUserCombiPresetId() const
     return -1;
 }
 
+int OrchConductorAudioProcessor::createUserCombiPresetFromCurrentSections (const juce::String& name)
+{
+    const auto presetId = getNextAvailableUserCombiPresetId();
+
+    if (presetId < 0)
+        return -1;
+
+    UserCombiPreset preset;
+    preset.name = name.isNotEmpty() ? name : "User Combi " + juce::String (presetId);
+    preset.woodwindsPresetId = getSectionPresetId (Section::woodwinds);
+    preset.brassPresetId = getSectionPresetId (Section::brass);
+    preset.percussionPresetId = getSectionPresetId (Section::percussion);
+    preset.stringsPresetId = getSectionPresetId (Section::strings);
+
+    userCombiPresets[presetId] = preset;
+
+    return presetId;
+}
 int OrchConductorAudioProcessor::getMaxSectionPresetId (Section section) const
 {
     switch (section)
@@ -1855,3 +1873,4 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
+

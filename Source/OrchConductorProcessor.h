@@ -114,6 +114,7 @@ public:
     void setCombiPresetIdFromUI (int presetId);
 
     int getSectionPresetId (Section section) const;
+    int createUserCombiPresetFromCurrentSections (const juce::String& name);
     void setSectionPresetId (Section section, int presetId);
     void setSectionPresetIdFromUI (Section section, int presetId);
 
