@@ -1,4 +1,4 @@
-﻿#include "OrchConductorProcessor.h"
+#include "OrchConductorProcessor.h"
 #include <cmath>
 #include "OrchConductorEditor.h"
 #include "OrchConductorRuntimePresetSource.h"
@@ -13,113 +13,290 @@ namespace
         int value = -1;
     };
 
-    bool runtimeCatalogValueMatches(const OrchConductorRuntimePresetValueView& actual,
-                                    const ExpectedRuntimeCatalogValue& expected)
+    // Phase 6D: per-CC lookup helpers.
+    // The factory JSON uses sparse encoding: zero-value CCs are omitted.
+    // These helpers scan stored values by CC number and return 0 for any CC absent from the catalog.
+    // This matches the runtime payload semantic: omitted CC => value 0.
+
+    int catalogSectionPresetValueForCc(const OrchConductorRuntimePresetCatalog& catalog,
+                                       const juce::String& sectionId,
+                                       int presetIndex,
+                                       int ccNumber)
     {
-        return actual.isValid
-            && actual.ccNumber == expected.ccNumber
-            && actual.value == expected.value;
+        const int count = catalog.getSectionPresetValueCount(sectionId, presetIndex);
+
+        for (int i = 0; i < count; ++i)
+        {
+            const auto v = catalog.getSectionPresetValue(sectionId, presetIndex, i);
+
+            if (v.isValid && v.ccNumber == ccNumber)
+                return v.value;
+        }
+
+        return 0;
     }
 
-    bool runtimeCatalogPresetMatchesExpectedValues(const OrchConductorRuntimePresetCatalog& catalog,
-                                                   const juce::String& sectionId,
-                                                   int presetIndex,
-                                                   const ExpectedRuntimeCatalogValue* expectedValues,
-                                                   int expectedValueCount)
+    int catalogCombiPresetValueForCc(const OrchConductorRuntimePresetCatalog& catalog,
+                                     int presetIndex,
+                                     int ccNumber)
     {
-        if (catalog.getSectionPresetValueCount(sectionId, presetIndex) != expectedValueCount)
-            return false;
+        const int count = catalog.getCombiPresetValueCount(presetIndex);
 
+        for (int i = 0; i < count; ++i)
+        {
+            const auto v = catalog.getCombiPresetValue(presetIndex, i);
+
+            if (v.isValid && v.ccNumber == ccNumber)
+                return v.value;
+        }
+
+        return 0;
+    }
+
+    bool sectionPresetCcMatches(const OrchConductorRuntimePresetCatalog& catalog,
+                                const juce::String& sectionId,
+                                int presetIndex,
+                                const ExpectedRuntimeCatalogValue* expectedValues,
+                                int expectedValueCount)
+    {
         for (int i = 0; i < expectedValueCount; ++i)
         {
-            if (! runtimeCatalogValueMatches(catalog.getSectionPresetValue(sectionId, presetIndex, i),
-                                             expectedValues[i]))
+            if (catalogSectionPresetValueForCc(catalog, sectionId, presetIndex, expectedValues[i].ccNumber)
+                    != expectedValues[i].value)
                 return false;
         }
 
         return true;
     }
 
-    bool runtimeCatalogCombiPresetMatchesExpectedValues(const OrchConductorRuntimePresetCatalog& catalog,
-                                                        int presetIndex,
-                                                        const ExpectedRuntimeCatalogValue* expectedValues,
-                                                        int expectedValueCount)
+    bool combiPresetCcMatches(const OrchConductorRuntimePresetCatalog& catalog,
+                              int presetIndex,
+                              const ExpectedRuntimeCatalogValue* expectedValues,
+                              int expectedValueCount)
     {
-        if (catalog.getCombiPresetValueCount(presetIndex) != expectedValueCount)
-            return false;
-
         for (int i = 0; i < expectedValueCount; ++i)
         {
-            if (! runtimeCatalogValueMatches(catalog.getCombiPresetValue(presetIndex, i),
-                                             expectedValues[i]))
+            if (catalogCombiPresetValueForCc(catalog, presetIndex, expectedValues[i].ccNumber)
+                    != expectedValues[i].value)
                 return false;
         }
 
         return true;
     }
+    bool runtimeCatalogValueIsMidiSafe(const OrchConductorRuntimePresetValueView& value)
+    {
+        return value.isValid
+            && value.ccNumber >= 0
+            && value.ccNumber <= 127
+            && value.value >= 0
+            && value.value <= 127;
+    }
+
+    bool tryAssignRuntimeCatalogValueForCc(const OrchConductorRuntimePresetValueView& runtimeValue,
+                                            int ccNumber,
+                                            int& value)
+    {
+        if (runtimeCatalogValueIsMidiSafe (runtimeValue)
+            && runtimeValue.ccNumber == ccNumber)
+        {
+            value = runtimeValue.value;
+            return true;
+        }
+
+        return false;
+    }
+
+    bool verifyRuntimeCatalogSectionPresetRange(const OrchConductorRuntimePresetCatalog& catalog,
+                                                const juce::String& sectionId,
+                                                int firstPresetId,
+                                                int lastPresetId)
+    {
+        for (int presetId = firstPresetId; presetId <= lastPresetId; ++presetId)
+        {
+            const int valueCount = catalog.getSectionPresetValueCount(sectionId, presetId);
+
+            if (valueCount < 0)
+                return false;
+
+            for (int valueIndex = 0; valueIndex < valueCount; ++valueIndex)
+            {
+                if (! runtimeCatalogValueIsMidiSafe(catalog.getSectionPresetValue(sectionId, presetId, valueIndex)))
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool verifyRuntimeCatalogCombiPresetRange(const OrchConductorRuntimePresetCatalog& catalog,
+                                              int firstPresetId,
+                                              int lastPresetId)
+    {
+        for (int presetId = firstPresetId; presetId <= lastPresetId; ++presetId)
+        {
+            const int valueCount = catalog.getCombiPresetValueCount(presetId);
+
+            if (valueCount < 0)
+                return false;
+
+            bool sawReservedCc49 = false;
+
+            for (int valueIndex = 0; valueIndex < valueCount; ++valueIndex)
+            {
+                const auto value = catalog.getCombiPresetValue(presetId, valueIndex);
+
+                if (! runtimeCatalogValueIsMidiSafe(value))
+                    return false;
+
+                if (value.ccNumber == 49)
+                {
+                    sawReservedCc49 = true;
+
+                    if (value.value != 0)
+                        return false;
+                }
+            }
+
+            if (valueCount >= 35 && ! sawReservedCc49)
+                return false;
+        }
+
+        return true;
+    }
+
+    bool verifyRuntimeCatalogCoverageAudit(const OrchConductorRuntimePresetCatalog& catalog)
+    {
+        return verifyRuntimeCatalogSectionPresetRange(catalog, "woodwinds", 0, 19)
+            && verifyRuntimeCatalogSectionPresetRange(catalog, "brass", 0, 16)
+            && verifyRuntimeCatalogSectionPresetRange(catalog, "percussion", 0, 8)
+            && verifyRuntimeCatalogSectionPresetRange(catalog, "strings", 0, 12)
+            && verifyRuntimeCatalogCombiPresetRange(catalog, 0, 28);
+    }
+
+    bool verifyRuntimeCatalogAuthorityTrialSentinels(const OrchConductorRuntimePresetCatalog& catalog)
+    {
+        // Phase 5G authority-trial sentinels.
+        // This is still diagnostic-only. It does not route MIDI or change preset authority.
+        //
+        // Phase 6D: rewritten to compare by CC number using per-CC lookup.
+        // Omitted CCs resolve to 0, matching runtime dense-payload semantics.
+
+        // strings preset 8 "Low Strings": CC50=0, CC51=0, CC52=64, CC53=127, CC54=127
+        const ExpectedRuntimeCatalogValue lowStringsExpected[] =
+        {
+            { 50, 0 }, { 51, 0 }, { 52, 64 }, { 53, 127 }, { 54, 127 }
+        };
+
+        // strings preset 12 "Full Strings": CC50-54 all 127
+        const ExpectedRuntimeCatalogValue fullStringsExpected[] =
+        {
+            { 50, 127 }, { 51, 127 }, { 52, 127 }, { 53, 127 }, { 54, 127 }
+        };
+
+        // combi preset 28 "[Solo] English Horn Lament": only CC25, CC52, CC53, CC54 non-zero
+        const ExpectedRuntimeCatalogValue soloEnglishHornLamentExpected[] =
+        {
+            { 20, 0 },   { 21, 0 },   { 22, 0 },   { 23, 0 },
+            { 24, 0 },   { 25, 127 }, { 26, 0 },   { 27, 0 },
+            { 28, 0 },   { 29, 0 },   { 30, 0 },   { 31, 0 },
+            { 32, 0 },   { 33, 0 },   { 34, 0 },   { 35, 0 },
+            { 36, 0 },   { 37, 0 },   { 38, 0 },   { 39, 0 },
+            { 40, 0 },   { 41, 0 },   { 42, 0 },   { 43, 0 },
+            { 44, 0 },   { 45, 0 },   { 46, 0 },   { 47, 0 },
+            { 48, 0 },   { 49, 0 },   { 50, 0 },   { 51, 0 },
+            { 52, 127 }, { 53, 127 }, { 54, 64 }
+        };
+
+        return sectionPresetCcMatches(catalog, "strings", 8, lowStringsExpected,
+                                      static_cast<int>(std::size(lowStringsExpected)))
+            && sectionPresetCcMatches(catalog, "strings", 12, fullStringsExpected,
+                                      static_cast<int>(std::size(fullStringsExpected)))
+            && combiPresetCcMatches(catalog, 28, soloEnglishHornLamentExpected,
+                                    static_cast<int>(std::size(soloEnglishHornLamentExpected)));
+    }
+
 
     bool verifyRuntimeCatalogPayloadEquivalenceSentinels(const OrchConductorRuntimePresetCatalog& catalog)
     {
-        // Hardcoded processor sentinel: strings preset 1, "Low Strings".
+        // Phase 6D: rewritten to compare by CC number using per-CC lookup.
+        // Omitted CCs resolve to 0, matching runtime dense-payload semantics.
+        // The factory JSON is sparse; zero-value CCs are not stored.
+
+        // strings preset 8 "Low Strings": CC50=0, CC51=0, CC52=64, CC53=127, CC54=127
         const ExpectedRuntimeCatalogValue lowStringsExpected[] =
         {
-            { 50, 0 },
-            { 51, 0 },
-            { 52, 64 },
-            { 53, 127 },
-            { 54, 127 }
+            { 50, 0 }, { 51, 0 }, { 52, 64 }, { 53, 127 }, { 54, 127 }
         };
 
-        // Hardcoded processor sentinel: combi preset 1, "Solo English Horn Lament".
-        // Full 35-CC payload, including reserved CC49.
+        // woodwinds preset 19 "Full Woodwinds": CC20-31 all 127
+        const ExpectedRuntimeCatalogValue fullWoodwindsExpected[] =
+        {
+            { 20, 127 }, { 21, 127 }, { 22, 127 }, { 23, 127 },
+            { 24, 127 }, { 25, 127 }, { 26, 127 }, { 27, 127 },
+            { 28, 127 }, { 29, 127 }, { 30, 127 }, { 31, 127 }
+        };
+
+        // brass preset 16 "Full Brass": CC32-42 all 127
+        const ExpectedRuntimeCatalogValue fullBrassExpected[] =
+        {
+            { 32, 127 }, { 33, 127 }, { 34, 127 }, { 35, 127 },
+            { 36, 127 }, { 37, 127 }, { 38, 127 }, { 39, 127 },
+            { 40, 127 }, { 41, 127 }, { 42, 127 }
+        };
+
+        // percussion preset 8 "Full Melodic Percussion": CC43-48 all 127
+        const ExpectedRuntimeCatalogValue fullMelodicPercussionExpected[] =
+        {
+            { 43, 127 }, { 44, 127 }, { 45, 127 },
+            { 46, 127 }, { 47, 127 }, { 48, 127 }
+        };
+
+        // strings preset 12 "Full Strings": CC50-54 all 127
+        const ExpectedRuntimeCatalogValue fullStringsExpected[] =
+        {
+            { 50, 127 }, { 51, 127 }, { 52, 127 }, { 53, 127 }, { 54, 127 }
+        };
+
+        // combi preset 2 "[Utility] Full Orchestra": CC20-48 all 127, CC49=0 (reserved), CC50-54 all 127
+        const ExpectedRuntimeCatalogValue fullOrchestraExpected[] =
+        {
+            { 20, 127 }, { 21, 127 }, { 22, 127 }, { 23, 127 }, { 24, 127 },
+            { 25, 127 }, { 26, 127 }, { 27, 127 }, { 28, 127 }, { 29, 127 },
+            { 30, 127 }, { 31, 127 }, { 32, 127 }, { 33, 127 }, { 34, 127 },
+            { 35, 127 }, { 36, 127 }, { 37, 127 }, { 38, 127 }, { 39, 127 },
+            { 40, 127 }, { 41, 127 }, { 42, 127 }, { 43, 127 }, { 44, 127 },
+            { 45, 127 }, { 46, 127 }, { 47, 127 }, { 48, 127 }, { 49, 0 },
+            { 50, 127 }, { 51, 127 }, { 52, 127 }, { 53, 127 }, { 54, 127 }
+        };
+
+        // combi preset 28 "[Solo] English Horn Lament": only CC25, CC52, CC53, CC54 non-zero
         const ExpectedRuntimeCatalogValue soloEnglishHornLamentExpected[] =
         {
-            { 20, 0 },
-            { 21, 0 },
-            { 22, 0 },
-            { 23, 0 },
-            { 24, 0 },
-            { 25, 127 },
-            { 26, 0 },
-            { 27, 0 },
-            { 28, 0 },
-            { 29, 0 },
-            { 30, 0 },
-            { 31, 0 },
-            { 32, 0 },
-            { 33, 0 },
-            { 34, 0 },
-            { 35, 0 },
-            { 36, 0 },
-            { 37, 0 },
-            { 38, 0 },
-            { 39, 0 },
-            { 40, 0 },
-            { 41, 0 },
-            { 42, 0 },
-            { 43, 0 },
-            { 44, 0 },
-            { 45, 0 },
-            { 46, 0 },
-            { 47, 0 },
-            { 48, 0 },
-            { 49, 0 },
-            { 50, 0 },
-            { 51, 0 },
-            { 52, 127 },
-            { 53, 127 },
-            { 54, 64 }
+            { 20, 0 },   { 21, 0 },   { 22, 0 },   { 23, 0 },
+            { 24, 0 },   { 25, 127 }, { 26, 0 },   { 27, 0 },
+            { 28, 0 },   { 29, 0 },   { 30, 0 },   { 31, 0 },
+            { 32, 0 },   { 33, 0 },   { 34, 0 },   { 35, 0 },
+            { 36, 0 },   { 37, 0 },   { 38, 0 },   { 39, 0 },
+            { 40, 0 },   { 41, 0 },   { 42, 0 },   { 43, 0 },
+            { 44, 0 },   { 45, 0 },   { 46, 0 },   { 47, 0 },
+            { 48, 0 },   { 49, 0 },   { 50, 0 },   { 51, 0 },
+            { 52, 127 }, { 53, 127 }, { 54, 64 }
         };
 
-        return runtimeCatalogPresetMatchesExpectedValues(catalog,
-                                                         "strings",
-                                                         1,
-                                                         lowStringsExpected,
-                                                         static_cast<int>(std::size(lowStringsExpected)))
-            && runtimeCatalogCombiPresetMatchesExpectedValues(catalog,
-                                                              1,
-                                                              soloEnglishHornLamentExpected,
-                                                              static_cast<int>(std::size(soloEnglishHornLamentExpected)));
+        return sectionPresetCcMatches(catalog, "strings", 8, lowStringsExpected,
+                                      static_cast<int>(std::size(lowStringsExpected)))
+            && sectionPresetCcMatches(catalog, "woodwinds", 19, fullWoodwindsExpected,
+                                      static_cast<int>(std::size(fullWoodwindsExpected)))
+            && sectionPresetCcMatches(catalog, "brass", 16, fullBrassExpected,
+                                      static_cast<int>(std::size(fullBrassExpected)))
+            && sectionPresetCcMatches(catalog, "percussion", 8, fullMelodicPercussionExpected,
+                                      static_cast<int>(std::size(fullMelodicPercussionExpected)))
+            && sectionPresetCcMatches(catalog, "strings", 12, fullStringsExpected,
+                                      static_cast<int>(std::size(fullStringsExpected)))
+            && combiPresetCcMatches(catalog, 2, fullOrchestraExpected,
+                                    static_cast<int>(std::size(fullOrchestraExpected)))
+            && combiPresetCcMatches(catalog, 28, soloEnglishHornLamentExpected,
+                                    static_cast<int>(std::size(soloEnglishHornLamentExpected)));
     }
     
     OrchConductorAudioProcessor::OutputRow makeOutputRow (const juce::String& instrumentName, int ccNumber, int value)
@@ -235,6 +412,45 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
      : AudioProcessor (BusesProperties())
 #endif
 {
+    addParameter (combiPresetParameter = new juce::AudioParameterInt (
+        juce::ParameterID { "combiPreset", 1 },
+        "Combi Preset",
+        minCombiPresetId,
+        maxCombiPresetId,
+        static_cast<int> (CombiPreset::manualSections)));
+
+    addParameter (woodwindsPresetParameter = new juce::AudioParameterInt (
+        juce::ParameterID { "woodwindsPreset", 1 },
+        "Woodwinds Preset",
+        minSectionPresetId,
+        maxWoodwindsPresetId,
+        0));
+
+    addParameter (brassPresetParameter = new juce::AudioParameterInt (
+        juce::ParameterID { "brassPreset", 1 },
+        "Brass Preset",
+        minSectionPresetId,
+        maxBrassPresetId,
+        0));
+
+    addParameter (percussionPresetParameter = new juce::AudioParameterInt (
+        juce::ParameterID { "percussionPreset", 1 },
+        "Percussion Preset",
+        minSectionPresetId,
+        maxPercussionPresetId,
+        0));
+
+    addParameter (stringsPresetParameter = new juce::AudioParameterInt (
+        juce::ParameterID { "stringsPreset", 1 },
+        "Strings Preset",
+        minStringsPresetId,
+        maxStringsPresetId,
+        static_cast<int> (Preset::allOff)));
+
+    addParameter (sendOnPresetChangeParameter = new juce::AudioParameterBool (
+        juce::ParameterID { "sendOnPresetChange", 1 },
+        "Send on Preset Change",
+        sendOnPresetChange));
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     const auto runtimeJsonPresetProbe = orchconductor::RuntimePresetSource::loadEmbeddedFactoryJsonIfEnabled();
 
@@ -261,8 +477,55 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
 
         runtimeCatalogPayloadEquivalenceProbeDiagnostic =
             runtimeCatalogPayloadEquivalenceProbePassed
-                ? "Runtime catalog payload equivalence probe passed for sentinel hardcoded presets."
-                : "Runtime catalog payload equivalence probe failed for sentinel hardcoded presets.";
+                ? "Runtime catalog payload equivalence probe passed for broadened sentinel hardcoded presets."
+                : "Runtime catalog payload equivalence probe failed for broadened sentinel hardcoded presets.";
+
+        runtimeCatalogCoverageAuditRun = true;
+        runtimeCatalogCoverageAuditBlockedByFallback = false;
+        runtimeCatalogCoverageAuditPassed =
+            verifyRuntimeCatalogCoverageAudit(runtimePresetCatalogAuthorityProbe);
+
+        runtimeCatalogCoverageAuditDiagnostic =
+            runtimeCatalogCoverageAuditPassed
+                ? "Runtime catalog coverage audit passed for expected factory catalog shape."
+                : "Runtime catalog coverage audit failed for expected factory catalog shape.";
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL
+        runtimeCatalogAuthorityTrialRun = true;
+        runtimeCatalogAuthorityTrialBlocked = false;
+        runtimeCatalogAuthorityTrialPass =
+            verifyRuntimeCatalogAuthorityTrialSentinels(runtimePresetCatalogAuthorityProbe);
+
+        runtimeCatalogAuthorityTrialDiagnostic =
+            runtimeCatalogAuthorityTrialPass
+                ? "Runtime catalog authority trial diagnostic passed."
+                : "Runtime catalog authority trial diagnostic failed: sentinel payloads do not match expected factory authority values.";
+#else
+        runtimeCatalogAuthorityTrialRun = false;
+        runtimeCatalogAuthorityTrialPass = false;
+        runtimeCatalogAuthorityTrialBlocked = true;
+        runtimeCatalogAuthorityTrialDiagnostic =
+            "Runtime catalog authority trial is disabled by ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL.";
+#endif
+
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL
+        runtimePresetCatalogAuthorityActive =
+            runtimeCatalogPayloadEquivalenceProbePassed
+            && runtimeCatalogCoverageAuditPassed
+            && runtimeCatalogAuthorityTrialPass;
+#else
+        runtimePresetCatalogAuthorityActive =
+            runtimeCatalogPayloadEquivalenceProbePassed
+            && runtimeCatalogCoverageAuditPassed;
+#endif
+
+        runtimePresetCatalogAuthorityStatus =
+            runtimePresetCatalogAuthorityActive
+                ? "Runtime preset catalog authority is active."
+                : "Runtime preset catalog authority remains inactive because one or more runtime catalog validation gates failed.";
+
+        if (runtimePresetCatalogAuthorityActive)
+            runtimePresetCatalog = runtimePresetCatalogAuthorityProbe;
+
     }
     else
     {
@@ -271,6 +534,18 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
         runtimeCatalogPayloadEquivalenceProbeBlockedByFallback = true;
         runtimeCatalogPayloadEquivalenceProbeDiagnostic =
             "Runtime catalog payload equivalence probe blocked because runtime catalog requires fallback or is not source-backed.";
+
+        runtimeCatalogCoverageAuditRun = false;
+        runtimeCatalogCoverageAuditPassed = false;
+        runtimeCatalogCoverageAuditBlockedByFallback = true;
+        runtimeCatalogCoverageAuditDiagnostic =
+            "Runtime catalog coverage audit blocked because runtime catalog requires fallback or is not source-backed.";
+
+        runtimeCatalogAuthorityTrialRun = false;
+        runtimeCatalogAuthorityTrialPass = false;
+        runtimeCatalogAuthorityTrialBlocked = true;
+        runtimeCatalogAuthorityTrialDiagnostic =
+            "Runtime catalog authority trial diagnostic was blocked because runtime catalog requires fallback or is not source-backed.";
     }
 #else
     runtimeJsonPresetProbeLoaded = false;
@@ -287,6 +562,18 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
     runtimeCatalogPayloadEquivalenceProbeBlockedByFallback = true;
     runtimeCatalogPayloadEquivalenceProbeDiagnostic =
         "Runtime catalog payload equivalence probe is inactive because runtime JSON presets are disabled.";
+
+    runtimeCatalogCoverageAuditRun = false;
+    runtimeCatalogCoverageAuditPassed = false;
+    runtimeCatalogCoverageAuditBlockedByFallback = true;
+    runtimeCatalogCoverageAuditDiagnostic =
+        "Runtime catalog coverage audit is inactive because runtime JSON presets are disabled.";
+
+    runtimeCatalogAuthorityTrialRun = false;
+    runtimeCatalogAuthorityTrialPass = false;
+    runtimeCatalogAuthorityTrialBlocked = true;
+    runtimeCatalogAuthorityTrialDiagnostic =
+        "Runtime catalog authority trial is inactive because runtime JSON presets are disabled.";
 #endif
 }
 
@@ -398,6 +685,91 @@ juce::String OrchConductorAudioProcessor::getRuntimeCatalogPayloadEquivalencePro
     return runtimeCatalogPayloadEquivalenceProbeDiagnostic;
 }
 
+bool OrchConductorAudioProcessor::wasRuntimeCatalogCoverageAuditRun() const
+{
+    return runtimeCatalogCoverageAuditRun;
+}
+
+bool OrchConductorAudioProcessor::didRuntimeCatalogCoverageAuditPass() const
+{
+    return runtimeCatalogCoverageAuditPassed;
+}
+
+bool OrchConductorAudioProcessor::wasRuntimeCatalogCoverageAuditBlockedByFallback() const
+{
+    return runtimeCatalogCoverageAuditBlockedByFallback;
+}
+
+juce::String OrchConductorAudioProcessor::getRuntimeCatalogCoverageAuditDiagnostic() const
+{
+    return runtimeCatalogCoverageAuditDiagnostic;
+}
+
+bool OrchConductorAudioProcessor::wasRuntimeCatalogAuthorityTrialRun() const
+{
+    return runtimeCatalogAuthorityTrialRun;
+}
+
+bool OrchConductorAudioProcessor::didRuntimeCatalogAuthorityTrialPass() const
+{
+    return runtimeCatalogAuthorityTrialPass;
+}
+
+bool OrchConductorAudioProcessor::wasRuntimeCatalogAuthorityTrialBlocked() const
+{
+    return runtimeCatalogAuthorityTrialBlocked;
+}
+
+juce::String OrchConductorAudioProcessor::getRuntimeCatalogAuthorityTrialDiagnostic() const
+{
+    return runtimeCatalogAuthorityTrialDiagnostic;
+}
+
+bool OrchConductorAudioProcessor::isRuntimePresetCatalogAuthorityActive() const
+{
+    return runtimePresetCatalogAuthorityActive;
+}
+
+juce::String OrchConductorAudioProcessor::getRuntimePresetCatalogAuthorityStatus() const
+{
+    if (runtimePresetCatalogAuthorityActive)
+    {
+        if (runtimeCatalogCoverageAuditRun && runtimeCatalogCoverageAuditPassed)
+            return "Runtime JSON: Active | Factory catalog source-backed | Coverage audit passed";
+
+        if (runtimeCatalogPayloadEquivalenceProbeRun && runtimeCatalogPayloadEquivalenceProbePassed)
+            return "Runtime JSON: Active | Factory catalog source-backed | Payload probe passed";
+
+        if (runtimePresetCatalogAuthorityProbeReady
+            && runtimePresetCatalogAuthorityProbeHasExpectedFactoryShape
+            && ! runtimePresetCatalogAuthorityProbeRequiresFallback)
+            return "Runtime JSON: Active | Factory catalog source-backed";
+
+        return "Runtime JSON: Active | Runtime catalog authority enabled";
+    }
+
+    if (runtimePresetCatalogAuthorityProbeRequiresFallback
+        || runtimeCatalogCoverageAuditBlockedByFallback
+        || runtimeCatalogPayloadEquivalenceProbeBlockedByFallback)
+    {
+        if (runtimePresetCatalogAuthorityProbeDiagnostic.isNotEmpty())
+            return "Runtime JSON: Fallback required | " + runtimePresetCatalogAuthorityProbeDiagnostic;
+
+        if (runtimeJsonPresetProbeDiagnostic.isNotEmpty())
+            return "Runtime JSON: Fallback required | " + runtimeJsonPresetProbeDiagnostic;
+
+        return "Runtime JSON: Fallback required | Hardcoded preset authority active";
+    }
+
+    if (runtimePresetCatalogAuthorityProbeDiagnostic.isNotEmpty())
+        return "Runtime JSON: Inactive | " + runtimePresetCatalogAuthorityProbeDiagnostic;
+
+    if (runtimeJsonPresetProbeDiagnostic.isNotEmpty())
+        return "Runtime JSON: Inactive | " + runtimeJsonPresetProbeDiagnostic;
+
+    return "Runtime JSON: Inactive | Hardcoded preset authority active";
+}
+
 int OrchConductorAudioProcessor::getDefaultMaxPlayersForCc (int ccNumber) const
 {
     switch (ccNumber)
@@ -453,9 +825,119 @@ bool OrchConductorAudioProcessor::isBusesLayoutSupported (const BusesLayout&) co
     return true;
 }
 
+void OrchConductorAudioProcessor::syncAutomatedParameters()
+{
+    if (combiPresetParameter != nullptr)
+    {
+        const int automatedCombiPresetId = combiPresetParameter->get();
+
+        if (automatedCombiPresetId != combiPresetId)
+            setCombiPresetId (automatedCombiPresetId);
+    }
+
+    if (woodwindsPresetParameter != nullptr)
+    {
+        const int value = woodwindsPresetParameter->get();
+
+        if (value != woodwindsPresetId)
+            setSectionPresetId (Section::woodwinds, value);
+    }
+
+    if (brassPresetParameter != nullptr)
+    {
+        const int value = brassPresetParameter->get();
+
+        if (value != brassPresetId)
+            setSectionPresetId (Section::brass, value);
+    }
+
+    if (percussionPresetParameter != nullptr)
+    {
+        const int value = percussionPresetParameter->get();
+
+        if (value != percussionPresetId)
+            setSectionPresetId (Section::percussion, value);
+    }
+
+    if (stringsPresetParameter != nullptr)
+    {
+        const int value = stringsPresetParameter->get();
+
+        if (value != stringsPresetId)
+            setSectionPresetId (Section::strings, value);
+    }
+
+    if (sendOnPresetChangeParameter != nullptr)
+    {
+        const bool value = sendOnPresetChangeParameter->get();
+
+        if (value != sendOnPresetChange)
+            sendOnPresetChange = value;
+    }
+}
+juce::String OrchConductorAudioProcessor::getRuntimeCatalogSectionId (Section section)
+{
+    switch (section)
+    {
+        case Section::woodwinds:  return "woodwinds";
+        case Section::brass:      return "brass";
+        case Section::percussion: return "percussion";
+        case Section::strings:    return "strings";
+
+    }
+
+    return {};
+}
+bool OrchConductorAudioProcessor::tryGetRuntimeSectionPresetValueForCc (Section section,
+                                                                        int presetId,
+                                                                        int ccNumber,
+                                                                        int& value) const
+{
+    if (! runtimePresetCatalogAuthorityActive)
+        return false;
+
+    const auto sectionId = getRuntimeCatalogSectionId (section);
+
+    if (sectionId.isEmpty())
+        return false;
+
+    const int valueCount = runtimePresetCatalog.getSectionPresetValueCount (sectionId, presetId);
+
+    for (int valueIndex = 0; valueIndex < valueCount; ++valueIndex)
+    {
+        const auto runtimeValue = runtimePresetCatalog.getSectionPresetValue (sectionId, presetId, valueIndex);
+
+        if (tryAssignRuntimeCatalogValueForCc (runtimeValue, ccNumber, value))
+            return true;
+    }
+
+    return false;
+}
+
+bool OrchConductorAudioProcessor::tryGetRuntimeCombiPresetValueForCc (int presetId,
+                                                                      int ccNumber,
+                                                                      int& value) const
+{
+    if (! runtimePresetCatalogAuthorityActive)
+        return false;
+
+    const int valueCount = runtimePresetCatalog.getCombiPresetValueCount (presetId);
+
+    for (int valueIndex = 0; valueIndex < valueCount; ++valueIndex)
+    {
+        const auto runtimeValue = runtimePresetCatalog.getCombiPresetValue (presetId, valueIndex);
+
+        if (tryAssignRuntimeCatalogValueForCc (runtimeValue, ccNumber, value))
+            return true;
+    }
+
+    return false;
+}
 void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     buffer.clear();
+
+    syncAutomatedParameters();
 
     const bool shouldSendAllOff = consumeSendAllOffRequest();
     const bool shouldSendPreset = consumeSendPresetRequest();
@@ -468,9 +950,19 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     for (int i = 0; i < numWoodwindsRows; ++i)
     {
         const int cc = woodwindsCcNumbers[i];
-        const int value = shouldSendAllOff ? 0
-                         : useCombi       ? getCombiPresetValueForCc (cc)
-                                          : getWoodwindsPresetValueForIndex (i);
+
+        int value = shouldSendAllOff ? 0
+                  : useCombi        ? getCombiPresetValueForCc (cc)
+                                    : getWoodwindsPresetValueForIndex (i);
+
+        if (! shouldSendAllOff)
+        {
+            if (useCombi)
+                tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+
+            if (! useCombi)
+                tryGetRuntimeSectionPresetValueForCc (Section::woodwinds, woodwindsPresetId, cc, value);
+        }
 
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, cc, value), 0);
     }
@@ -478,9 +970,19 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     for (int i = 0; i < numBrassRows; ++i)
     {
         const int cc = brassCcNumbers[i];
-        const int value = shouldSendAllOff ? 0
-                         : useCombi       ? getCombiPresetValueForCc (cc)
-                                          : getBrassPresetValueForIndex (i);
+
+        int value = shouldSendAllOff ? 0
+                  : useCombi        ? getCombiPresetValueForCc (cc)
+                                    : getBrassPresetValueForIndex (i);
+
+        if (! shouldSendAllOff)
+        {
+            if (useCombi)
+                tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+
+            if (! useCombi)
+                tryGetRuntimeSectionPresetValueForCc (Section::brass, brassPresetId, cc, value);
+        }
 
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, cc, value), 0);
     }
@@ -488,21 +990,46 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     for (int i = 0; i < numPercussionRows; ++i)
     {
         const int cc = percussionCcNumbers[i];
-        const int value = shouldSendAllOff ? 0
-                         : useCombi       ? getCombiPresetValueForCc (cc)
-                                          : getPercussionPresetValueForIndex (i);
+
+        int value = shouldSendAllOff ? 0
+                  : useCombi        ? getCombiPresetValueForCc (cc)
+                                    : getPercussionPresetValueForIndex (i);
+
+        if (! shouldSendAllOff)
+        {
+            if (useCombi)
+                tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+
+            if (! useCombi)
+                tryGetRuntimeSectionPresetValueForCc (Section::percussion, percussionPresetId, cc, value);
+        }
 
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, cc, value), 0);
     }
 
-    midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, 49, 0), 0);
+    int reservedCc49Value = 0;
+
+    if (! shouldSendAllOff && useCombi)
+        tryGetRuntimeCombiPresetValueForCc (combiPresetId, 49, reservedCc49Value);
+
+    midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, 49, reservedCc49Value), 0);
 
     for (int i = 0; i < numRows; ++i)
     {
         const int cc = ccNumbers[i];
-        const int value = shouldSendAllOff ? 0
-                         : useCombi       ? getCombiPresetValueForCc (cc)
-                                          : getPresetValueForIndex (i);
+
+        int value = shouldSendAllOff ? 0
+                  : useCombi        ? getCombiPresetValueForCc (cc)
+                                    : getPresetValueForIndex (i);
+
+        if (! shouldSendAllOff)
+        {
+            if (useCombi)
+                tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+
+            if (! useCombi)
+                tryGetRuntimeSectionPresetValueForCc (Section::strings, stringsPresetId, cc, value);
+        }
 
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, cc, value), 0);
     }
@@ -559,7 +1086,7 @@ void OrchConductorAudioProcessor::setStateInformation (const void* data, int siz
         setSectionPresetId (Section::strings, strings);
 
         if (! stream.isExhausted())
-            sendOnPresetChange = stream.readBool();
+            setSendOnPresetChange (stream.readBool());
 
         return;
     }
@@ -568,7 +1095,7 @@ void OrchConductorAudioProcessor::setStateInformation (const void* data, int siz
         stringsPresetId = firstInt;
 
     if (! stream.isExhausted())
-        sendOnPresetChange = stream.readBool();
+        setSendOnPresetChange (stream.readBool());
 }
 
 int OrchConductorAudioProcessor::getCombiPresetId() const
@@ -578,17 +1105,19 @@ int OrchConductorAudioProcessor::getCombiPresetId() const
 
 void OrchConductorAudioProcessor::setCombiPresetId (int presetId)
 {
-    if (presetId >= minCombiPresetId && presetId <= maxCombiPresetId)
-    {
-        const bool changed = combiPresetId != presetId;
-        combiPresetId = presetId;
+    if (presetId < minCombiPresetId || presetId > maxCombiPresetId)
+        return;
 
-        if (changed && sendOnPresetChange)
-            requestSendPreset();
-    }
+    const bool changed = combiPresetId != presetId;
+
+    combiPresetId = presetId;
+
+    if (combiPresetParameter != nullptr && combiPresetParameter->get() != presetId)
+        *combiPresetParameter = presetId;
+
+    if (changed && sendOnPresetChange)
+        requestSendPreset();
 }
-
-
 bool OrchConductorAudioProcessor::isCombiModeActive() const
 {
     return combiPresetId != static_cast<int> (CombiPreset::manualSections);
@@ -596,7 +1125,23 @@ bool OrchConductorAudioProcessor::isCombiModeActive() const
 
 juce::String OrchConductorAudioProcessor::getCombiPresetName() const
 {
-    switch (static_cast<CombiPreset> (combiPresetId))
+    return getCombiPresetLabel (combiPresetId);
+}
+
+juce::String OrchConductorAudioProcessor::getCombiPresetLabel (int presetId) const
+{
+    if (presetId < minCombiPresetId || presetId > maxCombiPresetId)
+        return "Unknown Combi";
+
+    if (runtimePresetCatalogAuthorityActive)
+    {
+        const auto label = runtimePresetCatalog.getCombiPresetLabel (presetId);
+
+        if (label.isNotEmpty())
+            return label;
+    }
+
+    switch (static_cast<CombiPreset> (presetId))
     {
         case CombiPreset::manualSections: return "Manual Sections";
 
@@ -636,6 +1181,100 @@ juce::String OrchConductorAudioProcessor::getCombiPresetName() const
 
     return "Unknown Combi";
 }
+
+juce::String OrchConductorAudioProcessor::getSectionPresetLabel (Section section, int presetId) const
+{
+    if (presetId < minSectionPresetId || presetId > getMaxSectionPresetId (section))
+        return "Unknown";
+
+    if (runtimePresetCatalogAuthorityActive)
+    {
+        const auto sectionId = getRuntimeCatalogSectionId (section);
+
+        const auto label = sectionId.isNotEmpty()
+            ? runtimePresetCatalog.getSectionPresetLabel (sectionId, presetId)
+            : juce::String {};
+
+        if (label.isNotEmpty())
+            return label;
+    }
+
+    static const char* const woodwinds[] =
+    {
+        "All Off", "Piccolo Only", "Flutes", "Flute 1 Only", "Flute 2 Only",
+        "Oboes", "Oboe 1 Only", "Oboe 2 Only", "English Horn Only",
+        "Clarinets", "Clarinet 1 Only", "Clarinet 2 Only", "Bass Clarinet Only",
+        "Bassoons", "Bassoon 1 Only", "Bassoon 2 Only", "Contrabassoon Only",
+        "High Woodwinds", "Low Woodwinds", "Full Woodwinds"
+    };
+
+    static const char* const brass[] =
+    {
+        "All Off", "Horns", "Horn 1 Only", "Horn 2 Only", "Horn 3 Only", "Horn 4 Only",
+        "Trumpets", "Trumpet 1 Only", "Trumpet 2 Only", "Trumpet 3 Only",
+        "Trombones", "Trombone 1 Only", "Trombone 2 Only", "Bass Trombone Only",
+        "Tuba Only", "Low Brass", "Full Brass"
+    };
+
+    static const char* const percussion[] =
+    {
+        "All Off", "Timpani Only", "Glockenspiel Only", "Xylophone Only", "Marimba Only",
+        "Vibraphone Only", "Tubular Bells Only", "Mallets", "Full Melodic Percussion"
+    };
+
+    switch (section)
+    {
+        case Section::woodwinds:
+            return juce::isPositiveAndBelow (presetId, static_cast<int> (std::size (woodwinds))) ? woodwinds[presetId] : "Unknown Woodwinds";
+
+        case Section::brass:
+            return juce::isPositiveAndBelow (presetId, static_cast<int> (std::size (brass))) ? brass[presetId] : "Unknown Brass";
+
+        case Section::percussion:
+            return juce::isPositiveAndBelow (presetId, static_cast<int> (std::size (percussion))) ? percussion[presetId] : "Unknown Percussion";
+
+        case Section::strings:
+            switch (static_cast<Preset> (presetId))
+            {
+                case Preset::allOff:        return "All Off";
+                case Preset::violinIOnly:   return "Violin I Only";
+                case Preset::violinIIOnly:  return "Violin II Only";
+                case Preset::violinsOnly:   return "Violins Only";
+                case Preset::violasOnly:    return "Violas Only";
+                case Preset::cellosOnly:    return "Cellos Only";
+                case Preset::bassesOnly:    return "Basses Only";
+                case Preset::upperStrings:  return "Upper Strings";
+                case Preset::lowStrings:    return "Low Strings";
+                case Preset::stringQuartet: return "String Quartet";
+                case Preset::violaCello:    return "Viola + Cello";
+                case Preset::celloBass:     return "Cello + Bass";
+                case Preset::fullStrings:   return "Full Strings";
+                case Preset::tutti:         return "Tutti";
+            }
+
+            return "Unknown Strings";
+    }
+
+    return "Unknown";
+}
+
+int OrchConductorAudioProcessor::getMaxCombiPresetId() const
+{
+    return maxCombiPresetId;
+}
+
+int OrchConductorAudioProcessor::getMaxSectionPresetId (Section section) const
+{
+    switch (section)
+    {
+        case Section::woodwinds:  return maxWoodwindsPresetId;
+        case Section::brass:      return maxBrassPresetId;
+        case Section::percussion: return maxPercussionPresetId;
+        case Section::strings:    return maxStringsPresetId;
+    }
+
+    return minSectionPresetId;
+}
 int OrchConductorAudioProcessor::getSectionPresetId (Section section) const
 {
     switch (section)
@@ -651,47 +1290,110 @@ int OrchConductorAudioProcessor::getSectionPresetId (Section section) const
 
 void OrchConductorAudioProcessor::setSectionPresetId (Section section, int presetId)
 {
-    bool changed = false;
+    juce::AudioParameterInt* parameter = nullptr;
+    int* targetPresetId = nullptr;
+    int minPresetId = minSectionPresetId;
+    int maxPresetId = minSectionPresetId;
 
     switch (section)
     {
         case Section::woodwinds:
-            if (presetId >= minSectionPresetId && presetId <= maxWoodwindsPresetId)
-            {
-                woodwindsPresetId = presetId;
-                changed = true;
-            }
+            parameter = woodwindsPresetParameter;
+            targetPresetId = &woodwindsPresetId;
+            maxPresetId = maxWoodwindsPresetId;
             break;
 
         case Section::brass:
-            if (presetId >= minSectionPresetId && presetId <= maxBrassPresetId)
-            {
-                brassPresetId = presetId;
-                changed = true;
-            }
+            parameter = brassPresetParameter;
+            targetPresetId = &brassPresetId;
+            maxPresetId = maxBrassPresetId;
             break;
 
         case Section::percussion:
-            if (presetId >= minSectionPresetId && presetId <= maxPercussionPresetId)
-            {
-                percussionPresetId = presetId;
-                changed = true;
-            }
+            parameter = percussionPresetParameter;
+            targetPresetId = &percussionPresetId;
+            maxPresetId = maxPercussionPresetId;
             break;
 
         case Section::strings:
-            if (presetId >= minStringsPresetId && presetId <= maxStringsPresetId)
-            {
-                stringsPresetId = presetId;
-                changed = true;
-            }
+            parameter = stringsPresetParameter;
+            targetPresetId = &stringsPresetId;
+            minPresetId = minStringsPresetId;
+            maxPresetId = maxStringsPresetId;
             break;
     }
+
+    if (targetPresetId == nullptr || presetId < minPresetId || presetId > maxPresetId)
+        return;
+
+    const bool changed = *targetPresetId != presetId;
+
+    *targetPresetId = presetId;
+
+    if (parameter != nullptr && parameter->get() != presetId)
+        *parameter = presetId;
 
     if (changed && sendOnPresetChange)
         requestSendPreset();
 }
+void OrchConductorAudioProcessor::setCombiPresetIdFromUI (int presetId)
+{
+    if (combiPresetParameter != nullptr)
+    {
+        combiPresetParameter->beginChangeGesture();
+        combiPresetParameter->setValueNotifyingHost (
+            combiPresetParameter->convertTo0to1 (static_cast<float> (presetId)));
+        combiPresetParameter->endChangeGesture();
+    }
 
+    setCombiPresetId (presetId);
+}
+
+void OrchConductorAudioProcessor::setSectionPresetIdFromUI (Section section, int presetId)
+{
+    juce::AudioParameterInt* parameter = nullptr;
+
+    switch (section)
+    {
+        case Section::woodwinds:
+            parameter = woodwindsPresetParameter;
+            break;
+
+        case Section::brass:
+            parameter = brassPresetParameter;
+            break;
+
+        case Section::percussion:
+            parameter = percussionPresetParameter;
+            break;
+
+        case Section::strings:
+            parameter = stringsPresetParameter;
+            break;
+    }
+
+    if (parameter != nullptr)
+    {
+        parameter->beginChangeGesture();
+        parameter->setValueNotifyingHost (
+            parameter->convertTo0to1 (static_cast<float> (presetId)));
+        parameter->endChangeGesture();
+    }
+
+    setSectionPresetId (section, presetId);
+}
+
+void OrchConductorAudioProcessor::setSendOnPresetChangeFromUI (bool shouldSend)
+{
+    if (sendOnPresetChangeParameter != nullptr)
+    {
+        sendOnPresetChangeParameter->beginChangeGesture();
+        sendOnPresetChangeParameter->setValueNotifyingHost (shouldSend ? 1.0f : 0.0f);
+        sendOnPresetChangeParameter->endChangeGesture();
+    }
+
+    setSendOnPresetChange (shouldSend);
+}
 void OrchConductorAudioProcessor::setPreset (Preset newPreset)
 {
     setSectionPresetId (Section::strings, static_cast<int> (newPreset));
@@ -733,6 +1435,10 @@ bool OrchConductorAudioProcessor::consumeSendAllOffRequest()
 void OrchConductorAudioProcessor::setSendOnPresetChange (bool shouldSend)
 {
     sendOnPresetChange = shouldSend;
+
+    if (sendOnPresetChangeParameter != nullptr
+        && sendOnPresetChangeParameter->get() != shouldSend)
+        *sendOnPresetChangeParameter = shouldSend;
 }
 
 bool OrchConductorAudioProcessor::getSendOnPresetChange() const
@@ -742,27 +1448,8 @@ bool OrchConductorAudioProcessor::getSendOnPresetChange() const
 
 juce::String OrchConductorAudioProcessor::getPresetName() const
 {
-    switch (getPreset())
-    {
-        case Preset::allOff:        return "All Off";
-        case Preset::violinIOnly:   return "Violin I Only";
-        case Preset::violinIIOnly:  return "Violin II Only";
-        case Preset::violinsOnly:   return "Violins Only";
-        case Preset::violasOnly:    return "Violas Only";
-        case Preset::cellosOnly:    return "Cellos Only";
-        case Preset::bassesOnly:    return "Basses Only";
-        case Preset::upperStrings:  return "Upper Strings";
-        case Preset::lowStrings:    return "Low Strings";
-        case Preset::stringQuartet: return "String Quartet";
-        case Preset::violaCello:    return "Viola + Cello";
-        case Preset::celloBass:     return "Cello + Bass";
-        case Preset::fullStrings:   return "Full Strings";
-        case Preset::tutti:         return "Tutti";
-    }
-
-    return "Unknown";
+    return getSectionPresetLabel (Section::strings, stringsPresetId);
 }
-
 int OrchConductorAudioProcessor::getNumOutputRows()
 {
     return numRows;
@@ -774,9 +1461,14 @@ OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getOutputRow
         return makeOutputRow ("Invalid", 0, 0);
 
     const int cc = ccNumbers[index];
-    const int value = isCombiModeActive()
+    int value = isCombiModeActive()
         ? getCombiPresetValueForCc (cc)
         : getPresetValueForIndex (index);
+
+    if (isCombiModeActive())
+        tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+    else
+        tryGetRuntimeSectionPresetValueForCc (Section::strings, stringsPresetId, cc, value);
 
     return makeOutputRow (instrumentNames[index], cc, value);
 }
@@ -792,9 +1484,14 @@ OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getWoodwinds
         return makeOutputRow ("Invalid", 0, 0);
 
     const int cc = woodwindsCcNumbers[index];
-    const int value = isCombiModeActive()
+    int value = isCombiModeActive()
         ? getCombiPresetValueForCc (cc)
         : getWoodwindsPresetValueForIndex (index);
+
+    if (isCombiModeActive())
+        tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+    else
+        tryGetRuntimeSectionPresetValueForCc (Section::woodwinds, woodwindsPresetId, cc, value);
 
     return makeOutputRow (woodwindsInstrumentNames[index], cc, value);
 }
@@ -810,9 +1507,14 @@ OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getBrassOutp
         return makeOutputRow ("Invalid", 0, 0);
 
     const int cc = brassCcNumbers[index];
-    const int value = isCombiModeActive()
+    int value = isCombiModeActive()
         ? getCombiPresetValueForCc (cc)
         : getBrassPresetValueForIndex (index);
+
+    if (isCombiModeActive())
+        tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+    else
+        tryGetRuntimeSectionPresetValueForCc (Section::brass, brassPresetId, cc, value);
 
     return makeOutputRow (brassInstrumentNames[index], cc, value);
 }
@@ -828,9 +1530,14 @@ OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getPercussio
         return makeOutputRow ("Invalid", 0, 0);
 
     const int cc = percussionCcNumbers[index];
-    const int value = isCombiModeActive()
+    int value = isCombiModeActive()
         ? getCombiPresetValueForCc (cc)
         : getPercussionPresetValueForIndex (index);
+
+    if (isCombiModeActive())
+        tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+    else
+        tryGetRuntimeSectionPresetValueForCc (Section::percussion, percussionPresetId, cc, value);
 
     return makeOutputRow (percussionInstrumentNames[index], cc, value);
 }
@@ -1109,10 +1816,4 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
-
-
-
-
-
-
 

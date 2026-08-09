@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include <JuceHeader.h>
+#include "OrchConductorRuntimePresetCatalog.h"
 
 class OrchConductorAudioProcessor  : public juce::AudioProcessor
 {
@@ -19,7 +20,6 @@ public:
     bool hasEditor() const override;
 
     const juce::String getName() const override;
-
     bool acceptsMidi() const override;
     bool producesMidi() const override;
     bool isMidiEffect() const override;
@@ -109,9 +109,11 @@ public:
 
     int getCombiPresetId() const;
     void setCombiPresetId (int presetId);
+    void setCombiPresetIdFromUI (int presetId);
 
     int getSectionPresetId (Section section) const;
     void setSectionPresetId (Section section, int presetId);
+    void setSectionPresetIdFromUI (Section section, int presetId);
 
     void setPreset (Preset newPreset);
     Preset getPreset() const;
@@ -123,10 +125,15 @@ public:
     bool consumeSendAllOffRequest();
 
     void setSendOnPresetChange (bool shouldSend);
+    void setSendOnPresetChangeFromUI (bool shouldSend);
     bool getSendOnPresetChange() const;
 
     juce::String getPresetName() const;
     juce::String getCombiPresetName() const;
+    juce::String getCombiPresetLabel (int presetId) const;
+    juce::String getSectionPresetLabel (Section section, int presetId) const;
+    int getMaxCombiPresetId() const;
+    int getMaxSectionPresetId (Section section) const;
     bool isCombiModeActive() const;
 
     static int getNumOutputRows();
@@ -157,7 +164,30 @@ public:
     bool didRuntimeCatalogPayloadEquivalenceProbePass() const;
     bool wasRuntimeCatalogPayloadEquivalenceProbeBlockedByFallback() const;
     juce::String getRuntimeCatalogPayloadEquivalenceProbeDiagnostic() const;
+
+    bool wasRuntimeCatalogCoverageAuditRun() const;
+    bool didRuntimeCatalogCoverageAuditPass() const;
+    bool wasRuntimeCatalogCoverageAuditBlockedByFallback() const;
+    juce::String getRuntimeCatalogCoverageAuditDiagnostic() const;
+    bool wasRuntimeCatalogAuthorityTrialRun() const;
+    bool didRuntimeCatalogAuthorityTrialPass() const;
+    bool wasRuntimeCatalogAuthorityTrialBlocked() const;
+    juce::String getRuntimeCatalogAuthorityTrialDiagnostic() const;
+
+    bool isRuntimePresetCatalogAuthorityActive() const;
+    juce::String getRuntimePresetCatalogAuthorityStatus() const;
 private:
+    static juce::String getRuntimeCatalogSectionId (Section section);
+
+    bool tryGetRuntimeSectionPresetValueForCc (Section section,
+                                               int presetId,
+                                               int ccNumber,
+                                               int& value) const;
+
+    bool tryGetRuntimeCombiPresetValueForCc (int presetId,
+                                             int ccNumber,
+                                             int& value) const;
+
     static constexpr int minCombiPresetId = 0;
     static constexpr int maxCombiPresetId = static_cast<int> (CombiPreset::soloEnglishHornLament);
 
@@ -182,6 +212,10 @@ private:
     bool sendAllOffRequested { false };
     bool sendOnPresetChange { false };
 
+    OrchConductorRuntimePresetCatalog runtimePresetCatalog { OrchConductorRuntimePresetCatalog::createFallbackCatalog() };
+    bool runtimePresetCatalogAuthorityActive { false };
+    juce::String runtimePresetCatalogAuthorityStatus { "Runtime preset catalog authority is inactive." };
+
     bool runtimeJsonPresetProbeLoaded { false };
     bool runtimeJsonPresetProbeRequiresFallback { true };
     juce::String runtimeJsonPresetProbeDiagnostic { "Runtime JSON presets are disabled by ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS." };
@@ -196,6 +230,24 @@ private:
     bool runtimeCatalogPayloadEquivalenceProbeBlockedByFallback { true };
     juce::String runtimeCatalogPayloadEquivalenceProbeDiagnostic { "Runtime catalog payload equivalence probe is inactive because runtime JSON presets are disabled." };
 
+    bool runtimeCatalogCoverageAuditRun { false };
+    bool runtimeCatalogCoverageAuditPassed { false };
+    bool runtimeCatalogCoverageAuditBlockedByFallback { true };
+    juce::String runtimeCatalogCoverageAuditDiagnostic { "Runtime catalog coverage audit is inactive because runtime JSON presets are disabled." };
+
+    bool runtimeCatalogAuthorityTrialRun{ false };
+    bool runtimeCatalogAuthorityTrialPass{ false };
+    bool runtimeCatalogAuthorityTrialBlocked{ true };
+    juce::String runtimeCatalogAuthorityTrialDiagnostic{ "Runtime catalog authority trial is disabled by ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL." };
+
+    juce::AudioParameterInt* combiPresetParameter { nullptr };
+    juce::AudioParameterInt* woodwindsPresetParameter { nullptr };
+    juce::AudioParameterInt* brassPresetParameter { nullptr };
+    juce::AudioParameterInt* percussionPresetParameter { nullptr };
+    juce::AudioParameterInt* stringsPresetParameter { nullptr };
+    juce::AudioParameterBool* sendOnPresetChangeParameter { nullptr };
+    void syncAutomatedParameters();
+
     int getPresetValueForIndex (int index) const;
     int getWoodwindsPresetValueForIndex (int index) const;
     int getBrassPresetValueForIndex (int index) const;
@@ -204,11 +256,4 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };
-
-
-
-
-
-
-
 

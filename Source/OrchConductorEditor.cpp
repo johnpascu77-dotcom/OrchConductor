@@ -1,4 +1,4 @@
-﻿#include "OrchConductorEditor.h"
+#include "OrchConductorEditor.h"
 
 namespace
 {
@@ -17,130 +17,87 @@ namespace
         box.setEnabled (enabled);
     }
 
-    void addCombiPresetItems (juce::ComboBox& box)
+    void addCombiPresetItems (juce::ComboBox& box, const OrchConductorAudioProcessor& processor)
     {
-        box.addItem ("Manual Sections", 1);
+        box.clear (juce::dontSendNotification);
 
-        box.addItem ("[Utility] All Off", 2);
-        box.addItem ("[Utility] Full Orchestra", 3);
-        box.addItem ("[Utility] Full Orchestra No Percussion", 4);
-        box.addItem ("[Utility] Chamber Orchestra", 5);
-        box.addItem ("[Utility] Full Strings", 6);
-        box.addItem ("[Utility] Full Woodwinds", 7);
-        box.addItem ("[Utility] Full Brass", 8);
-        box.addItem ("[Utility] Full Winds", 9);
-        box.addItem ("[Utility] High Orchestra", 10);
-        box.addItem ("[Utility] Low Orchestra", 11);
-        box.addItem ("[Utility] Middle Orchestra", 12);
-
-        box.addItem ("[Romantic] Warm Strings + Horns", 13);
-        box.addItem ("[Romantic] Oboe + Strings", 14);
-        box.addItem ("[Romantic] Flute + Violins", 15);
-        box.addItem ("[Romantic] Bassoon + Celli", 16);
-        box.addItem ("[Romantic] Horn Choir + Strings", 17);
-
-        box.addItem ("[Cinematic] Heroic Brass + Strings", 18);
-        box.addItem ("[Cinematic] Dark Trailer Bed", 19);
-        box.addItem ("[Cinematic] High Winds Shimmer", 20);
-        box.addItem ("[Cinematic] Epic Low Pulse", 21);
-
-        box.addItem ("[Herrmann] Low Reeds", 22);
-        box.addItem ("[Herrmann] Horn Knives", 23);
-        box.addItem ("[Herrmann] Psycho Strings", 24);
-        box.addItem ("[Herrmann] Suspense Winds", 25);
-
-        box.addItem ("[Modernist] Pointillist Winds", 26);
-        box.addItem ("[Modernist] Sparse Extremes", 27);
-        box.addItem ("[Shimmer] Silver Shimmer", 28);
-        box.addItem ("[Solo] English Horn Lament", 29);
-    }
-    void addWoodwindsPresetItems (juce::ComboBox& box)
-    {
-        box.addItem ("All Off", 1);
-
-        box.addItem ("Piccolo Only", 2);
-
-        box.addItem ("Flutes", 3);
-        box.addItem ("Flute 1 Only", 4);
-        box.addItem ("Flute 2 Only", 5);
-
-        box.addItem ("Oboes", 6);
-        box.addItem ("Oboe 1 Only", 7);
-        box.addItem ("Oboe 2 Only", 8);
-        box.addItem ("English Horn Only", 9);
-
-        box.addItem ("Clarinets", 10);
-        box.addItem ("Clarinet 1 Only", 11);
-        box.addItem ("Clarinet 2 Only", 12);
-        box.addItem ("Bass Clarinet Only", 13);
-
-        box.addItem ("Bassoons", 14);
-        box.addItem ("Bassoon 1 Only", 15);
-        box.addItem ("Bassoon 2 Only", 16);
-        box.addItem ("Contrabassoon Only", 17);
-
-        box.addItem ("High Woodwinds", 18);
-        box.addItem ("Low Woodwinds", 19);
-        box.addItem ("Full Woodwinds", 20);
+        for (int presetId = 0; presetId <= processor.getMaxCombiPresetId(); ++presetId)
+            box.addItem (processor.getCombiPresetLabel (presetId), presetId + 1);
     }
 
-    void addBrassPresetItems (juce::ComboBox& box)
+    void addSectionPresetItems (juce::ComboBox& box,
+                                const OrchConductorAudioProcessor& processor,
+                                OrchConductorAudioProcessor::Section section)
     {
-        box.addItem ("All Off", 1);
+        box.clear (juce::dontSendNotification);
 
-        box.addItem ("Horns", 2);
-        box.addItem ("Horn 1 Only", 3);
-        box.addItem ("Horn 2 Only", 4);
-        box.addItem ("Horn 3 Only", 5);
-        box.addItem ("Horn 4 Only", 6);
-
-        box.addItem ("Trumpets", 7);
-        box.addItem ("Trumpet 1 Only", 8);
-        box.addItem ("Trumpet 2 Only", 9);
-        box.addItem ("Trumpet 3 Only", 10);
-
-        box.addItem ("Trombones", 11);
-        box.addItem ("Trombone 1 Only", 12);
-        box.addItem ("Trombone 2 Only", 13);
-        box.addItem ("Bass Trombone Only", 14);
-
-        box.addItem ("Tuba Only", 15);
-
-        box.addItem ("Low Brass", 16);
-        box.addItem ("Full Brass", 17);
+        for (int presetId = 0; presetId <= processor.getMaxSectionPresetId (section); ++presetId)
+            box.addItem (processor.getSectionPresetLabel (section, presetId), presetId + 1);
+    }
+    juce::String getUserFacingCatalogStatus (const OrchConductorAudioProcessor& processor)
+    {
+        return processor.isRuntimePresetCatalogAuthorityActive()
+            ? "Catalog: Runtime JSON active"
+            : "Catalog: Factory fallback active";
     }
 
-    void addPercussionPresetItems (juce::ComboBox& box)
+    juce::String getUserFacingCatalogDetail (const OrchConductorAudioProcessor& processor)
     {
-        box.addItem ("All Off", 1);
-        box.addItem ("Timpani Only", 2);
-        box.addItem ("Glockenspiel Only", 3);
-        box.addItem ("Xylophone Only", 4);
-        box.addItem ("Marimba Only", 5);
-        box.addItem ("Vibraphone Only", 6);
-        box.addItem ("Tubular Bells Only", 7);
-        box.addItem ("Mallets", 8);
-        box.addItem ("Full Melodic Percussion", 9);
+        return processor.isRuntimePresetCatalogAuthorityActive()
+            ? "MIDI map and output previews follow catalog values"
+            : "MIDI map and output previews use built-in values";
+    }
+    void appendMidiMapSectionHeader (juce::String& text, const juce::String& sectionName)
+    {
+        text << sectionName << "\n";
+        text << "--------------------------------------------------\n";
     }
 
-    void addStringsPresetItems (juce::ComboBox& box)
+    void appendMidiMapRow (juce::String& text,
+                           int ccNumber,
+                           const juce::String& instrumentName,
+                           int value,
+                           int activePlayers,
+                           int maxPlayers)
     {
-        box.addItem ("All Off", 1);
-        box.addItem ("Violin I Only", 2);
-        box.addItem ("Violin II Only", 3);
-        box.addItem ("Violins Only", 4);
-        box.addItem ("Violas Only", 5);
-        box.addItem ("Cellos Only", 6);
-        box.addItem ("Basses Only", 7);
-        box.addItem ("Upper Strings", 8);
-        box.addItem ("Low Strings", 9);
-        box.addItem ("String Quartet", 10);
-        box.addItem ("Viola + Cello", 11);
-        box.addItem ("Cello + Bass", 12);
-        box.addItem ("Full Strings", 13);
-        box.addItem ("Tutti", 14);
+        text << "CC" << juce::String (ccNumber)
+             << "  " << instrumentName
+             << " - value " << juce::String (value)
+             << ", players " << juce::String (activePlayers) << "/" << juce::String (maxPlayers)
+             << "\n";
     }
-}
+    class MidiMapTextComponent final : public juce::Component
+    {
+    public:
+        explicit MidiMapTextComponent (const juce::String& midiMapText)
+        {
+            textEditor.setMultiLine (true);
+            textEditor.setReadOnly (true);
+            textEditor.setScrollbarsShown (true);
+            textEditor.setCaretVisible (false);
+            textEditor.setPopupMenuEnabled (true);
+            textEditor.setText (midiMapText, juce::dontSendNotification);
+            textEditor.setJustification (juce::Justification::topLeft);
+            textEditor.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, juce::Font::plain));
+
+            textEditor.setColour (juce::TextEditor::backgroundColourId, juce::Colour::fromRGB (20, 28, 36));
+            textEditor.setColour (juce::TextEditor::textColourId, juce::Colours::white);
+            textEditor.setColour (juce::TextEditor::outlineColourId, juce::Colour::fromRGB (80, 120, 150));
+            textEditor.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colour::fromRGB (95, 200, 245));
+            textEditor.setColour (juce::TextEditor::highlightColourId, juce::Colour::fromRGB (45, 75, 95));
+
+            addAndMakeVisible (textEditor);
+            setSize (660, 460);
+        }
+
+        void resized() override
+        {
+            textEditor.setBounds (getLocalBounds());
+        }
+
+    private:
+        juce::TextEditor textEditor;
+    };}
 
 OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConductorAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
@@ -159,7 +116,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 2B", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 8A", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -169,7 +126,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     styleLabel (combiPresetLabel, juce::Colours::white, 14.0f, juce::Font::bold);
     addAndMakeVisible (combiPresetLabel);
 
-    addCombiPresetItems (combiPresetBox);
+    addCombiPresetItems (combiPresetBox, audioProcessor);
     combiPresetBox.setSelectedId (audioProcessor.getCombiPresetId() + 1, juce::dontSendNotification);
     styleComboBox (combiPresetBox, true);
     addAndMakeVisible (combiPresetBox);
@@ -177,7 +134,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     combiPresetBox.onChange = [this]
     {
         const int selected = combiPresetBox.getSelectedId() - 1;
-        audioProcessor.setCombiPresetId (selected);
+        audioProcessor.setCombiPresetIdFromUI (selected);
         updateStatus();
     };
 
@@ -202,22 +159,22 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     styleLabel (stringsPresetLabel, juce::Colours::white, 14.0f, juce::Font::bold);
     addAndMakeVisible (stringsPresetLabel);
 
-    addWoodwindsPresetItems (woodwindsPresetBox);
+    addSectionPresetItems (woodwindsPresetBox, audioProcessor, OrchConductorAudioProcessor::Section::woodwinds);
     woodwindsPresetBox.setSelectedId (audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::woodwinds) + 1, juce::dontSendNotification);
     styleComboBox (woodwindsPresetBox, true);
     addAndMakeVisible (woodwindsPresetBox);
 
-    addBrassPresetItems (brassPresetBox);
+    addSectionPresetItems (brassPresetBox, audioProcessor, OrchConductorAudioProcessor::Section::brass);
     brassPresetBox.setSelectedId (audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::brass) + 1, juce::dontSendNotification);
     styleComboBox (brassPresetBox, true);
     addAndMakeVisible (brassPresetBox);
 
-    addPercussionPresetItems (percussionPresetBox);
+    addSectionPresetItems (percussionPresetBox, audioProcessor, OrchConductorAudioProcessor::Section::percussion);
     percussionPresetBox.setSelectedId (audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::percussion) + 1, juce::dontSendNotification);
     styleComboBox (percussionPresetBox, true);
     addAndMakeVisible (percussionPresetBox);
 
-    addStringsPresetItems (presetBox);
+    addSectionPresetItems (presetBox, audioProcessor, OrchConductorAudioProcessor::Section::strings);
     presetBox.setSelectedId (audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::strings) + 1, juce::dontSendNotification);
     styleComboBox (presetBox, true);
     addAndMakeVisible (presetBox);
@@ -225,7 +182,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     woodwindsPresetBox.onChange = [this]
     {
         const int selected = woodwindsPresetBox.getSelectedId() - 1;
-        audioProcessor.setSectionPresetId (OrchConductorAudioProcessor::Section::woodwinds, selected);
+        audioProcessor.setSectionPresetIdFromUI (OrchConductorAudioProcessor::Section::woodwinds, selected);
         updateWoodwindsOutputTable();
         updateStatus();
     };
@@ -233,7 +190,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     brassPresetBox.onChange = [this]
     {
         const int selected = brassPresetBox.getSelectedId() - 1;
-        audioProcessor.setSectionPresetId (OrchConductorAudioProcessor::Section::brass, selected);
+        audioProcessor.setSectionPresetIdFromUI (OrchConductorAudioProcessor::Section::brass, selected);
         updateBrassOutputTable();
         updateStatus();
     };
@@ -241,27 +198,27 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     percussionPresetBox.onChange = [this]
     {
         const int selected = percussionPresetBox.getSelectedId() - 1;
-        audioProcessor.setSectionPresetId (OrchConductorAudioProcessor::Section::percussion, selected);
+        audioProcessor.setSectionPresetIdFromUI (OrchConductorAudioProcessor::Section::percussion, selected);
         updatePercussionOutputTable();
-    updateStatus();
-
-    // Phase 2A: keep UI synced when host restores plugin state after editor creation.
-    startTimerHz (10);
-};
+        updateStatus();
+    };
 
     presetBox.onChange = [this]
     {
         const int selected = presetBox.getSelectedId() - 1;
 
         if (selected >= 0 && selected <= static_cast<int> (OrchConductorAudioProcessor::Preset::tutti))
-            audioProcessor.setSectionPresetId (OrchConductorAudioProcessor::Section::strings, selected);
+            audioProcessor.setSectionPresetIdFromUI (OrchConductorAudioProcessor::Section::strings, selected);
 
         updateOutputTable();
 
         if (audioProcessor.getSendOnPresetChange())
-            statusLabel.setText ("Auto-send requested: " + audioProcessor.getPresetName(), juce::dontSendNotification);
-        else
-            updateStatus();
+        {
+            ++sendRequestCount;
+            lastActionText = "Last action: Auto-send requested: " + audioProcessor.getPresetName();
+        }
+
+        updateStatus();
     };
 
     sendOnChangeToggle.setButtonText ("Send on Preset Change");
@@ -271,7 +228,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
 
     sendOnChangeToggle.onClick = [this]
     {
-        audioProcessor.setSendOnPresetChange (sendOnChangeToggle.getToggleState());
+        audioProcessor.setSendOnPresetChangeFromUI (sendOnChangeToggle.getToggleState());
         updateStatus();
     };
 
@@ -283,11 +240,13 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     sendButton.onClick = [this]
     {
         audioProcessor.requestSendPreset();
-        statusLabel.setText ("Requested send: "
-                             + (audioProcessor.isCombiModeActive() ? audioProcessor.getCombiPresetName()
-                                                                    : audioProcessor.getPresetName())
-                             + " | Full-score MIDI gates active | Harp reserved",
-                             juce::dontSendNotification);
+        ++sendRequestCount;
+
+        lastActionText = "Last action: Send Current Presets requested: "
+                         + (audioProcessor.isCombiModeActive() ? audioProcessor.getCombiPresetName()
+                                                                : audioProcessor.getPresetName());
+
+        updateStatus();
     };
 
     allOffButton.setButtonText ("Send All Off");
@@ -298,7 +257,9 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     allOffButton.onClick = [this]
     {
         audioProcessor.requestSendAllOff();
-        statusLabel.setText ("Requested send: All Off", juce::dontSendNotification);
+        ++sendRequestCount;
+        lastActionText = "Last action: Send All Off requested";
+        updateStatus();
     };
 
     midiMapButton.setButtonText ("Show MIDI Map");
@@ -378,7 +339,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     // Hidden in main UI.
 
     ccMapLabel.setText (
-        "Phase 2B: Full-score CC20-CC54 | Combi Presets | Active Players | CC49 reserved for Harp",
+        "Phase 8A: runtime catalog authority cleanup | CC49 reserved for Harp",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -426,7 +387,7 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colour::fromRGB (120, 140, 155));
     g.setFont (juce::FontOptions (13.0f, juce::Font::plain));
-    g.drawText ("Phase 2B: Active player metadata enabled | Future: JSON library / travel modes",
+    g.drawText ("Phase 8A: " + getUserFacingCatalogStatus (audioProcessor) + " | " + getUserFacingCatalogDetail (audioProcessor),
                 futureArea.toNearestInt().reduced (16, 8),
                 juce::Justification::centred);
 }
@@ -525,6 +486,7 @@ void OrchConductorAudioProcessorEditor::updateStatus()
 {
     const juce::String autoSendText = audioProcessor.getSendOnPresetChange() ? " | Auto-send: On" : " | Auto-send: Off";
     const juce::String activePlayersText = " | Active players: " + juce::String (audioProcessor.getTotalActivePlayers());
+    const juce::String sendFeedbackText = " | " + lastActionText + " | Send requests: " + juce::String (sendRequestCount);
 
     if (audioProcessor.isCombiModeActive())
     {
@@ -532,7 +494,8 @@ void OrchConductorAudioProcessorEditor::updateStatus()
             "Combi active: " + audioProcessor.getCombiPresetName()
             + activePlayersText
             + " | Harp reserved"
-            + autoSendText,
+            + autoSendText
+            + sendFeedbackText,
             juce::dontSendNotification);
 
         return;
@@ -542,7 +505,8 @@ void OrchConductorAudioProcessorEditor::updateStatus()
         "Manual Sections | Strings: " + audioProcessor.getPresetName()
         + activePlayersText
         + " | Harp reserved"
-        + autoSendText,
+        + autoSendText
+        + sendFeedbackText,
         juce::dontSendNotification);
 }
 
@@ -589,53 +553,73 @@ juce::String OrchConductorAudioProcessorEditor::buildMidiMapText() const
 {
     juce::String text;
 
-    text << "Full-score MIDI Gate Map\n\n";
+    text << "Full-score MIDI Gate Map\n";
+    text << "Runtime status:\n";
+    text << "  " << audioProcessor.getRuntimePresetCatalogAuthorityStatus() << "\n\n";
 
-    text << "Woodwinds\n";
+    if (audioProcessor.isCombiModeActive())
+    {
+        text << "Mode:\n";
+        text << "  Combi\n";
+        text << "Preset:\n";
+        text << "  " << audioProcessor.getCombiPresetName() << "\n\n";
+    }
+    else
+    {
+        text << "Mode:\n";
+        text << "  Manual Sections\n";
+        text << "Presets:\n";
+        text << "  Woodwinds:  " << audioProcessor.getSectionPresetLabel (
+                    OrchConductorAudioProcessor::Section::woodwinds,
+                    audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::woodwinds))
+             << "\n";
+        text << "  Brass:      " << audioProcessor.getSectionPresetLabel (
+                    OrchConductorAudioProcessor::Section::brass,
+                    audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::brass))
+             << "\n";
+        text << "  Percussion: " << audioProcessor.getSectionPresetLabel (
+                    OrchConductorAudioProcessor::Section::percussion,
+                    audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::percussion))
+             << "\n";
+        text << "  Strings:    " << audioProcessor.getPresetName()
+             << "\n\n";
+    }
+
+    text << "Values:\n";
+    text << "  Displayed CC values follow the active runtime catalog authority when available.\n\n";
+
+    appendMidiMapSectionHeader (text, "Woodwinds");
     for (int i = 0; i < OrchConductorAudioProcessor::getNumWoodwindsOutputRows(); ++i)
     {
         const auto row = audioProcessor.getWoodwindsOutputRow (i);
-        text << "CC" << juce::String (row.ccNumber).paddedRight (' ', 4)
-             << " " << row.instrumentName
-             << " | Value " << juce::String (row.value)
-             << " | Players " << juce::String (row.activePlayers) << "/" << juce::String (row.maxPlayers)
-             << "\n";
+        appendMidiMapRow (text, row.ccNumber, row.instrumentName, row.value, row.activePlayers, row.maxPlayers);
     }
 
-    text << "\nBrass\n";
+    text << "\n";
+    appendMidiMapSectionHeader (text, "Brass");
     for (int i = 0; i < OrchConductorAudioProcessor::getNumBrassOutputRows(); ++i)
     {
         const auto row = audioProcessor.getBrassOutputRow (i);
-        text << "CC" << juce::String (row.ccNumber).paddedRight (' ', 4)
-             << " " << row.instrumentName
-             << " | Value " << juce::String (row.value)
-             << " | Players " << juce::String (row.activePlayers) << "/" << juce::String (row.maxPlayers)
-             << "\n";
+        appendMidiMapRow (text, row.ccNumber, row.instrumentName, row.value, row.activePlayers, row.maxPlayers);
     }
 
-    text << "\nMelodic Percussion\n";
+    text << "\n";
+    appendMidiMapSectionHeader (text, "Melodic Percussion");
     for (int i = 0; i < OrchConductorAudioProcessor::getNumPercussionOutputRows(); ++i)
     {
         const auto row = audioProcessor.getPercussionOutputRow (i);
-        text << "CC" << juce::String (row.ccNumber).paddedRight (' ', 4)
-             << " " << row.instrumentName
-             << " | Value " << juce::String (row.value)
-             << " | Players " << juce::String (row.activePlayers) << "/" << juce::String (row.maxPlayers)
-             << "\n";
+        appendMidiMapRow (text, row.ccNumber, row.instrumentName, row.value, row.activePlayers, row.maxPlayers);
     }
 
-    text << "\nReserved\n";
-    text << "CC49   Harp\n";
+    appendMidiMapSectionHeader (text, "Reserved");
+    text << "CC49  Harp - reserved\n";
 
-    text << "\nStrings\n";
+    text << "\n";
+    appendMidiMapSectionHeader (text, "Strings");
     for (int i = 0; i < OrchConductorAudioProcessor::getNumOutputRows(); ++i)
     {
         const auto row = audioProcessor.getOutputRow (i);
-        text << "CC" << juce::String (row.ccNumber).paddedRight (' ', 4)
-             << " " << row.instrumentName
-             << " | Value " << juce::String (row.value)
-             << " | Players " << juce::String (row.activePlayers) << "/" << juce::String (row.maxPlayers)
-             << "\n";
+        appendMidiMapRow (text, row.ccNumber, row.instrumentName, row.value, row.activePlayers, row.maxPlayers);
     }
 
     text << "\nUse these CC numbers as the assigned CC Gate values in each OrchGate instance.";
@@ -645,11 +629,16 @@ juce::String OrchConductorAudioProcessorEditor::buildMidiMapText() const
 
 void OrchConductorAudioProcessorEditor::showMidiMap()
 {
-    juce::AlertWindow::showMessageBoxAsync (
-        juce::AlertWindow::InfoIcon,
+    auto* window = new juce::AlertWindow (
         "OrchConductor MIDI Map",
-        buildMidiMapText(),
-        "OK");
+        "Scrollable runtime-backed MIDI map",
+        juce::AlertWindow::InfoIcon);
+
+    window->addCustomComponent (new MidiMapTextComponent (buildMidiMapText()));
+    window->addButton ("OK", 0, juce::KeyPress (juce::KeyPress::returnKey));
+    window->setColour (juce::AlertWindow::backgroundColourId, juce::Colour::fromRGB (28, 40, 48));
+    window->setColour (juce::AlertWindow::textColourId, juce::Colours::white);
+    window->enterModalState (true, nullptr, true);
 }
 
 void OrchConductorAudioProcessorEditor::updateBrassOutputTable()
@@ -687,12 +676,4 @@ void OrchConductorAudioProcessorEditor::updatePercussionOutputTable()
 
     percussionTableRowsLabel.setText (rows, juce::dontSendNotification);
 }
-
-
-
-
-
-
-
-
 

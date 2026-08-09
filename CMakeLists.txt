@@ -2,12 +2,24 @@
 
 project(OrchConductor VERSION 0.1.0)
 option(ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS "Enable experimental runtime JSON-backed preset infrastructure" OFF)
+option(ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL "Enable internal non-default runtime catalog authority trial path" OFF)
+
+if(ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL AND NOT ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS)
+    message(FATAL_ERROR "ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL requires ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS=ON")
+endif()
 
 if(ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS)
     message(STATUS "OrchConductor runtime JSON presets: ENABLED")
     add_compile_definitions(ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS=1)
 else()
     message(STATUS "OrchConductor runtime JSON presets: disabled")
+endif()
+
+if(ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL)
+    message(STATUS "OrchConductor runtime catalog authority trial: ENABLED")
+    add_compile_definitions(ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL=1)
+else()
+    message(STATUS "OrchConductor runtime catalog authority trial: disabled")
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -317,5 +329,6 @@ target_compile_definitions(OrchConductorRuntimePresetCatalogCheck
         JUCE_USE_CURL=0
         JUCE_VST3_CAN_REPLACE_VST2=0
 )
+
 
 
