@@ -17,12 +17,18 @@ namespace
         box.setEnabled (enabled);
     }
 
+    juce::String makeNumberedPresetLabel (int presetId, const juce::String& label)
+    {
+        return juce::String (presetId).paddedLeft ('0', 2) + " " + label;
+    }
+
     void addCombiPresetItems (juce::ComboBox& box, const OrchConductorAudioProcessor& processor)
     {
         box.clear (juce::dontSendNotification);
 
         for (int presetId = 0; presetId <= processor.getMaxCombiPresetId(); ++presetId)
-            box.addItem (processor.getCombiPresetLabel (presetId), presetId + 1);
+            box.addItem (makeNumberedPresetLabel (presetId, processor.getCombiPresetLabel (presetId)),
+                         presetId + 1);
     }
 
     void addSectionPresetItems (juce::ComboBox& box,
@@ -32,7 +38,8 @@ namespace
         box.clear (juce::dontSendNotification);
 
         for (int presetId = 0; presetId <= processor.getMaxSectionPresetId (section); ++presetId)
-            box.addItem (processor.getSectionPresetLabel (section, presetId), presetId + 1);
+            box.addItem (makeNumberedPresetLabel (presetId, processor.getSectionPresetLabel (section, presetId)),
+                         presetId + 1);
     }
     juce::String getUserFacingCatalogStatus (const OrchConductorAudioProcessor& processor)
     {
@@ -676,6 +683,9 @@ void OrchConductorAudioProcessorEditor::updatePercussionOutputTable()
 
     percussionTableRowsLabel.setText (rows, juce::dontSendNotification);
 }
+
+
+
 
 
 
