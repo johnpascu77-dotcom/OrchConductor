@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <JuceHeader.h>
 #include "OrchConductorProcessor.h"
@@ -53,6 +53,10 @@ private:
     juce::TextButton sendButton;
     juce::TextButton allOffButton;
     juce::TextButton midiMapButton;
+
+    juce::Label userCombiNameLabel;
+    juce::TextEditor userCombiNameEditor;
+    juce::TextButton saveUserCombiButton { "Save Current Sections as Combi" };
 
     
     juce::String lastActionText { "Last action: None" };

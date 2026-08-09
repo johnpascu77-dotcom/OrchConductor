@@ -279,6 +279,47 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         showMidiMap();
     };
 
+    userCombiNameLabel.setText ("User Combi Name", juce::dontSendNotification);
+    styleLabel (userCombiNameLabel, juce::Colours::white, 13.0f, juce::Font::plain);
+    addAndMakeVisible (userCombiNameLabel);
+
+    userCombiNameEditor.setText ("My Combi", juce::dontSendNotification);
+    userCombiNameEditor.setSelectAllWhenFocused (true);
+    userCombiNameEditor.setColour (juce::TextEditor::backgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+    userCombiNameEditor.setColour (juce::TextEditor::textColourId, juce::Colours::white);
+    userCombiNameEditor.setColour (juce::TextEditor::outlineColourId, juce::Colour::fromRGB (70, 85, 95));
+    userCombiNameEditor.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colour::fromRGB (95, 200, 245));
+    userCombiNameEditor.setColour (juce::TextEditor::highlightColourId, juce::Colour::fromRGB (45, 75, 95));
+    addAndMakeVisible (userCombiNameEditor);
+
+    saveUserCombiButton.setColour (juce::TextButton::buttonColourId, juce::Colour::fromRGB (45, 75, 95));
+    saveUserCombiButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
+    addAndMakeVisible (saveUserCombiButton);
+
+    saveUserCombiButton.onClick = [this]
+    {
+        auto name = userCombiNameEditor.getText().trim();
+
+        if (name.isEmpty())
+            name = "User Combi";
+
+        const auto id = audioProcessor.createUserCombiPresetFromCurrentSections (name);
+
+        if (id >= 0)
+        {
+            addCombiPresetItems (combiPresetBox, audioProcessor);
+            combiPresetBox.setSelectedId (id + 1, juce::sendNotificationSync);
+
+            lastActionText = "Last action: Saved user combi preset: " + name;
+        }
+        else
+        {
+            lastActionText = "Last action: Could not save user combi preset";
+        }
+
+        updateStatus();
+    };
+
     tableTitleLabel.setText ("Selected Output", juce::dontSendNotification);
     tableTitleLabel.setJustificationType (juce::Justification::centred);
     tableTitleLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (245, 245, 245));
@@ -412,6 +453,14 @@ void OrchConductorAudioProcessorEditor::resized()
     auto combiRow = area.removeFromTop (38);
     combiPresetLabel.setBounds (combiRow.removeFromLeft (150));
     combiPresetBox.setBounds (combiRow.removeFromLeft (650));
+
+    area.removeFromTop (8);
+
+    auto userCombiRow = area.removeFromTop (32);
+    userCombiNameLabel.setBounds (userCombiRow.removeFromLeft (150));
+    userCombiNameEditor.setBounds (userCombiRow.removeFromLeft (260).reduced (0, 2));
+    userCombiRow.removeFromLeft (10);
+    saveUserCombiButton.setBounds (userCombiRow.removeFromLeft (300).reduced (0, 2));
 
     area.removeFromTop (14);
 
