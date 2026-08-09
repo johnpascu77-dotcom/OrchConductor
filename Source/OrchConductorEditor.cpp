@@ -109,7 +109,7 @@ namespace
 OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConductorAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
-    setSize (980, 560);
+    setSize (980, 660);
 
     titleLabel.setText ("OrchConductor", juce::dontSendNotification);
     titleLabel.setJustificationType (juce::Justification::centred);
@@ -320,6 +320,61 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         updateStatus();
     };
 
+    deleteUserCombiButton.setColour (juce::TextButton::buttonColourId, juce::Colour::fromRGB (95, 45, 45));
+    deleteUserCombiButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
+    addAndMakeVisible (deleteUserCombiButton);
+
+    deleteUserCombiButton.onClick = [this]
+    {
+        const auto presetId = combiPresetBox.getSelectedId() - 1;
+        const auto presetName = audioProcessor.getCombiPresetLabel (presetId);
+
+        if (audioProcessor.deleteUserCombiPreset (presetId))
+        {
+            addCombiPresetItems (combiPresetBox, audioProcessor);
+            combiPresetBox.setSelectedId (audioProcessor.getCombiPresetId() + 1, juce::dontSendNotification);
+
+            lastActionText = "Last action: Deleted user combi preset: " + presetName;
+        }
+        else
+        {
+            lastActionText = "Last action: No user combi preset selected for deletion";
+        }
+
+        updateStatus();
+    };
+
+    exportUserCombisButton.setColour (juce::TextButton::buttonColourId, juce::Colour::fromRGB (45, 60, 80));
+    exportUserCombisButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
+    addAndMakeVisible (exportUserCombisButton);
+
+    exportUserCombisButton.onClick = [this]
+    {
+        userCombiExportChooser = std::make_unique<juce::FileChooser> (
+            "Export User Combi Presets",
+            juce::File::getSpecialLocation (juce::File::userDocumentsDirectory).getChildFile ("OrchConductorUserCombis.json"),
+            "*.json");
+
+        userCombiExportChooser->launchAsync (juce::FileBrowserComponent::saveMode
+                                           | juce::FileBrowserComponent::canSelectFiles
+                                           | juce::FileBrowserComponent::warnAboutOverwriting,
+            [this] (const juce::FileChooser& chooser)
+            {
+                const auto file = chooser.getResult();
+
+                if (file == juce::File{})
+                    return;
+
+                const auto ok = audioProcessor.writeUserCombiPresetsJsonToFile (file);
+
+                lastActionText = ok
+                    ? "Last action: Exported user combi presets to " + file.getFileName()
+                    : "Last action: Failed to export user combi presets";
+
+                updateStatus();
+            });
+    };
+
     tableTitleLabel.setText ("Selected Output", juce::dontSendNotification);
     tableTitleLabel.setJustificationType (juce::Justification::centred);
     tableTitleLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (245, 245, 245));
@@ -425,7 +480,7 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
     const auto panelColour = juce::Colour::fromRGB (24, 32, 42);
     const auto outlineColour = juce::Colour::fromRGB (55, 75, 90);
 
-    const juce::Rectangle<float> futureArea (48.0f, 390.0f, 884.0f, 80.0f);
+    const juce::Rectangle<float> futureArea (48.0f, 476.0f, 884.0f, 80.0f);
 
     g.setColour (panelColour);
     g.fillRoundedRectangle (futureArea, 6.0f);
@@ -461,6 +516,14 @@ void OrchConductorAudioProcessorEditor::resized()
     userCombiNameEditor.setBounds (userCombiRow.removeFromLeft (260).reduced (0, 2));
     userCombiRow.removeFromLeft (10);
     saveUserCombiButton.setBounds (userCombiRow.removeFromLeft (300).reduced (0, 2));
+
+    area.removeFromTop (6);
+
+    auto userCombiActionsRow = area.removeFromTop (32);
+    userCombiActionsRow.removeFromLeft (150);
+    deleteUserCombiButton.setBounds (userCombiActionsRow.removeFromLeft (220).reduced (0, 2));
+    userCombiActionsRow.removeFromLeft (10);
+    exportUserCombisButton.setBounds (userCombiActionsRow.removeFromLeft (240).reduced (0, 2));
 
     area.removeFromTop (14);
 
@@ -499,10 +562,13 @@ void OrchConductorAudioProcessorEditor::resized()
     allOffButton.setBounds (buttonRow.removeFromLeft (240).withSizeKeepingCentre (190, 36));
     sendOnChangeToggle.setBounds (buttonRow.removeFromLeft (300).withSizeKeepingCentre (260, 24));
 
-    midiMapButton.setBounds (390, 374, 200, 34);
+    area.removeFromTop (8);
 
-    ccMapLabel.setBounds (48, 484, 884, 24);
-    statusLabel.setBounds (48, 510, 884, 28);
+    auto midiMapRow = area.removeFromTop (38);
+    midiMapButton.setBounds (midiMapRow.withSizeKeepingCentre (200, 34));
+
+    ccMapLabel.setBounds (48, 578, 884, 24);
+    statusLabel.setBounds (48, 606, 884, 28);
 }
 
 
@@ -738,6 +804,14 @@ void OrchConductorAudioProcessorEditor::updatePercussionOutputTable()
 
     percussionTableRowsLabel.setText (rows, juce::dontSendNotification);
 }
+
+
+
+
+
+
+
+
 
 
 

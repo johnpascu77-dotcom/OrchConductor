@@ -1375,6 +1375,22 @@ int OrchConductorAudioProcessor::createUserCombiPresetFromCurrentSections (const
     return presetId;
 }
 
+bool OrchConductorAudioProcessor::deleteUserCombiPreset (int presetId)
+{
+    if (! isUserCombiPresetId (presetId))
+        return false;
+
+    const auto erased = userCombiPresets.erase (presetId);
+
+    if (erased == 0)
+        return false;
+
+    if (getCombiPresetId() == presetId)
+        setCombiPresetIdFromUI (minCombiPresetId);
+
+    return true;
+}
+
 juce::String OrchConductorAudioProcessor::exportUserCombiPresetsToJson() const
 {
     juce::DynamicObject::Ptr root = new juce::DynamicObject();
