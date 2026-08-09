@@ -1374,6 +1374,35 @@ int OrchConductorAudioProcessor::createUserCombiPresetFromCurrentSections (const
 
     return presetId;
 }
+
+juce::String OrchConductorAudioProcessor::exportUserCombiPresetsToJson() const
+{
+    juce::DynamicObject::Ptr root = new juce::DynamicObject();
+    root->setProperty ("schema", "orch_conductor_user_combi_presets");
+    root->setProperty ("version", 1);
+
+    juce::Array<juce::var> combiPresets;
+
+    for (const auto& [id, preset] : userCombiPresets)
+    {
+        juce::DynamicObject::Ptr presetObject = new juce::DynamicObject();
+        presetObject->setProperty ("id", id);
+        presetObject->setProperty ("name", preset.name);
+
+        juce::DynamicObject::Ptr sections = new juce::DynamicObject();
+        sections->setProperty ("woodwinds", preset.woodwindsPresetId);
+        sections->setProperty ("brass", preset.brassPresetId);
+        sections->setProperty ("percussion", preset.percussionPresetId);
+        sections->setProperty ("strings", preset.stringsPresetId);
+
+        presetObject->setProperty ("sections", juce::var (sections.get()));
+        combiPresets.add (juce::var (presetObject.get()));
+    }
+
+    root->setProperty ("combiPresets", combiPresets);
+
+    return juce::JSON::toString (juce::var (root.get()), true);
+}
 int OrchConductorAudioProcessor::getMaxSectionPresetId (Section section) const
 {
     switch (section)
