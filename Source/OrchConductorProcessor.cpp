@@ -6,6 +6,11 @@
 
 namespace
 {
+    constexpr int runtimeSectionPresetAuditMinId = 0;
+    constexpr int runtimeWoodwindPresetAuditMaxId = 19;
+    constexpr int runtimeBrassPresetAuditMaxId = 16;
+    constexpr int runtimePercussionPresetAuditMaxId = 8;
+    constexpr int runtimeStringPresetAuditMaxId = 12;
     constexpr int runtimeCombiPresetAuditMinId = 0;
     constexpr int runtimeCombiPresetAuditMaxId = 28;
     constexpr int runtimeCombiFullPayloadValueCount = 35;
@@ -1823,6 +1828,7 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
+
 
 
 
