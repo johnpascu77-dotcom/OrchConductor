@@ -253,6 +253,27 @@ juce::AudioParameterBool* findBoolParameterWithId(OrchConductorAudioProcessor& p
     return dynamic_cast<juce::AudioParameterBool*>(
         findParameterWithId(processor, parameterId));
 }
+juce::AudioParameterInt* findIntParameterWithId(OrchConductorAudioProcessor& processor,
+                                                const juce::String& parameterId)
+{
+    return dynamic_cast<juce::AudioParameterInt*>(
+        findParameterWithId(processor, parameterId));
+}
+
+bool setIntParameterValueById(OrchConductorAudioProcessor& processor,
+                              const juce::String& parameterId,
+                              int value)
+{
+    auto* parameter = findIntParameterWithId(processor, parameterId);
+
+    if (parameter == nullptr)
+        return false;
+
+    parameter->setValueNotifyingHost(
+        parameter->convertTo0to1(static_cast<float>(value)));
+
+    return true;
+}
 bool verifyProcessorStatePersistenceWithRuntimeCatalogAuthority()
 {
     bool ok = true;
@@ -399,6 +420,117 @@ bool verifySendOnPresetChangeAutomationPersistenceRoundTrip()
 
     return ok;
 }
+bool verifyPresetAutomationPersistenceRoundTrip()
+{
+    bool ok = true;
+
+    constexpr int combiPresetId = 28;
+    constexpr int woodwindsPresetId = 19;
+    constexpr int brassPresetId = 16;
+    constexpr int percussionPresetId = 8;
+    constexpr int stringsPresetId = 13;
+
+    OrchConductorAudioProcessor automated;
+
+    ok = checkPass(findIntParameterWithId(automated, "combiPreset") != nullptr,
+                   "combi preset automation parameter is discoverable by id") && ok;
+    ok = checkPass(findIntParameterWithId(automated, "woodwindsPreset") != nullptr,
+                   "woodwinds preset automation parameter is discoverable by id") && ok;
+    ok = checkPass(findIntParameterWithId(automated, "brassPreset") != nullptr,
+                   "brass preset automation parameter is discoverable by id") && ok;
+    ok = checkPass(findIntParameterWithId(automated, "percussionPreset") != nullptr,
+                   "percussion preset automation parameter is discoverable by id") && ok;
+    ok = checkPass(findIntParameterWithId(automated, "stringsPreset") != nullptr,
+                   "strings preset automation parameter is discoverable by id") && ok;
+
+    ok = checkPass(setIntParameterValueById(automated, "combiPreset", combiPresetId),
+                   "combi preset automation parameter accepts target value") && ok;
+    ok = checkPass(setIntParameterValueById(automated, "woodwindsPreset", woodwindsPresetId),
+                   "woodwinds preset automation parameter accepts target value") && ok;
+    ok = checkPass(setIntParameterValueById(automated, "brassPreset", brassPresetId),
+                   "brass preset automation parameter accepts target value") && ok;
+    ok = checkPass(setIntParameterValueById(automated, "percussionPreset", percussionPresetId),
+                   "percussion preset automation parameter accepts target value") && ok;
+    ok = checkPass(setIntParameterValueById(automated, "stringsPreset", stringsPresetId),
+                   "strings preset automation parameter accepts target value") && ok;
+
+    juce::AudioBuffer<float> buffer;
+    juce::MidiBuffer midi;
+    automated.processBlock(buffer, midi);
+
+    ok = checkPass(automated.getCombiPresetId() == combiPresetId,
+                   "automation-updated combi preset syncs into processor state") && ok;
+    ok = checkPass(automated.getSectionPresetId(OrchConductorAudioProcessor::Section::woodwinds) == woodwindsPresetId,
+                   "automation-updated woodwinds preset syncs into processor state") && ok;
+    ok = checkPass(automated.getSectionPresetId(OrchConductorAudioProcessor::Section::brass) == brassPresetId,
+                   "automation-updated brass preset syncs into processor state") && ok;
+    ok = checkPass(automated.getSectionPresetId(OrchConductorAudioProcessor::Section::percussion) == percussionPresetId,
+                   "automation-updated percussion preset syncs into processor state") && ok;
+    ok = checkPass(automated.getSectionPresetId(OrchConductorAudioProcessor::Section::strings) == stringsPresetId,
+                   "automation-updated strings preset syncs into processor state") && ok;
+
+    juce::MemoryBlock state;
+    automated.getStateInformation(state);
+
+    OrchConductorAudioProcessor restored;
+    restored.setStateInformation(state.getData(), static_cast<int>(state.getSize()));
+
+    ok = checkPass(restored.getCombiPresetId() == combiPresetId,
+                   "automation-updated combi preset persists through restore") && ok;
+    ok = checkPass(restored.getSectionPresetId(OrchConductorAudioProcessor::Section::woodwinds) == woodwindsPresetId,
+                   "automation-updated woodwinds preset persists through restore") && ok;
+    ok = checkPass(restored.getSectionPresetId(OrchConductorAudioProcessor::Section::brass) == brassPresetId,
+                   "automation-updated brass preset persists through restore") && ok;
+    ok = checkPass(restored.getSectionPresetId(OrchConductorAudioProcessor::Section::percussion) == percussionPresetId,
+                   "automation-updated percussion preset persists through restore") && ok;
+    ok = checkPass(restored.getSectionPresetId(OrchConductorAudioProcessor::Section::strings) == stringsPresetId,
+                   "automation-updated strings preset persists through restore") && ok;
+
+    auto* restoredCombiParameter = findIntParameterWithId(restored, "combiPreset");
+    auto* restoredWoodwindsParameter = findIntParameterWithId(restored, "woodwindsPreset");
+    auto* restoredBrassParameter = findIntParameterWithId(restored, "brassPreset");
+    auto* restoredPercussionParameter = findIntParameterWithId(restored, "percussionPreset");
+    auto* restoredStringsParameter = findIntParameterWithId(restored, "stringsPreset");
+
+    ok = checkPass(restoredCombiParameter != nullptr && restoredCombiParameter->get() == combiPresetId,
+                   "restored combi automation parameter mirrors persisted preset") && ok;
+    ok = checkPass(restoredWoodwindsParameter != nullptr && restoredWoodwindsParameter->get() == woodwindsPresetId,
+                   "restored woodwinds automation parameter mirrors persisted preset") && ok;
+    ok = checkPass(restoredBrassParameter != nullptr && restoredBrassParameter->get() == brassPresetId,
+                   "restored brass automation parameter mirrors persisted preset") && ok;
+    ok = checkPass(restoredPercussionParameter != nullptr && restoredPercussionParameter->get() == percussionPresetId,
+                   "restored percussion automation parameter mirrors persisted preset") && ok;
+    ok = checkPass(restoredStringsParameter != nullptr && restoredStringsParameter->get() == stringsPresetId,
+                   "restored strings automation parameter mirrors persisted preset") && ok;
+
+    ok = checkPass(restored.isRuntimePresetCatalogAuthorityActive(),
+                   "automation-restored processor reports active runtime catalog authority") && ok;
+    ok = checkPass(restored.getCombiPresetLabel(combiPresetId).isNotEmpty(),
+                   "automation-restored runtime-authority combi label is non-empty") && ok;
+    ok = checkPass(restored.getSectionPresetLabel(OrchConductorAudioProcessor::Section::woodwinds, woodwindsPresetId).isNotEmpty(),
+                   "automation-restored runtime-authority woodwinds label is non-empty") && ok;
+    ok = checkPass(restored.getSectionPresetLabel(OrchConductorAudioProcessor::Section::brass, brassPresetId).isNotEmpty(),
+                   "automation-restored runtime-authority brass label is non-empty") && ok;
+    ok = checkPass(restored.getSectionPresetLabel(OrchConductorAudioProcessor::Section::percussion, percussionPresetId).isNotEmpty(),
+                   "automation-restored runtime-authority percussion label is non-empty") && ok;
+    ok = checkPass(restored.getSectionPresetLabel(OrchConductorAudioProcessor::Section::strings, stringsPresetId).isNotEmpty(),
+                   "automation-restored runtime-authority strings label is non-empty") && ok;
+
+    restored.processBlock(buffer, midi);
+
+    ok = checkPass(restored.getCombiPresetId() == combiPresetId,
+                   "restored automation-updated combi preset survives processBlock sync") && ok;
+    ok = checkPass(restored.getSectionPresetId(OrchConductorAudioProcessor::Section::woodwinds) == woodwindsPresetId,
+                   "restored automation-updated woodwinds preset survives processBlock sync") && ok;
+    ok = checkPass(restored.getSectionPresetId(OrchConductorAudioProcessor::Section::brass) == brassPresetId,
+                   "restored automation-updated brass preset survives processBlock sync") && ok;
+    ok = checkPass(restored.getSectionPresetId(OrchConductorAudioProcessor::Section::percussion) == percussionPresetId,
+                   "restored automation-updated percussion preset survives processBlock sync") && ok;
+    ok = checkPass(restored.getSectionPresetId(OrchConductorAudioProcessor::Section::strings) == stringsPresetId,
+                   "restored automation-updated strings preset survives processBlock sync") && ok;
+
+    return ok;
+}
 } // namespace
 
 int main()
@@ -448,6 +580,7 @@ int main()
     ok = verifyHardcodedBehaviorStillAvailable(processor) && ok;
     ok = verifyProcessorStatePersistenceWithRuntimeCatalogAuthority() && ok;
     ok = verifySendOnPresetChangeAutomationPersistenceRoundTrip() && ok;
+    ok = verifyPresetAutomationPersistenceRoundTrip() && ok;
 
     if (! ok)
         return fail("Processor-side runtime catalog authority probe verification failed.");
@@ -470,8 +603,8 @@ int main()
     std::cout << "[PASS] Phase 5G runtime catalog authority trial diagnostic satisfied." << std::endl;
     std::cout << "[PASS] Phase 6F runtime catalog persistence restore coverage satisfied." << std::endl;
     std::cout << "[PASS] Phase 6G send-on-preset-change automation persistence integration satisfied." << std::endl;
+    std::cout << "[PASS] Phase 6H preset automation persistence integration satisfied." << std::endl;
 
     return 0;
 }
-
 
