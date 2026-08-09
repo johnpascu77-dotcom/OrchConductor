@@ -626,6 +626,89 @@ bool verifyAutomationTriggeredSendRequestBehavior()
 
     return ok;
 }
+bool verifySectionAutomationTriggeredSendRequestBehavior()
+{
+    bool ok = true;
+
+    constexpr int firstStringsPresetId = 13;
+    constexpr int secondStringsPresetId = 12;
+    constexpr int disabledStringsPresetId = 11;
+
+    OrchConductorAudioProcessor processor;
+    juce::AudioBuffer<float> buffer;
+    juce::MidiBuffer midi;
+
+    ok = checkPass(processor.getSendOnPresetChange() == false,
+                   "section automation send behavior starts with send-on-preset-change disabled") && ok;
+
+    ok = checkPass(setBoolParameterValueById(processor, "sendOnPresetChange", true),
+                   "section automation send behavior can enable send-on-preset-change by parameter id") && ok;
+
+    processor.processBlock(buffer, midi);
+
+    ok = checkPass(processor.getSendOnPresetChange(),
+                   "section automation send behavior syncs enabled send-on-preset-change before section automation") && ok;
+    ok = checkPass(midi.getNumEvents() == 0,
+                   "enabling send-on-preset-change alone emits no section MIDI") && ok;
+
+    midi.clear();
+
+    ok = checkPass(setIntParameterValueById(processor, "stringsPreset", firstStringsPresetId),
+                   "section automation send behavior can set first strings preset by parameter id") && ok;
+
+    processor.processBlock(buffer, midi);
+
+    ok = checkPass(processor.getSectionPresetId(OrchConductorAudioProcessor::Section::strings) == firstStringsPresetId,
+                   "section automation send behavior syncs first strings preset into state") && ok;
+    ok = checkPass(midi.getNumEvents() > 0,
+                   "automation-changing strings preset emits MIDI when send-on-preset-change is enabled") && ok;
+
+    const int firstSendEventCount = midi.getNumEvents();
+    midi.clear();
+
+    processor.processBlock(buffer, midi);
+
+    ok = checkPass(processor.getSectionPresetId(OrchConductorAudioProcessor::Section::strings) == firstStringsPresetId,
+                   "unchanged automated strings preset remains stable after send") && ok;
+    ok = checkPass(midi.getNumEvents() == 0,
+                   "unchanged automated strings preset does not repeatedly emit MIDI") && ok;
+
+    ok = checkPass(setIntParameterValueById(processor, "stringsPreset", secondStringsPresetId),
+                   "section automation send behavior can set second strings preset by parameter id") && ok;
+
+    processor.processBlock(buffer, midi);
+
+    ok = checkPass(processor.getSectionPresetId(OrchConductorAudioProcessor::Section::strings) == secondStringsPresetId,
+                   "section automation send behavior syncs second strings preset into state") && ok;
+    ok = checkPass(midi.getNumEvents() == firstSendEventCount,
+                   "second automation-changing strings preset emits one full preset MIDI batch") && ok;
+
+    midi.clear();
+
+    ok = checkPass(setBoolParameterValueById(processor, "sendOnPresetChange", false),
+                   "section automation send behavior can disable send-on-preset-change by parameter id") && ok;
+
+    processor.processBlock(buffer, midi);
+
+    ok = checkPass(! processor.getSendOnPresetChange(),
+                   "section automation send behavior syncs disabled send-on-preset-change before disabled section automation") && ok;
+    ok = checkPass(midi.getNumEvents() == 0,
+                   "disabling send-on-preset-change alone emits no section MIDI") && ok;
+
+    midi.clear();
+
+    ok = checkPass(setIntParameterValueById(processor, "stringsPreset", disabledStringsPresetId),
+                   "section automation send behavior can set strings preset while send-on-preset-change is disabled") && ok;
+
+    processor.processBlock(buffer, midi);
+
+    ok = checkPass(processor.getSectionPresetId(OrchConductorAudioProcessor::Section::strings) == disabledStringsPresetId,
+                   "disabled automation-changing strings preset still syncs into state") && ok;
+    ok = checkPass(midi.getNumEvents() == 0,
+                   "automation-changing strings preset does not emit MIDI when send-on-preset-change is disabled") && ok;
+
+    return ok;
+}
 } // namespace
 
 int main()
@@ -677,6 +760,7 @@ int main()
     ok = verifySendOnPresetChangeAutomationPersistenceRoundTrip() && ok;
     ok = verifyPresetAutomationPersistenceRoundTrip() && ok;
     ok = verifyAutomationTriggeredSendRequestBehavior() && ok;
+    ok = verifySectionAutomationTriggeredSendRequestBehavior() && ok;
 
     if (! ok)
         return fail("Processor-side runtime catalog authority probe verification failed.");
@@ -701,6 +785,7 @@ int main()
     std::cout << "[PASS] Phase 6G send-on-preset-change automation persistence integration satisfied." << std::endl;
     std::cout << "[PASS] Phase 6H preset automation persistence integration satisfied." << std::endl;
     std::cout << "[PASS] Phase 6I automation-triggered send request behavior satisfied." << std::endl;
+    std::cout << "[PASS] Phase 6J section automation-triggered send request behavior satisfied." << std::endl;
 
     return 0;
 }
