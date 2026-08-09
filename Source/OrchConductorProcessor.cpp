@@ -8,6 +8,7 @@ namespace
 {
     constexpr int runtimeCombiPresetAuditMinId = 0;
     constexpr int runtimeCombiPresetAuditMaxId = 28;
+    constexpr int runtimeCombiFullPayloadValueCount = 35;
     constexpr int reservedHarpCcNumber = 49;
     constexpr int reservedHarpCcValue = 0;
 
@@ -161,7 +162,7 @@ namespace
                 }
             }
 
-            if (valueCount >= 35 && ! sawReservedCc49)
+            if (valueCount >= runtimeCombiFullPayloadValueCount && ! sawReservedCc49)
                 return false;
         }
 
@@ -1822,6 +1823,7 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
+
 
 
 
