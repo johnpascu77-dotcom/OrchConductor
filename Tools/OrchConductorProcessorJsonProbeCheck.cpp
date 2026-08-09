@@ -259,6 +259,18 @@ juce::AudioParameterInt* findIntParameterWithId(OrchConductorAudioProcessor& pro
     return dynamic_cast<juce::AudioParameterInt*>(
         findParameterWithId(processor, parameterId));
 }
+bool setBoolParameterValueById(OrchConductorAudioProcessor& processor,
+                               const juce::String& parameterId,
+                               bool value)
+{
+    auto* parameter = findBoolParameterWithId(processor, parameterId);
+
+    if (parameter == nullptr)
+        return false;
+
+    parameter->setValueNotifyingHost(value ? 1.0f : 0.0f);
+    return true;
+}
 
 bool setIntParameterValueById(OrchConductorAudioProcessor& processor,
                               const juce::String& parameterId,
@@ -531,6 +543,89 @@ bool verifyPresetAutomationPersistenceRoundTrip()
 
     return ok;
 }
+bool verifyAutomationTriggeredSendRequestBehavior()
+{
+    bool ok = true;
+
+    constexpr int firstCombiPresetId = 28;
+    constexpr int secondCombiPresetId = 27;
+    constexpr int disabledCombiPresetId = 26;
+
+    OrchConductorAudioProcessor processor;
+    juce::AudioBuffer<float> buffer;
+    juce::MidiBuffer midi;
+
+    ok = checkPass(processor.getSendOnPresetChange() == false,
+                   "automation send behavior starts with send-on-preset-change disabled") && ok;
+
+    ok = checkPass(setBoolParameterValueById(processor, "sendOnPresetChange", true),
+                   "automation send behavior can enable send-on-preset-change by parameter id") && ok;
+
+    processor.processBlock(buffer, midi);
+
+    ok = checkPass(processor.getSendOnPresetChange(),
+                   "automation send behavior syncs enabled send-on-preset-change before preset automation") && ok;
+    ok = checkPass(midi.getNumEvents() == 0,
+                   "enabling send-on-preset-change alone does not emit preset MIDI") && ok;
+
+    midi.clear();
+
+    ok = checkPass(setIntParameterValueById(processor, "combiPreset", firstCombiPresetId),
+                   "automation send behavior can set first combi preset by parameter id") && ok;
+
+    processor.processBlock(buffer, midi);
+
+    ok = checkPass(processor.getCombiPresetId() == firstCombiPresetId,
+                   "automation send behavior syncs first combi preset into state") && ok;
+    ok = checkPass(midi.getNumEvents() > 0,
+                   "automation-changing combi preset emits MIDI when send-on-preset-change is enabled") && ok;
+
+    const int firstSendEventCount = midi.getNumEvents();
+    midi.clear();
+
+    processor.processBlock(buffer, midi);
+
+    ok = checkPass(processor.getCombiPresetId() == firstCombiPresetId,
+                   "unchanged automated combi preset remains stable after send") && ok;
+    ok = checkPass(midi.getNumEvents() == 0,
+                   "unchanged automated combi preset does not repeatedly emit MIDI") && ok;
+
+    ok = checkPass(setIntParameterValueById(processor, "combiPreset", secondCombiPresetId),
+                   "automation send behavior can set second combi preset by parameter id") && ok;
+
+    processor.processBlock(buffer, midi);
+
+    ok = checkPass(processor.getCombiPresetId() == secondCombiPresetId,
+                   "automation send behavior syncs second combi preset into state") && ok;
+    ok = checkPass(midi.getNumEvents() == firstSendEventCount,
+                   "second automation-changing combi preset emits one full preset MIDI batch") && ok;
+
+    midi.clear();
+
+    ok = checkPass(setBoolParameterValueById(processor, "sendOnPresetChange", false),
+                   "automation send behavior can disable send-on-preset-change by parameter id") && ok;
+
+    processor.processBlock(buffer, midi);
+
+    ok = checkPass(! processor.getSendOnPresetChange(),
+                   "automation send behavior syncs disabled send-on-preset-change before disabled preset automation") && ok;
+    ok = checkPass(midi.getNumEvents() == 0,
+                   "disabling send-on-preset-change alone does not emit preset MIDI") && ok;
+
+    midi.clear();
+
+    ok = checkPass(setIntParameterValueById(processor, "combiPreset", disabledCombiPresetId),
+                   "automation send behavior can set combi preset while send-on-preset-change is disabled") && ok;
+
+    processor.processBlock(buffer, midi);
+
+    ok = checkPass(processor.getCombiPresetId() == disabledCombiPresetId,
+                   "disabled automation-changing combi preset still syncs into state") && ok;
+    ok = checkPass(midi.getNumEvents() == 0,
+                   "automation-changing combi preset does not emit MIDI when send-on-preset-change is disabled") && ok;
+
+    return ok;
+}
 } // namespace
 
 int main()
@@ -581,6 +676,7 @@ int main()
     ok = verifyProcessorStatePersistenceWithRuntimeCatalogAuthority() && ok;
     ok = verifySendOnPresetChangeAutomationPersistenceRoundTrip() && ok;
     ok = verifyPresetAutomationPersistenceRoundTrip() && ok;
+    ok = verifyAutomationTriggeredSendRequestBehavior() && ok;
 
     if (! ok)
         return fail("Processor-side runtime catalog authority probe verification failed.");
@@ -604,6 +700,7 @@ int main()
     std::cout << "[PASS] Phase 6F runtime catalog persistence restore coverage satisfied." << std::endl;
     std::cout << "[PASS] Phase 6G send-on-preset-change automation persistence integration satisfied." << std::endl;
     std::cout << "[PASS] Phase 6H preset automation persistence integration satisfied." << std::endl;
+    std::cout << "[PASS] Phase 6I automation-triggered send request behavior satisfied." << std::endl;
 
     return 0;
 }
