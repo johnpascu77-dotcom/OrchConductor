@@ -1386,7 +1386,7 @@ juce::String OrchConductorAudioProcessor::exportUserCombiPresetsToJson() const
     for (const auto& [id, preset] : userCombiPresets)
     {
         juce::DynamicObject::Ptr presetObject = new juce::DynamicObject();
-        presetObject->setProperty ("id", id);
+        presetObject->setProperty ("localId", id);
         presetObject->setProperty ("name", preset.name);
 
         juce::DynamicObject::Ptr sections = new juce::DynamicObject();
@@ -2150,3 +2150,4 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
+
