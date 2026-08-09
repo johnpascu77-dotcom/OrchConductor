@@ -144,7 +144,7 @@ namespace
             if (valueCount < 0)
                 return false;
 
-            bool sawReservedCc49 = false;
+            bool sawReservedHarpCc = false;
 
             for (int valueIndex = 0; valueIndex < valueCount; ++valueIndex)
             {
@@ -155,14 +155,14 @@ namespace
 
                 if (value.ccNumber == reservedHarpCcNumber)
                 {
-                    sawReservedCc49 = true;
+                    sawReservedHarpCc = true;
 
                     if (value.value != reservedHarpCcValue)
                         return false;
                 }
             }
 
-            if (valueCount >= runtimeCombiFullPayloadValueCount && ! sawReservedCc49)
+            if (valueCount >= runtimeCombiFullPayloadValueCount && ! sawReservedHarpCc)
                 return false;
         }
 
@@ -1823,6 +1823,7 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
+
 
 
 
