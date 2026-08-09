@@ -52,7 +52,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 6E", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 7A", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -275,7 +275,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     // Hidden in main UI.
 
     ccMapLabel.setText (
-        "Phase 6C-3: Full-score CC20-CC54 | Bidirectional automatable controls | CC49 reserved for Harp | UI feedback active",
+        "Phase 7A: Runtime-catalog output previews | Automatable controls | CC49 reserved for Harp",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -323,7 +323,7 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colour::fromRGB (120, 140, 155));
     g.setFont (juce::FontOptions (13.0f, juce::Font::plain));
-    g.drawText ("Phase 6E: " + audioProcessor.getRuntimePresetCatalogAuthorityStatus() + " | Automation sync active",
+    g.drawText ("Phase 7A: " + audioProcessor.getRuntimePresetCatalogAuthorityStatus() + " | UI previews follow runtime authority",
                 futureArea.toNearestInt().reduced (16, 8),
                 juce::Justification::centred);
 }
@@ -587,3 +587,4 @@ void OrchConductorAudioProcessorEditor::updatePercussionOutputTable()
 
     percussionTableRowsLabel.setText (rows, juce::dontSendNotification);
 }
+

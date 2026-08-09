@@ -1468,9 +1468,14 @@ OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getOutputRow
         return makeOutputRow ("Invalid", 0, 0);
 
     const int cc = ccNumbers[index];
-    const int value = isCombiModeActive()
+    int value = isCombiModeActive()
         ? getCombiPresetValueForCc (cc)
         : getPresetValueForIndex (index);
+
+    if (isCombiModeActive())
+        tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+    else
+        tryGetRuntimeSectionPresetValueForCc (Section::strings, stringsPresetId, cc, value);
 
     return makeOutputRow (instrumentNames[index], cc, value);
 }
@@ -1486,9 +1491,14 @@ OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getWoodwinds
         return makeOutputRow ("Invalid", 0, 0);
 
     const int cc = woodwindsCcNumbers[index];
-    const int value = isCombiModeActive()
+    int value = isCombiModeActive()
         ? getCombiPresetValueForCc (cc)
         : getWoodwindsPresetValueForIndex (index);
+
+    if (isCombiModeActive())
+        tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+    else
+        tryGetRuntimeSectionPresetValueForCc (Section::woodwinds, woodwindsPresetId, cc, value);
 
     return makeOutputRow (woodwindsInstrumentNames[index], cc, value);
 }
@@ -1504,9 +1514,14 @@ OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getBrassOutp
         return makeOutputRow ("Invalid", 0, 0);
 
     const int cc = brassCcNumbers[index];
-    const int value = isCombiModeActive()
+    int value = isCombiModeActive()
         ? getCombiPresetValueForCc (cc)
         : getBrassPresetValueForIndex (index);
+
+    if (isCombiModeActive())
+        tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+    else
+        tryGetRuntimeSectionPresetValueForCc (Section::brass, brassPresetId, cc, value);
 
     return makeOutputRow (brassInstrumentNames[index], cc, value);
 }
@@ -1522,9 +1537,14 @@ OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getPercussio
         return makeOutputRow ("Invalid", 0, 0);
 
     const int cc = percussionCcNumbers[index];
-    const int value = isCombiModeActive()
+    int value = isCombiModeActive()
         ? getCombiPresetValueForCc (cc)
         : getPercussionPresetValueForIndex (index);
+
+    if (isCombiModeActive())
+        tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+    else
+        tryGetRuntimeSectionPresetValueForCc (Section::percussion, percussionPresetId, cc, value);
 
     return makeOutputRow (percussionInstrumentNames[index], cc, value);
 }
