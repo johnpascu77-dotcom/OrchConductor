@@ -893,10 +893,8 @@ bool OrchConductorAudioProcessor::tryGetRuntimeSectionPresetValueForCc (Section 
     {
         const auto runtimeValue = runtimePresetCatalog.getSectionPresetValue (sectionId, presetId, valueIndex);
 
-        if (runtimeValue.isValid
-            && runtimeValue.ccNumber == ccNumber
-            && runtimeValue.value >= 0
-            && runtimeValue.value <= 127)
+        if (runtimeCatalogValueIsMidiSafe (runtimeValue)
+            && runtimeValue.ccNumber == ccNumber)
         {
             value = runtimeValue.value;
             return true;
@@ -919,10 +917,8 @@ bool OrchConductorAudioProcessor::tryGetRuntimeCombiPresetValueForCc (int preset
     {
         const auto runtimeValue = runtimePresetCatalog.getCombiPresetValue (presetId, valueIndex);
 
-        if (runtimeValue.isValid
-            && runtimeValue.ccNumber == ccNumber
-            && runtimeValue.value >= 0
-            && runtimeValue.value <= 127)
+        if (runtimeCatalogValueIsMidiSafe (runtimeValue)
+            && runtimeValue.ccNumber == ccNumber)
         {
             value = runtimeValue.value;
             return true;
