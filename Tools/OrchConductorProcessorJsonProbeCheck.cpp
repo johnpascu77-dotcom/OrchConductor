@@ -1,4 +1,4 @@
-﻿#include <JuceHeader.h>
+#include <JuceHeader.h>
 
 #include "../Source/OrchConductorProcessor.h"
 
@@ -232,6 +232,27 @@ bool verifyProcessorRuntimeCatalogPayloadEquivalenceProbe(OrchConductorAudioProc
     return ok;
 }
 
+juce::AudioProcessorParameterWithID* findParameterWithId(OrchConductorAudioProcessor& processor,
+                                                         const juce::String& parameterId)
+{
+    for (auto* parameter : processor.getParameters())
+    {
+        if (auto* parameterWithId = dynamic_cast<juce::AudioProcessorParameterWithID*>(parameter))
+        {
+            if (parameterWithId->paramID == parameterId)
+                return parameterWithId;
+        }
+    }
+
+    return nullptr;
+}
+
+juce::AudioParameterBool* findBoolParameterWithId(OrchConductorAudioProcessor& processor,
+                                                  const juce::String& parameterId)
+{
+    return dynamic_cast<juce::AudioParameterBool*>(
+        findParameterWithId(processor, parameterId));
+}
 bool verifyProcessorStatePersistenceWithRuntimeCatalogAuthority()
 {
     bool ok = true;
@@ -316,6 +337,68 @@ bool verifyProcessorStatePersistenceWithRuntimeCatalogAuthority()
     return ok;
 }
 
+bool verifySendOnPresetChangeAutomationPersistenceRoundTrip()
+{
+    bool ok = true;
+
+    OrchConductorAudioProcessor automated;
+
+    ok = checkPass(! automated.getSendOnPresetChange(),
+                   "automation persistence source send-on-preset-change starts disabled") && ok;
+
+    auto* automatedParameter = findBoolParameterWithId(automated, "sendOnPresetChange");
+
+    ok = checkPass(automatedParameter != nullptr,
+                   "send-on-preset-change automation parameter is discoverable by id") && ok;
+
+    if (automatedParameter == nullptr)
+        return false;
+
+    ok = checkPass(! automatedParameter->get(),
+                   "send-on-preset-change automation parameter starts disabled") && ok;
+
+    automatedParameter->setValueNotifyingHost(1.0f);
+
+    juce::AudioBuffer<float> buffer;
+    juce::MidiBuffer midi;
+    automated.processBlock(buffer, midi);
+
+    ok = checkPass(automated.getSendOnPresetChange(),
+                   "automation-updated send-on-preset-change syncs into processor state") && ok;
+
+    ok = checkPass(automatedParameter->get(),
+                   "automation-updated send-on-preset-change parameter remains enabled after sync") && ok;
+
+    juce::MemoryBlock state;
+    automated.getStateInformation(state);
+
+    OrchConductorAudioProcessor restored;
+    restored.setStateInformation(state.getData(), static_cast<int>(state.getSize()));
+
+    ok = checkPass(restored.getSendOnPresetChange(),
+                   "automation-updated send-on-preset-change persists through restore") && ok;
+
+    auto* restoredParameter = findBoolParameterWithId(restored, "sendOnPresetChange");
+
+    ok = checkPass(restoredParameter != nullptr,
+                   "restored send-on-preset-change automation parameter is discoverable by id") && ok;
+
+    if (restoredParameter == nullptr)
+        return false;
+
+    ok = checkPass(restoredParameter->get(),
+                   "restored send-on-preset-change automation parameter mirrors persisted state") && ok;
+
+    restored.processBlock(buffer, midi);
+
+    ok = checkPass(restored.getSendOnPresetChange(),
+                   "restored automation-updated send-on-preset-change survives processBlock sync") && ok;
+
+    ok = checkPass(restoredParameter->get(),
+                   "restored automation-updated send-on-preset-change parameter survives processBlock sync") && ok;
+
+    return ok;
+}
 } // namespace
 
 int main()
@@ -364,6 +447,7 @@ int main()
     ok = verifyProcessorRuntimeCatalogAuthorityTrialDiagnostic(processor) && ok;
     ok = verifyHardcodedBehaviorStillAvailable(processor) && ok;
     ok = verifyProcessorStatePersistenceWithRuntimeCatalogAuthority() && ok;
+    ok = verifySendOnPresetChangeAutomationPersistenceRoundTrip() && ok;
 
     if (! ok)
         return fail("Processor-side runtime catalog authority probe verification failed.");
@@ -385,7 +469,9 @@ int main()
     std::cout << "[PASS] Processor runtime catalog authority trial diagnostic remains passive." << std::endl;
     std::cout << "[PASS] Phase 5G runtime catalog authority trial diagnostic satisfied." << std::endl;
     std::cout << "[PASS] Phase 6F runtime catalog persistence restore coverage satisfied." << std::endl;
+    std::cout << "[PASS] Phase 6G send-on-preset-change automation persistence integration satisfied." << std::endl;
 
     return 0;
 }
+
 
