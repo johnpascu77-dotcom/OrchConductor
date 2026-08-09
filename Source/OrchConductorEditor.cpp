@@ -52,7 +52,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 7A", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 7B", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -275,7 +275,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     // Hidden in main UI.
 
     ccMapLabel.setText (
-        "Phase 7A: Runtime-catalog output previews | Automatable controls | CC49 reserved for Harp",
+        "Phase 7B: Runtime-backed MIDI map | Automatable controls | CC49 reserved for Harp",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -323,7 +323,7 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colour::fromRGB (120, 140, 155));
     g.setFont (juce::FontOptions (13.0f, juce::Font::plain));
-    g.drawText ("Phase 7A: " + audioProcessor.getRuntimePresetCatalogAuthorityStatus() + " | UI previews follow runtime authority",
+    g.drawText ("Phase 7B: " + audioProcessor.getRuntimePresetCatalogAuthorityStatus() + " | MIDI map follows runtime authority",
                 futureArea.toNearestInt().reduced (16, 8),
                 juce::Justification::centred);
 }
@@ -489,7 +489,30 @@ juce::String OrchConductorAudioProcessorEditor::buildMidiMapText() const
 {
     juce::String text;
 
-    text << "Full-score MIDI Gate Map\n\n";
+    text << "Full-score MIDI Gate Map\n";
+    text << "Runtime status: " << audioProcessor.getRuntimePresetCatalogAuthorityStatus() << "\n";
+
+    if (audioProcessor.isCombiModeActive())
+    {
+        text << "Mode: Combi | " << audioProcessor.getCombiPresetName() << "\n";
+    }
+    else
+    {
+        text << "Mode: Manual Sections"
+             << " | Woodwinds: " << audioProcessor.getSectionPresetLabel (
+                    OrchConductorAudioProcessor::Section::woodwinds,
+                    audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::woodwinds))
+             << " | Brass: " << audioProcessor.getSectionPresetLabel (
+                    OrchConductorAudioProcessor::Section::brass,
+                    audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::brass))
+             << " | Percussion: " << audioProcessor.getSectionPresetLabel (
+                    OrchConductorAudioProcessor::Section::percussion,
+                    audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::percussion))
+             << " | Strings: " << audioProcessor.getPresetName()
+             << "\n";
+    }
+
+    text << "Displayed values follow the active runtime catalog authority when available.\n\n";
 
     text << "Woodwinds\n";
     for (int i = 0; i < OrchConductorAudioProcessor::getNumWoodwindsOutputRows(); ++i)
