@@ -34,6 +34,19 @@ namespace
         for (int presetId = 0; presetId <= processor.getMaxSectionPresetId (section); ++presetId)
             box.addItem (processor.getSectionPresetLabel (section, presetId), presetId + 1);
     }
+    juce::String getUserFacingCatalogStatus (const OrchConductorAudioProcessor& processor)
+    {
+        return processor.isRuntimePresetCatalogAuthorityActive()
+            ? "Catalog: Runtime JSON active"
+            : "Catalog: Factory fallback active";
+    }
+
+    juce::String getUserFacingCatalogDetail (const OrchConductorAudioProcessor& processor)
+    {
+        return processor.isRuntimePresetCatalogAuthorityActive()
+            ? "MIDI map and output previews follow catalog values"
+            : "MIDI map and output previews use built-in values";
+    }
     class MidiMapTextComponent final : public juce::Component
     {
     public:
@@ -84,7 +97,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 7C", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 7D", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -307,7 +320,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     // Hidden in main UI.
 
     ccMapLabel.setText (
-        "Phase 7C: Scrollable runtime-backed MIDI map | CC49 reserved for Harp",
+        "Phase 7D: Runtime catalog status polish | CC49 reserved for Harp",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -355,7 +368,7 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colour::fromRGB (120, 140, 155));
     g.setFont (juce::FontOptions (13.0f, juce::Font::plain));
-    g.drawText ("Phase 7C: " + audioProcessor.getRuntimePresetCatalogAuthorityStatus() + " | Scrollable MIDI map follows runtime authority",
+    g.drawText ("Phase 7D: " + getUserFacingCatalogStatus (audioProcessor) + " | " + getUserFacingCatalogDetail (audioProcessor),
                 futureArea.toNearestInt().reduced (16, 8),
                 juce::Justification::centred);
 }
