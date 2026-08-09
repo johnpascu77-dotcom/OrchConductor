@@ -436,7 +436,7 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
         juce::ParameterID { "combiPreset", 1 },
         "Combi Preset",
         minCombiPresetId,
-        maxFactoryCombiPresetId,
+        maxCombiPresetParameterId,
         static_cast<int> (CombiPreset::manualSections)));
 
     addParameter (woodwindsPresetParameter = new juce::AudioParameterInt (
@@ -1125,7 +1125,7 @@ int OrchConductorAudioProcessor::getCombiPresetId() const
 
 void OrchConductorAudioProcessor::setCombiPresetId (int presetId)
 {
-    if (presetId < minCombiPresetId || presetId > maxFactoryCombiPresetId)
+    if (presetId < minCombiPresetId || presetId > getMaxCombiPresetId())
         return;
 
     const bool changed = combiPresetId != presetId;
@@ -1150,7 +1150,7 @@ juce::String OrchConductorAudioProcessor::getCombiPresetName() const
 
 juce::String OrchConductorAudioProcessor::getCombiPresetLabel (int presetId) const
 {
-    if (presetId < minCombiPresetId || presetId > maxFactoryCombiPresetId)
+    if (presetId < minCombiPresetId || presetId > getMaxCombiPresetId())
         return "Unknown Combi";
 
     if (runtimePresetCatalogAuthorityActive)
@@ -1836,20 +1836,4 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
