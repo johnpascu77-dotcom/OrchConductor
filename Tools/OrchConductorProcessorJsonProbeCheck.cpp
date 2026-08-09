@@ -231,6 +231,91 @@ bool verifyProcessorRuntimeCatalogPayloadEquivalenceProbe(OrchConductorAudioProc
 
     return ok;
 }
+
+bool verifyProcessorStatePersistenceWithRuntimeCatalogAuthority()
+{
+    bool ok = true;
+
+    OrchConductorAudioProcessor source;
+
+    source.setCombiPresetId(static_cast<int>(OrchConductorAudioProcessor::CombiPreset::soloEnglishHornLament));
+    source.setSectionPresetId(OrchConductorAudioProcessor::Section::woodwinds, 19);
+    source.setSectionPresetId(OrchConductorAudioProcessor::Section::brass, 16);
+    source.setSectionPresetId(OrchConductorAudioProcessor::Section::percussion, 8);
+    source.setSectionPresetId(OrchConductorAudioProcessor::Section::strings,
+                              static_cast<int>(OrchConductorAudioProcessor::Preset::tutti));
+    source.setSendOnPresetChange(true);
+
+    juce::MemoryBlock state;
+    source.getStateInformation(state);
+
+    OrchConductorAudioProcessor restored;
+    restored.setStateInformation(state.getData(), static_cast<int>(state.getSize()));
+
+    ok = checkEquals(restored.getCombiPresetId(),
+                     static_cast<int>(OrchConductorAudioProcessor::CombiPreset::soloEnglishHornLament),
+                     "restored combi preset id") && ok;
+
+    ok = checkEquals(restored.getSectionPresetId(OrchConductorAudioProcessor::Section::woodwinds),
+                     19,
+                     "restored woodwinds preset id") && ok;
+
+    ok = checkEquals(restored.getSectionPresetId(OrchConductorAudioProcessor::Section::brass),
+                     16,
+                     "restored brass preset id") && ok;
+
+    ok = checkEquals(restored.getSectionPresetId(OrchConductorAudioProcessor::Section::percussion),
+                     8,
+                     "restored percussion preset id") && ok;
+
+    ok = checkEquals(restored.getSectionPresetId(OrchConductorAudioProcessor::Section::strings),
+                     static_cast<int>(OrchConductorAudioProcessor::Preset::tutti),
+                     "restored strings preset id") && ok;
+
+    ok = checkPass(restored.getSendOnPresetChange(),
+                   "restored send-on-preset-change flag") && ok;
+
+    juce::AudioBuffer<float> buffer;
+    juce::MidiBuffer midi;
+    restored.processBlock(buffer, midi);
+
+    ok = checkPass(restored.getSendOnPresetChange(),
+                   "restored send-on-preset-change flag survives automation sync") && ok;
+
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+    if (restored.isRuntimePresetCatalogAuthorityActive())
+    {
+        ok = checkPass(restored.getRuntimePresetCatalogAuthorityStatus().contains("Runtime JSON: Active"),
+                       "restored processor reports active runtime catalog authority") && ok;
+
+        ok = checkPass(restored.getCombiPresetName().isNotEmpty(),
+                       "restored runtime-authority combi label is non-empty") && ok;
+
+        ok = checkPass(restored.getSectionPresetLabel(OrchConductorAudioProcessor::Section::woodwinds, 19).isNotEmpty(),
+                       "restored runtime-authority woodwinds label is non-empty") && ok;
+
+        ok = checkPass(restored.getSectionPresetLabel(OrchConductorAudioProcessor::Section::brass, 16).isNotEmpty(),
+                       "restored runtime-authority brass label is non-empty") && ok;
+
+        ok = checkPass(restored.getSectionPresetLabel(OrchConductorAudioProcessor::Section::percussion, 8).isNotEmpty(),
+                       "restored runtime-authority percussion label is non-empty") && ok;
+
+        ok = checkPass(restored.getPresetName().isNotEmpty(),
+                       "restored runtime-authority strings label is non-empty") && ok;
+    }
+    else
+    {
+        ok = checkPass(restored.getRuntimePresetCatalogAuthorityStatus().isNotEmpty(),
+                       "restored processor reports non-empty runtime catalog authority status when inactive") && ok;
+    }
+#else
+    ok = checkPass(! restored.isRuntimePresetCatalogAuthorityActive(),
+                   "restored processor runtime catalog authority remains inactive with runtime JSON OFF") && ok;
+#endif
+
+    return ok;
+}
+
 } // namespace
 
 int main()
@@ -278,6 +363,7 @@ int main()
     ok = verifyProcessorRuntimeCatalogCoverageAudit(processor) && ok;
     ok = verifyProcessorRuntimeCatalogAuthorityTrialDiagnostic(processor) && ok;
     ok = verifyHardcodedBehaviorStillAvailable(processor) && ok;
+    ok = verifyProcessorStatePersistenceWithRuntimeCatalogAuthority() && ok;
 
     if (! ok)
         return fail("Processor-side runtime catalog authority probe verification failed.");
@@ -298,6 +384,8 @@ int main()
     std::cout << "[PASS] Phase 5E runtime catalog coverage audit satisfied." << std::endl;
     std::cout << "[PASS] Processor runtime catalog authority trial diagnostic remains passive." << std::endl;
     std::cout << "[PASS] Phase 5G runtime catalog authority trial diagnostic satisfied." << std::endl;
+    std::cout << "[PASS] Phase 6F runtime catalog persistence restore coverage satisfied." << std::endl;
 
     return 0;
 }
+

@@ -1087,7 +1087,7 @@ void OrchConductorAudioProcessor::setStateInformation (const void* data, int siz
         setSectionPresetId (Section::strings, strings);
 
         if (! stream.isExhausted())
-            sendOnPresetChange = stream.readBool();
+            setSendOnPresetChange (stream.readBool());
 
         return;
     }
@@ -1096,7 +1096,7 @@ void OrchConductorAudioProcessor::setStateInformation (const void* data, int siz
         stringsPresetId = firstInt;
 
     if (! stream.isExhausted())
-        sendOnPresetChange = stream.readBool();
+        setSendOnPresetChange (stream.readBool());
 }
 
 int OrchConductorAudioProcessor::getCombiPresetId() const
@@ -1442,6 +1442,10 @@ bool OrchConductorAudioProcessor::consumeSendAllOffRequest()
 void OrchConductorAudioProcessor::setSendOnPresetChange (bool shouldSend)
 {
     sendOnPresetChange = shouldSend;
+
+    if (sendOnPresetChangeParameter != nullptr
+        && sendOnPresetChangeParameter->get() != shouldSend)
+        *sendOnPresetChangeParameter = shouldSend;
 }
 
 bool OrchConductorAudioProcessor::getSendOnPresetChange() const
