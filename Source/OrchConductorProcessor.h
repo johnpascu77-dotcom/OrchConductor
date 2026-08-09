@@ -116,6 +116,7 @@ public:
     int getSectionPresetId (Section section) const;
     int createUserCombiPresetFromCurrentSections (const juce::String& name);
     juce::String exportUserCombiPresetsToJson() const;
+    bool writeUserCombiPresetsJsonToFile (const juce::File& file) const;
     void setSectionPresetId (Section section, int presetId);
     void setSectionPresetIdFromUI (Section section, int presetId);
 

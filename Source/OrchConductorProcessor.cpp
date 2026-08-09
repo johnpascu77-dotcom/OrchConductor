@@ -1403,6 +1403,11 @@ juce::String OrchConductorAudioProcessor::exportUserCombiPresetsToJson() const
 
     return juce::JSON::toString (juce::var (root.get()), true);
 }
+
+bool OrchConductorAudioProcessor::writeUserCombiPresetsJsonToFile (const juce::File& file) const
+{
+    return file.replaceWithText (exportUserCombiPresetsToJson());
+}
 int OrchConductorAudioProcessor::getMaxSectionPresetId (Section section) const
 {
     switch (section)
