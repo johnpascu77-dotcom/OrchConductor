@@ -1280,7 +1280,26 @@ juce::String OrchConductorAudioProcessor::getSectionPresetLabel (Section section
 
 int OrchConductorAudioProcessor::getMaxCombiPresetId() const
 {
-    return maxFactoryCombiPresetId;
+    if (userCombiPresets.empty())
+        return maxFactoryCombiPresetId;
+
+    return std::max (maxFactoryCombiPresetId, userCombiPresets.rbegin()->first);
+}
+
+bool OrchConductorAudioProcessor::isUserCombiPresetId (int presetId) const
+{
+    return presetId >= firstUserCombiPresetId && presetId <= maxCombiPresetParameterId;
+}
+
+int OrchConductorAudioProcessor::getNextAvailableUserCombiPresetId() const
+{
+    for (int presetId = firstUserCombiPresetId; presetId <= maxCombiPresetParameterId; ++presetId)
+    {
+        if (userCombiPresets.find (presetId) == userCombiPresets.end())
+            return presetId;
+    }
+
+    return -1;
 }
 
 int OrchConductorAudioProcessor::getMaxSectionPresetId (Section section) const
@@ -1836,4 +1855,3 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
-

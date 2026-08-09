@@ -135,6 +135,8 @@ public:
     juce::String getCombiPresetLabel (int presetId) const;
     juce::String getSectionPresetLabel (Section section, int presetId) const;
     int getMaxCombiPresetId() const;
+    bool isUserCombiPresetId (int presetId) const;
+    int getNextAvailableUserCombiPresetId() const;
     int getMaxSectionPresetId (Section section) const;
     bool isCombiModeActive() const;
 
@@ -204,6 +206,7 @@ private:
     static constexpr int minCombiPresetId = 0;
     static constexpr int maxFactoryCombiPresetId = static_cast<int> (CombiPreset::soloEnglishHornLament);
     static constexpr int maxCombiPresetParameterId = 127;
+    static constexpr int firstUserCombiPresetId = maxFactoryCombiPresetId + 1;
 
     static constexpr int minSectionPresetId = 0;
 
@@ -270,5 +273,3 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };
-
-
