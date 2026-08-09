@@ -1,7 +1,9 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <map>
 #include "OrchConductorRuntimePresetCatalog.h"
+#include <map>
 
 class OrchConductorAudioProcessor  : public juce::AudioProcessor
 {
@@ -188,6 +190,17 @@ private:
                                              int ccNumber,
                                              int& value) const;
 
+    struct UserCombiPreset
+    {
+        juce::String name;
+
+        int woodwindsPresetId = 0;
+        int brassPresetId = 0;
+        int percussionPresetId = 0;
+        int stringsPresetId = 0;
+    };
+
+    std::map<int, UserCombiPreset> userCombiPresets;
     static constexpr int minCombiPresetId = 0;
     static constexpr int maxFactoryCombiPresetId = static_cast<int> (CombiPreset::soloEnglishHornLament);
     static constexpr int maxCombiPresetParameterId = 127;
@@ -257,3 +270,5 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };
+
+
