@@ -1446,7 +1446,7 @@ bool OrchConductorAudioProcessor::getSectionPresetIdsForCombiPreset (int presetI
                         const int cc = woodwindsCcNumbers[i];
 
                         const int sectionValue = getSectionPresetValueForCc (section, sectionPresetId, cc);
-                        const int combiValue = getCombiPresetValueForCc (cc);
+                        const int combiValue = getCombiPresetValueForCc (presetId, cc);
 
                         if (! valuesMatchAsGate (sectionValue, combiValue))
                         {
@@ -1465,7 +1465,7 @@ bool OrchConductorAudioProcessor::getSectionPresetIdsForCombiPreset (int presetI
                         const int cc = brassCcNumbers[i];
 
                         const int sectionValue = getSectionPresetValueForCc (section, sectionPresetId, cc);
-                        const int combiValue = getCombiPresetValueForCc (cc);
+                        const int combiValue = getCombiPresetValueForCc (presetId, cc);
 
                         if (! valuesMatchAsGate (sectionValue, combiValue))
                         {
@@ -1484,7 +1484,7 @@ bool OrchConductorAudioProcessor::getSectionPresetIdsForCombiPreset (int presetI
                         const int cc = percussionCcNumbers[i];
 
                         const int sectionValue = getSectionPresetValueForCc (section, sectionPresetId, cc);
-                        const int combiValue = getCombiPresetValueForCc (cc);
+                        const int combiValue = getCombiPresetValueForCc (presetId, cc);
 
                         if (! valuesMatchAsGate (sectionValue, combiValue))
                         {
@@ -1503,7 +1503,7 @@ bool OrchConductorAudioProcessor::getSectionPresetIdsForCombiPreset (int presetI
                         const int cc = ccNumbers[i];
 
                         const int sectionValue = getSectionPresetValueForCc (section, sectionPresetId, cc);
-                        const int combiValue = getCombiPresetValueForCc (cc);
+                        const int combiValue = getCombiPresetValueForCc (presetId, cc);
 
                         if (! valuesMatchAsGate (sectionValue, combiValue))
                         {
@@ -2326,12 +2326,16 @@ int OrchConductorAudioProcessor::getSectionPresetValueForCc (Section section, in
 }
 int OrchConductorAudioProcessor::getCombiPresetValueForCc (int ccNumber) const
 {
+    return getCombiPresetValueForCc (combiPresetId, ccNumber);
+}
+int OrchConductorAudioProcessor::getCombiPresetValueForCc (int presetId, int ccNumber) const
+{
     if (ccNumber == reservedHarpCcNumber)
         return 0; // Harp reserved.
 
-    if (isUserCombiPresetId (combiPresetId))
+    if (isUserCombiPresetId (presetId))
     {
-        const auto it = userCombiPresets.find (combiPresetId);
+        const auto it = userCombiPresets.find (presetId);
 
         if (it == userCombiPresets.end())
             return 0;
@@ -2356,7 +2360,7 @@ int OrchConductorAudioProcessor::getCombiPresetValueForCc (int ccNumber) const
         return getSectionPresetValueForCc (Section::strings, preset.stringsPresetId, ccNumber);
     }
 
-    const auto combi = static_cast<CombiPreset> (combiPresetId);
+    const auto combi = static_cast<CombiPreset> (presetId);
 
     switch (combi)
     {

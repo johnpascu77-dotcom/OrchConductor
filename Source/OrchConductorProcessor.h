@@ -292,6 +292,7 @@ private:
     int getBrassPresetValueForIndex (int presetId, int index) const;
     int getPercussionPresetValueForIndex (int presetId, int index) const;
     int getCombiPresetValueForCc (int ccNumber) const;
+    int getCombiPresetValueForCc (int presetId, int ccNumber) const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };
