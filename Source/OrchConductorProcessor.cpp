@@ -7,10 +7,10 @@
 namespace
 {
     constexpr int runtimeSectionPresetAuditMinId = 0;
-    constexpr int runtimeWoodwindPresetAuditMaxId = 19;
-    constexpr int runtimeBrassPresetAuditMaxId = 16;
-    constexpr int runtimePercussionPresetAuditMaxId = 8;
-    constexpr int runtimeStringPresetAuditMaxId = 12;
+    constexpr int runtimeWoodwindPresetAuditMaxId = 27;
+    constexpr int runtimeBrassPresetAuditMaxId = 18;
+    constexpr int runtimePercussionPresetAuditMaxId = 11;
+    constexpr int runtimeStringPresetAuditMaxId = 15;
     constexpr int runtimeCombiPresetAuditMinId = 0;
     constexpr int runtimeCombiPresetAuditMaxId = 28;
     constexpr int runtimeCombiFullPayloadValueCount = 35;
@@ -597,6 +597,10 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
 #endif
 
     loadUserCombiPresetsFromUserLibrary();
+
+#if JUCE_DEBUG
+    debugValidateFactoryCombiSectionCoverage();
+#endif
 }
 
 OrchConductorAudioProcessor::~OrchConductorAudioProcessor()
@@ -1311,7 +1315,15 @@ juce::String OrchConductorAudioProcessor::getSectionPresetLabel (Section section
         "Oboes", "Oboe 1 Only", "Oboe 2 Only", "English Horn Only",
         "Clarinets", "Clarinet 1 Only", "Clarinet 2 Only", "Bass Clarinet Only",
         "Bassoons", "Bassoon 1 Only", "Bassoon 2 Only", "Contrabassoon Only",
-        "High Woodwinds", "Low Woodwinds", "Full Woodwinds"
+        "High Woodwinds", "Low Woodwinds", "Full Woodwinds",
+        "Chamber Woodwinds",
+        "High Orchestra Woodwinds",
+        "Middle Reeds",
+        "Extreme Low Woodwinds",
+        "High Winds Shimmer",
+        "Suspense Winds",
+        "Pointillist Winds",
+        "Sparse Extreme Woodwinds"
     };
 
     static const char* const brass[] =
@@ -1319,13 +1331,18 @@ juce::String OrchConductorAudioProcessor::getSectionPresetLabel (Section section
         "All Off", "Horns", "Horn 1 Only", "Horn 2 Only", "Horn 3 Only", "Horn 4 Only",
         "Trumpets", "Trumpet 1 Only", "Trumpet 2 Only", "Trumpet 3 Only",
         "Trombones", "Trombone 1 Only", "Trombone 2 Only", "Bass Trombone Only",
-        "Tuba Only", "Low Brass", "Full Brass"
+        "Tuba Only", "Low Brass", "Full Brass",
+        "Dark Low Brass",
+        "Sparse Brass Extremes"
     };
 
     static const char* const percussion[] =
     {
         "All Off", "Timpani Only", "Glockenspiel Only", "Xylophone Only", "Marimba Only",
-        "Vibraphone Only", "Tubular Bells Only", "Mallets", "Full Melodic Percussion"
+        "Vibraphone Only", "Tubular Bells Only", "Mallets", "Full Melodic Percussion",
+        "High Orchestra Percussion",
+        "Middle Orchestra Percussion",
+        "Shimmer Percussion"
     };
 
     switch (section)
@@ -1340,6 +1357,12 @@ juce::String OrchConductorAudioProcessor::getSectionPresetLabel (Section section
             return juce::isPositiveAndBelow (presetId, static_cast<int> (std::size (percussion))) ? percussion[presetId] : "Unknown Percussion";
 
         case Section::strings:
+            if (presetId == 14)
+                return "Middle Strings";
+
+            if (presetId == 15)
+                return "Sparse String Extremes";
+
             switch (static_cast<Preset> (presetId))
             {
                 case Preset::allOff:        return "All Off";
@@ -1989,6 +2012,12 @@ int OrchConductorAudioProcessor::getPresetValueForIndex (int index) const
     if (index < 0 || index >= numRows)
         return 0;
 
+    if (stringsPresetId == 14) // Middle Strings: CC51, CC52, CC53
+        return (index == 1 || index == 2 || index == 3) ? 127 : 0;
+
+    if (stringsPresetId == 15) // Sparse String Extremes: CC50, CC54
+        return (index == 0 || index == 4) ? 127 : 0;
+
     switch (getPreset())
     {
         case Preset::allOff:        return 0;
@@ -2066,6 +2095,29 @@ int OrchConductorAudioProcessor::getWoodwindsPresetValueForIndex (int index) con
             return (index >= 8 && index <= 11) ? 127 : 0;
 
         case 19: return 127;                     // Full Woodwinds
+        case 20: // Chamber Woodwinds: CC21, CC23, CC26, CC29
+            return (index == 1 || index == 3 || index == 6 || index == 9) ? 127 : 0;
+
+        case 21: // High Orchestra Woodwinds: CC20, CC21, CC22, CC23, CC24
+            return (index >= 0 && index <= 4) ? 127 : 0;
+
+        case 22: // Middle Reeds: CC25, CC26, CC27
+            return (index >= 5 && index <= 7) ? 127 : 0;
+
+        case 23: // Extreme Low Woodwinds: CC28, CC31
+            return (index == 8 || index == 11) ? 127 : 0;
+
+        case 24: // High Winds Shimmer: CC20, CC21, CC22
+            return (index >= 0 && index <= 2) ? 127 : 0;
+
+        case 25: // Suspense Winds: CC23, CC25, CC26, CC28, CC29, CC30
+            return (index == 3 || index == 5 || index == 6 || index == 8 || index == 9 || index == 10) ? 127 : 0;
+
+        case 26: // Pointillist Winds: CC20, CC23, CC26, CC29
+            return (index == 0 || index == 3 || index == 6 || index == 9) ? 127 : 0;
+
+        case 27: // Sparse Extreme Woodwinds: CC20, CC31
+            return (index == 0 || index == 11) ? 127 : 0;
     }
 
     return 0;
@@ -2105,6 +2157,11 @@ int OrchConductorAudioProcessor::getBrassPresetValueForIndex (int index) const
             return (index >= 7 && index <= 10) ? 127 : 0;
 
         case 16: return 127;                     // Full Brass
+        case 17: // Dark Low Brass: CC41, CC42
+            return (index == 9 || index == 10) ? 127 : 0;
+
+        case 18: // Sparse Brass Extremes: CC36, CC41
+            return (index == 4 || index == 9) ? 127 : 0;
     }
 
     return 0;
@@ -2129,6 +2186,14 @@ int OrchConductorAudioProcessor::getPercussionPresetValueForIndex (int index) co
             return (index >= 1 && index <= 5) ? 127 : 0;
 
         case 8: return 127;                      // Full Melodic Percussion
+        case 9: // High Orchestra Percussion: CC44, CC45, CC47, CC48
+            return (index == 1 || index == 2 || index == 4 || index == 5) ? 127 : 0;
+
+        case 10: // Middle Orchestra Percussion: CC46, CC47
+            return (index == 3 || index == 4) ? 127 : 0;
+
+        case 11: // Shimmer Percussion: CC44, CC47, CC48
+            return (index == 1 || index == 4 || index == 5) ? 127 : 0;
     }
 
     return 0;
@@ -2139,6 +2204,12 @@ int OrchConductorAudioProcessor::getStringsPresetValueForIndex (int presetId, in
 {
     if (index < 0 || index >= numRows)
         return 0;
+
+    if (presetId == 14) // Middle Strings: CC51, CC52, CC53
+        return (index == 1 || index == 2 || index == 3) ? 127 : 0;
+
+    if (presetId == 15) // Sparse String Extremes: CC50, CC54
+        return (index == 0 || index == 4) ? 127 : 0;
 
     switch (static_cast<Preset> (presetId))
     {
@@ -2217,6 +2288,29 @@ int OrchConductorAudioProcessor::getWoodwindsPresetValueForIndex (int presetId, 
             return (index >= 8 && index <= 11) ? 127 : 0;
 
         case 19: return 127;                    // Full Woodwinds
+        case 20: // Chamber Woodwinds: CC21, CC23, CC26, CC29
+            return (index == 1 || index == 3 || index == 6 || index == 9) ? 127 : 0;
+
+        case 21: // High Orchestra Woodwinds: CC20, CC21, CC22, CC23, CC24
+            return (index >= 0 && index <= 4) ? 127 : 0;
+
+        case 22: // Middle Reeds: CC25, CC26, CC27
+            return (index >= 5 && index <= 7) ? 127 : 0;
+
+        case 23: // Extreme Low Woodwinds: CC28, CC31
+            return (index == 8 || index == 11) ? 127 : 0;
+
+        case 24: // High Winds Shimmer: CC20, CC21, CC22
+            return (index >= 0 && index <= 2) ? 127 : 0;
+
+        case 25: // Suspense Winds: CC23, CC25, CC26, CC28, CC29, CC30
+            return (index == 3 || index == 5 || index == 6 || index == 8 || index == 9 || index == 10) ? 127 : 0;
+
+        case 26: // Pointillist Winds: CC20, CC23, CC26, CC29
+            return (index == 0 || index == 3 || index == 6 || index == 9) ? 127 : 0;
+
+        case 27: // Sparse Extreme Woodwinds: CC20, CC31
+            return (index == 0 || index == 11) ? 127 : 0;
     }
 
     return 0;
@@ -2256,6 +2350,11 @@ int OrchConductorAudioProcessor::getBrassPresetValueForIndex (int presetId, int 
             return (index >= 7 && index <= 10) ? 127 : 0;
 
         case 16: return 127;                    // Full Brass
+        case 17: // Dark Low Brass: CC41, CC42
+            return (index == 9 || index == 10) ? 127 : 0;
+
+        case 18: // Sparse Brass Extremes: CC36, CC41
+            return (index == 4 || index == 9) ? 127 : 0;
     }
 
     return 0;
@@ -2280,17 +2379,20 @@ int OrchConductorAudioProcessor::getPercussionPresetValueForIndex (int presetId,
             return (index >= 1 && index <= 5) ? 127 : 0;
 
         case 8: return 127;                     // Full Melodic Percussion
+        case 9: // High Orchestra Percussion: CC44, CC45, CC47, CC48
+            return (index == 1 || index == 2 || index == 4 || index == 5) ? 127 : 0;
+
+        case 10: // Middle Orchestra Percussion: CC46, CC47
+            return (index == 3 || index == 4) ? 127 : 0;
+
+        case 11: // Shimmer Percussion: CC44, CC47, CC48
+            return (index == 1 || index == 4 || index == 5) ? 127 : 0;
     }
 
     return 0;
 }
 int OrchConductorAudioProcessor::getSectionPresetValueForCc (Section section, int presetId, int ccNumber) const
 {
-    int value = 0;
-
-    if (tryGetRuntimeSectionPresetValueForCc (section, presetId, ccNumber, value))
-        return value;
-
     switch (section)
     {
         case Section::woodwinds:
@@ -2324,6 +2426,169 @@ int OrchConductorAudioProcessor::getSectionPresetValueForCc (Section section, in
 
     return 0;
 }
+bool OrchConductorAudioProcessor::isCombiSectionGateActive (int combiPresetIdToCheck, Section section) const
+{
+    const int* activeCcNumbers = nullptr;
+    int numCcs = 0;
+
+    switch (section)
+    {
+        case Section::woodwinds:
+            activeCcNumbers = woodwindsCcNumbers;
+            numCcs = numWoodwindsRows;
+            break;
+
+        case Section::brass:
+            activeCcNumbers = brassCcNumbers;
+            numCcs = numBrassRows;
+            break;
+
+        case Section::percussion:
+            activeCcNumbers = percussionCcNumbers;
+            numCcs = numPercussionRows;
+            break;
+
+        case Section::strings:
+            activeCcNumbers = ccNumbers;
+            numCcs = numRows;
+            break;
+    }
+
+    for (int i = 0; i < numCcs; ++i)
+    {
+        const int cc = activeCcNumbers[i];
+        const int value = getCombiPresetValueForCc (combiPresetIdToCheck, cc);
+
+        if (value >= 64)
+            return true;
+    }
+
+    return false;
+}
+
+juce::String OrchConductorAudioProcessor::getCombiSectionActiveCcDebugString (int combiPresetIdToCheck, Section section) const
+{
+    const int* activeCcNumbers = nullptr;
+    int numCcs = 0;
+
+    switch (section)
+    {
+        case Section::woodwinds:
+            activeCcNumbers = woodwindsCcNumbers;
+            numCcs = numWoodwindsRows;
+            break;
+
+        case Section::brass:
+            activeCcNumbers = brassCcNumbers;
+            numCcs = numBrassRows;
+            break;
+
+        case Section::percussion:
+            activeCcNumbers = percussionCcNumbers;
+            numCcs = numPercussionRows;
+            break;
+
+        case Section::strings:
+            activeCcNumbers = ccNumbers;
+            numCcs = numRows;
+            break;
+    }
+
+    juce::String result;
+
+    for (int i = 0; i < numCcs; ++i)
+    {
+        const int cc = activeCcNumbers[i];
+        const int value = getCombiPresetValueForCc (combiPresetIdToCheck, cc);
+
+        if (value >= 64)
+        {
+            if (result.isNotEmpty())
+                result += ", ";
+
+            result += "CC" + juce::String (cc);
+        }
+    }
+
+    if (result.isEmpty())
+        result = "(none)";
+
+    return result;
+}
+
+void OrchConductorAudioProcessor::debugValidateFactoryCombiSectionCoverage() const
+{
+    DBG ("");
+    DBG ("=== Factory Combi Section Coverage / Atom-Molecule Normalization ===");
+
+    int unresolvedCount = 0;
+
+    for (int presetId = 0; presetId <= maxFactoryCombiPresetId; ++presetId)
+    {
+        if (isUserCombiPresetId (presetId))
+            continue;
+
+        int woodwindsPresetId = 0;
+        int brassPresetId = 0;
+        int percussionPresetId = 0;
+        int stringsPresetId = 0;
+
+        const bool resolved = getSectionPresetIdsForCombiPreset (
+            presetId,
+            woodwindsPresetId,
+            brassPresetId,
+            percussionPresetId,
+            stringsPresetId);
+
+        const bool woodwindsActive = isCombiSectionGateActive (presetId, Section::woodwinds);
+        const bool brassActive = isCombiSectionGateActive (presetId, Section::brass);
+        const bool percussionActive = isCombiSectionGateActive (presetId, Section::percussion);
+        const bool stringsActive = isCombiSectionGateActive (presetId, Section::strings);
+
+        bool hasUnresolvedActiveSection = false;
+
+        if (woodwindsActive && woodwindsPresetId == 0)
+            hasUnresolvedActiveSection = true;
+
+        if (brassActive && brassPresetId == 0)
+            hasUnresolvedActiveSection = true;
+
+        if (percussionActive && percussionPresetId == 0)
+            hasUnresolvedActiveSection = true;
+
+        if (stringsActive && stringsPresetId == 0)
+            hasUnresolvedActiveSection = true;
+
+        if (hasUnresolvedActiveSection || ! resolved)
+        {
+            ++unresolvedCount;
+
+            DBG ("UNRESOLVED COMBI " << presetId << " " << getCombiPresetLabel (presetId));
+            DBG ("  Resolved flag: " << (resolved ? "true" : "false"));
+            DBG ("  Revealed atoms: WW " << woodwindsPresetId
+                 << ", BR " << brassPresetId
+                 << ", PC " << percussionPresetId
+                 << ", ST " << stringsPresetId);
+
+            if (woodwindsActive && woodwindsPresetId == 0)
+                DBG ("  Missing Woodwinds atom: " << getCombiSectionActiveCcDebugString (presetId, Section::woodwinds));
+
+            if (brassActive && brassPresetId == 0)
+                DBG ("  Missing Brass atom: " << getCombiSectionActiveCcDebugString (presetId, Section::brass));
+
+            if (percussionActive && percussionPresetId == 0)
+                DBG ("  Missing Percussion atom: " << getCombiSectionActiveCcDebugString (presetId, Section::percussion));
+
+            if (stringsActive && stringsPresetId == 0)
+                DBG ("  Missing Strings atom: " << getCombiSectionActiveCcDebugString (presetId, Section::strings));
+        }
+    }
+
+    DBG ("Factory combi unresolved molecule count: " << unresolvedCount);
+    DBG ("=== End Factory Combi Section Coverage ===");
+    DBG ("");
+}
+
 int OrchConductorAudioProcessor::getCombiPresetValueForCc (int ccNumber) const
 {
     return getCombiPresetValueForCc (combiPresetId, ccNumber);

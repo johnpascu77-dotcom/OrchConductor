@@ -228,12 +228,12 @@ private:
     static constexpr int minSectionPresetId = 0;
 
     // Phase 1H expanded section dropdown limits.
-    static constexpr int maxWoodwindsPresetId = 19;
-    static constexpr int maxBrassPresetId = 16;
-    static constexpr int maxPercussionPresetId = 8;
+    static constexpr int maxWoodwindsPresetId = 27;
+    static constexpr int maxBrassPresetId = 18;
+    static constexpr int maxPercussionPresetId = 11;
 
     static constexpr int minStringsPresetId = 0;
-    static constexpr int maxStringsPresetId = static_cast<int> (Preset::tutti);
+    static constexpr int maxStringsPresetId = 15;
 
     int combiPresetId { static_cast<int> (CombiPreset::manualSections) };
 
@@ -293,6 +293,10 @@ private:
     int getPercussionPresetValueForIndex (int presetId, int index) const;
     int getCombiPresetValueForCc (int ccNumber) const;
     int getCombiPresetValueForCc (int presetId, int ccNumber) const;
+
+    bool isCombiSectionGateActive (int combiPresetIdToCheck, Section section) const;
+    juce::String getCombiSectionActiveCcDebugString (int combiPresetIdToCheck, Section section) const;
+    void debugValidateFactoryCombiSectionCoverage() const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };

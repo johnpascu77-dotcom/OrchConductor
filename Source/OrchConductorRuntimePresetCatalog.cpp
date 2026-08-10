@@ -1,13 +1,13 @@
-﻿#include "OrchConductorRuntimePresetCatalog.h"
+#include "OrchConductorRuntimePresetCatalog.h"
 
 namespace
 {
 
 constexpr int expectedFactorySectionCount = 5;
-constexpr int expectedFactoryWoodwindPresetCount = 20;
-constexpr int expectedFactoryBrassPresetCount = 17;
-constexpr int expectedFactoryPercussionPresetCount = 9;
-constexpr int expectedFactoryStringPresetCount = 14;
+constexpr int expectedFactoryWoodwindPresetCount = 28;
+constexpr int expectedFactoryBrassPresetCount = 19;
+constexpr int expectedFactoryPercussionPresetCount = 12;
+constexpr int expectedFactoryStringPresetCount = 16;
 constexpr int expectedFactoryCombiPresetCount = 29;
 
 orchconductor::SectionPresetDefinition makeFallbackSectionPreset(const juce::String& section,
