@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <JuceHeader.h>
 #include <vector>
@@ -72,6 +72,31 @@ struct PlayerProfile
     }
 };
 
+struct NarrativeMetadata
+{
+    double energy = 0.0;
+    double density = 0.0;
+    double brightness = 0.0;
+    double weight = 0.0;
+    double tension = 0.0;
+
+    juce::String registerName { "mixed" };
+    juce::String role { "utility" };
+    juce::String transitionBehavior { "neutral" };
+    juce::String narrativeLane;
+
+    bool isValid() const noexcept
+    {
+        return energy >= 0.0 && energy <= 1.0
+            && density >= 0.0 && density <= 1.0
+            && brightness >= 0.0 && brightness <= 1.0
+            && weight >= 0.0 && weight <= 1.0
+            && tension >= 0.0 && tension <= 1.0
+            && registerName.isNotEmpty()
+            && role.isNotEmpty()
+            && transitionBehavior.isNotEmpty();
+    }
+};
 struct SectionPresetDefinition
 {
     juce::String id;
@@ -80,12 +105,14 @@ struct SectionPresetDefinition
     int factoryId = 0;
     std::vector<PresetValue> values;
 
-    bool isValid() const noexcept
+        NarrativeMetadata metadata;
+bool isValid() const noexcept
     {
         if (id.isEmpty()
             || name.isEmpty()
             || section.isEmpty()
-            || factoryId < 0)
+            || factoryId < 0
+            || ! metadata.isValid())
         {
             return false;
         }
@@ -109,12 +136,14 @@ struct CombiPresetDefinition
     int factoryId = 0;
     std::vector<PresetValue> values;
 
-    bool isValid() const noexcept
+        NarrativeMetadata metadata;
+bool isValid() const noexcept
     {
         if (id.isEmpty()
             || name.isEmpty()
             || category.isEmpty()
-            || factoryId < 0)
+            || factoryId < 0
+            || ! metadata.isValid())
         {
             return false;
         }
