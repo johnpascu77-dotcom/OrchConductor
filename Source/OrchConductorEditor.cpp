@@ -684,11 +684,29 @@ void OrchConductorAudioProcessorEditor::updateNarrativeMetadataDisplay()
 {
     orchconductor::NarrativeMetadata metadata;
 
-    if (! audioProcessor.getCombiPresetNarrativeMetadata (audioProcessor.getCombiPresetId(), metadata))
+    const auto presetId = audioProcessor.getCombiPresetId();
+
+    if (! audioProcessor.getCombiPresetNarrativeMetadata (presetId, metadata))
     {
-        narrativeMetadataValueLabel.setText (
-            "Narrative metadata unavailable for selected combi.",
-            juce::dontSendNotification);
+        juce::String unavailableText;
+
+        if (presetId == 0)
+        {
+            unavailableText = "Narrative metadata unavailable in Manual Sections mode.";
+        }
+        else if (! audioProcessor.isUserCombiPresetId (presetId)
+                 && ! audioProcessor.isRuntimePresetCatalogAuthorityActive())
+        {
+            unavailableText =
+                "Narrative metadata unavailable for factory fallback combis.\n"
+                "Runtime JSON catalog metadata is required.";
+        }
+        else
+        {
+            unavailableText = "Narrative metadata unavailable for selected combi.";
+        }
+
+        narrativeMetadataValueLabel.setText (unavailableText, juce::dontSendNotification);
         return;
     }
 
