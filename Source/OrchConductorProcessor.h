@@ -150,6 +150,8 @@ public:
     juce::String getPresetName() const;
     juce::String getCombiPresetName() const;
     juce::String getCombiPresetLabel (int presetId) const;
+    bool getCombiPresetNarrativeMetadata (int presetId,
+                                          orchconductor::NarrativeMetadata& metadata) const;
     juce::String getSectionPresetLabel (Section section, int presetId) const;
     int getMaxCombiPresetId() const;
     bool isUserCombiPresetId (int presetId) const;

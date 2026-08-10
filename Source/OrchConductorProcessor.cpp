@@ -1391,6 +1391,22 @@ juce::String OrchConductorAudioProcessor::getCombiPresetLabel (int presetId) con
     return "Unknown Combi";
 }
 
+bool OrchConductorAudioProcessor::getCombiPresetNarrativeMetadata (
+    int presetId,
+    orchconductor::NarrativeMetadata& metadata) const
+{
+    if (! isUserCombiPresetId (presetId))
+        return false;
+
+    const auto it = userCombiPresets.find (presetId);
+
+    if (it == userCombiPresets.end())
+        return false;
+
+    metadata = it->second.metadata;
+    return true;
+}
+
 juce::String OrchConductorAudioProcessor::getSectionPresetLabel (Section section, int presetId) const
 {
     if (presetId < minSectionPresetId || presetId > getMaxSectionPresetId (section))

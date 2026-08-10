@@ -40,6 +40,8 @@ private:
     juce::Label stringsPanelLabel;
     juce::Label tableHeaderLabel;
     juce::Label tableRowsLabel;
+    juce::Label narrativeMetadataLabel;
+    juce::Label narrativeMetadataValueLabel;
     juce::Label ccMapLabel;
     juce::Label statusLabel;
 
@@ -66,6 +68,7 @@ private:
     std::unique_ptr<juce::FileChooser> userCombiExportChooser;
     std::unique_ptr<juce::FileChooser> userCombiImportChooser;
     void updateStatus();
+    void updateNarrativeMetadataDisplay();
     void updateOutputTable();
     void updateWoodwindsOutputTable();
     void updateBrassOutputTable();

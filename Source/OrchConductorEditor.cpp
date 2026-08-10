@@ -22,6 +22,11 @@ namespace
         return juce::String (presetId).paddedLeft ('0', 2) + " " + label;
     }
 
+    juce::String formatMetadataValue (double value)
+    {
+        return juce::String (value, 2);
+    }
+
     void addCombiPresetItems (juce::ComboBox& box, const OrchConductorAudioProcessor& processor)
     {
         box.clear (juce::dontSendNotification);
@@ -109,7 +114,7 @@ namespace
 OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConductorAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
-    setSize (980, 660);
+    setSize (980, 760);
 
     titleLabel.setText ("OrchConductor", juce::dontSendNotification);
     titleLabel.setJustificationType (juce::Justification::centred);
@@ -142,6 +147,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     {
         const int selected = combiPresetBox.getSelectedId() - 1;
         audioProcessor.setCombiPresetIdFromUI (selected);
+        updateNarrativeMetadataDisplay();
         updateStatus();
     };
 
@@ -414,6 +420,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
 
                 addCombiPresetItems (combiPresetBox, audioProcessor);
                 combiPresetBox.setSelectedId (audioProcessor.getCombiPresetId() + 1, juce::dontSendNotification);
+                updateNarrativeMetadataDisplay();
 
                 lastActionText = saved
                     ? "Last action: Imported user combi presets from " + file.getFileName()
@@ -489,6 +496,16 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     tableRowsLabel.setJustificationType (juce::Justification::topLeft);
     // Hidden in main UI.
 
+    narrativeMetadataLabel.setText ("Narrative Metadata", juce::dontSendNotification);
+    narrativeMetadataLabel.setJustificationType (juce::Justification::centred);
+    styleLabel (narrativeMetadataLabel, juce::Colour::fromRGB (245, 245, 245), 14.0f, juce::Font::bold);
+    addAndMakeVisible (narrativeMetadataLabel);
+
+    narrativeMetadataValueLabel.setJustificationType (juce::Justification::centred);
+    narrativeMetadataValueLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (205, 220, 230));
+    narrativeMetadataValueLabel.setFont (juce::FontOptions (12.0f));
+    addAndMakeVisible (narrativeMetadataValueLabel);
+
     ccMapLabel.setText (
         "Phase 9B: runtime combi workflow UX | CC49 reserved for Harp",
         juce::dontSendNotification);
@@ -506,6 +523,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     updateWoodwindsOutputTable();
     updateBrassOutputTable();
     updatePercussionOutputTable();
+    updateNarrativeMetadataDisplay();
     updateStatus();
 
     // Phase 2A: keep UI synced when host restores plugin state after editor creation.
@@ -605,7 +623,12 @@ void OrchConductorAudioProcessorEditor::resized()
     stringsPresetLabel.setBounds (rightBottom.removeFromLeft (110));
     presetBox.setBounds (rightBottom);
 
-    area.removeFromTop (18);
+    area.removeFromTop (14);
+
+    narrativeMetadataLabel.setBounds (area.removeFromTop (22));
+    narrativeMetadataValueLabel.setBounds (area.removeFromTop (64).reduced (8, 0));
+
+    area.removeFromTop (10);
 
     auto buttonRow = area.removeFromTop (42);
     sendButton.setBounds (buttonRow.removeFromLeft (280).withSizeKeepingCentre (240, 36));
@@ -617,8 +640,8 @@ void OrchConductorAudioProcessorEditor::resized()
     auto midiMapRow = area.removeFromTop (38);
     midiMapButton.setBounds (midiMapRow.withSizeKeepingCentre (200, 34));
 
-    ccMapLabel.setBounds (48, 578, 884, 24);
-    statusLabel.setBounds (48, 606, 884, 28);
+    ccMapLabel.setBounds (48, 678, 884, 24);
+    statusLabel.setBounds (48, 706, 884, 28);
 }
 
 
@@ -629,7 +652,10 @@ void OrchConductorAudioProcessorEditor::timerCallback()
 
     const int combiId = audioProcessor.getCombiPresetId() + 1;
     if (combiPresetBox.getSelectedId() != combiId)
+    {
         combiPresetBox.setSelectedId (combiId, juce::dontSendNotification);
+        updateNarrativeMetadataDisplay();
+    }
 
     const int woodwindsId = audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::woodwinds) + 1;
     if (woodwindsPresetBox.getSelectedId() != woodwindsId)
@@ -652,6 +678,39 @@ void OrchConductorAudioProcessorEditor::timerCallback()
         sendOnChangeToggle.setToggleState (sendOnChange, juce::dontSendNotification);
 
     updateStatus();
+}
+
+void OrchConductorAudioProcessorEditor::updateNarrativeMetadataDisplay()
+{
+    orchconductor::NarrativeMetadata metadata;
+
+    if (! audioProcessor.getCombiPresetNarrativeMetadata (audioProcessor.getCombiPresetId(), metadata))
+    {
+        narrativeMetadataValueLabel.setText (
+            "Narrative metadata unavailable for selected combi.",
+            juce::dontSendNotification);
+        return;
+    }
+
+    const auto registerName = metadata.registerName.isNotEmpty() ? metadata.registerName : "unspecified";
+    const auto role = metadata.role.isNotEmpty() ? metadata.role : "unspecified";
+    const auto transitionBehavior = metadata.transitionBehavior.isNotEmpty() ? metadata.transitionBehavior : "unspecified";
+    const auto narrativeLane = metadata.narrativeLane.isNotEmpty() ? metadata.narrativeLane : "unspecified";
+
+    juce::String text;
+    text << "Energy " << formatMetadataValue (metadata.energy)
+         << " | Density " << formatMetadataValue (metadata.density)
+         << " | Brightness " << formatMetadataValue (metadata.brightness)
+         << " | Weight " << formatMetadataValue (metadata.weight)
+         << " | Tension " << formatMetadataValue (metadata.tension)
+         << "\n"
+         << "Register: " << registerName
+         << " | Role: " << role
+         << "\n"
+         << "Transition: " << transitionBehavior
+         << " | Lane: " << narrativeLane;
+
+    narrativeMetadataValueLabel.setText (text, juce::dontSendNotification);
 }
 
 void OrchConductorAudioProcessorEditor::updateStatus()
