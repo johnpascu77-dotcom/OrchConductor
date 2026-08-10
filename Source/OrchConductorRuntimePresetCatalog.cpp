@@ -258,6 +258,22 @@ juce::String OrchConductorRuntimePresetCatalog::getCombiPresetLabel(int presetIn
     return library_.combiPresets[index].name;
 }
 
+bool OrchConductorRuntimePresetCatalog::getCombiPresetNarrativeMetadata(
+    int presetIndex,
+    orchconductor::NarrativeMetadata& metadata) const
+{
+    if (presetIndex < 0)
+        return false;
+
+    const auto index = static_cast<size_t>(presetIndex);
+
+    if (index >= library_.combiPresets.size())
+        return false;
+
+    metadata = library_.combiPresets[index].metadata;
+    return metadata.isValid();
+}
+
 int OrchConductorRuntimePresetCatalog::getSectionPresetValueCount(const juce::String& sectionId,
                                                                   int presetIndex) const noexcept
 {

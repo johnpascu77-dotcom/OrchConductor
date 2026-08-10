@@ -37,6 +37,8 @@ public:
 
     juce::String getSectionPresetLabel(const juce::String& sectionId, int presetIndex) const;
     juce::String getCombiPresetLabel(int presetIndex) const;
+    bool getCombiPresetNarrativeMetadata(int presetIndex,
+                                         orchconductor::NarrativeMetadata& metadata) const;
 
     int getSectionPresetValueCount(const juce::String& sectionId, int presetIndex) const noexcept;
     int getCombiPresetValueCount(int presetIndex) const noexcept;

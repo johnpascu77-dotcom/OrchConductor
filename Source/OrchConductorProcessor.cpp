@@ -1395,16 +1395,21 @@ bool OrchConductorAudioProcessor::getCombiPresetNarrativeMetadata (
     int presetId,
     orchconductor::NarrativeMetadata& metadata) const
 {
-    if (! isUserCombiPresetId (presetId))
-        return false;
+    if (isUserCombiPresetId (presetId))
+    {
+        const auto it = userCombiPresets.find (presetId);
 
-    const auto it = userCombiPresets.find (presetId);
+        if (it == userCombiPresets.end())
+            return false;
 
-    if (it == userCombiPresets.end())
-        return false;
+        metadata = it->second.metadata;
+        return true;
+    }
 
-    metadata = it->second.metadata;
-    return true;
+    if (runtimePresetCatalogAuthorityActive)
+        return runtimePresetCatalog.getCombiPresetNarrativeMetadata (presetId, metadata);
+
+    return false;
 }
 
 juce::String OrchConductorAudioProcessor::getSectionPresetLabel (Section section, int presetId) const
