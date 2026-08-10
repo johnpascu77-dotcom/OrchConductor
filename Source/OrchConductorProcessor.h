@@ -3,7 +3,6 @@
 #include <JuceHeader.h>
 #include <map>
 #include "OrchConductorRuntimePresetCatalog.h"
-#include <map>
 
 class OrchConductorAudioProcessor  : public juce::AudioProcessor
 {
@@ -113,11 +112,25 @@ public:
     void setCombiPresetId (int presetId);
     void setCombiPresetIdFromUI (int presetId);
 
+    bool getSectionPresetIdsForCombiPreset (int combiPresetId,
+                                        int& woodwinds,
+                                        int& brass,
+                                        int& percussion,
+                                        int& strings) const;
+
     int getSectionPresetId (Section section) const;
+
     int createUserCombiPresetFromCurrentSections (const juce::String& name);
     bool deleteUserCombiPreset (int presetId);
+
+    juce::File getUserCombiLibraryFile() const;
+    void loadUserCombiPresetsFromUserLibrary();
+    bool saveUserCombiPresetsToUserLibrary() const;
+    bool importUserCombiPresetsFromJson (const juce::String& jsonText);
+
     juce::String exportUserCombiPresetsToJson() const;
     bool writeUserCombiPresetsJsonToFile (const juce::File& file) const;
+
     void setSectionPresetId (Section section, int presetId);
     void setSectionPresetIdFromUI (Section section, int presetId);
 
@@ -282,3 +295,4 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };
+

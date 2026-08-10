@@ -595,6 +595,8 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
     runtimeCatalogAuthorityTrialDiagnostic =
         "Runtime catalog authority trial is inactive because runtime JSON presets are disabled.";
 #endif
+
+    loadUserCombiPresetsFromUserLibrary();
 }
 
 OrchConductorAudioProcessor::~OrchConductorAudioProcessor()
@@ -1176,12 +1178,42 @@ void OrchConductorAudioProcessor::setCombiPresetId (int presetId)
 
     combiPresetId = presetId;
 
+    int mappedWoodwinds = woodwindsPresetId;
+    int mappedBrass = brassPresetId;
+    int mappedPercussion = percussionPresetId;
+    int mappedStrings = stringsPresetId;
+
+    if (getSectionPresetIdsForCombiPreset (presetId,
+                                           mappedWoodwinds,
+                                           mappedBrass,
+                                           mappedPercussion,
+                                           mappedStrings))
+    {
+        woodwindsPresetId = mappedWoodwinds;
+        brassPresetId = mappedBrass;
+        percussionPresetId = mappedPercussion;
+        stringsPresetId = mappedStrings;
+
+        if (woodwindsPresetParameter != nullptr && woodwindsPresetParameter->get() != woodwindsPresetId)
+            *woodwindsPresetParameter = woodwindsPresetId;
+
+        if (brassPresetParameter != nullptr && brassPresetParameter->get() != brassPresetId)
+            *brassPresetParameter = brassPresetId;
+
+        if (percussionPresetParameter != nullptr && percussionPresetParameter->get() != percussionPresetId)
+            *percussionPresetParameter = percussionPresetId;
+
+        if (stringsPresetParameter != nullptr && stringsPresetParameter->get() != stringsPresetId)
+            *stringsPresetParameter = stringsPresetId;
+    }
+
     if (combiPresetParameter != nullptr && combiPresetParameter->get() != presetId)
         *combiPresetParameter = presetId;
 
     if (changed && sendOnPresetChange)
         requestSendPreset();
 }
+
 bool OrchConductorAudioProcessor::isCombiModeActive() const
 {
     return combiPresetId != static_cast<int> (CombiPreset::manualSections);
@@ -1356,6 +1388,132 @@ int OrchConductorAudioProcessor::getNextAvailableUserCombiPresetId() const
     return -1;
 }
 
+bool OrchConductorAudioProcessor::getSectionPresetIdsForCombiPreset (int presetId,
+                                                                     int& woodwinds,
+                                                                     int& brass,
+                                                                     int& percussion,
+                                                                     int& strings) const
+{
+    if (isUserCombiPresetId (presetId))
+    {
+        const auto it = userCombiPresets.find (presetId);
+
+        if (it == userCombiPresets.end())
+            return false;
+
+        woodwinds = it->second.woodwindsPresetId;
+        brass = it->second.brassPresetId;
+        percussion = it->second.percussionPresetId;
+        strings = it->second.stringsPresetId;
+
+        return true;
+    }
+
+    if (presetId == static_cast<int> (CombiPreset::manualSections))
+    {
+        woodwinds = woodwindsPresetId;
+        brass = brassPresetId;
+        percussion = percussionPresetId;
+        strings = stringsPresetId;
+
+        return true;
+    }
+
+    woodwinds = minSectionPresetId;
+    brass = minSectionPresetId;
+    percussion = minSectionPresetId;
+    strings = minSectionPresetId;
+
+    const auto findMatch = [this, presetId] (Section section) -> int
+    {
+        const int maxPresetId = getMaxSectionPresetId (section);
+
+        for (int sectionPresetId = minSectionPresetId; sectionPresetId <= maxPresetId; ++sectionPresetId)
+        {
+            bool matches = true;
+
+            switch (section)
+            {
+                case Section::woodwinds:
+                {
+                    for (int i = 0; i < numWoodwindsRows; ++i)
+                    {
+                        const int cc = woodwindsCcNumbers[i];
+
+                        if (getSectionPresetValueForCc (section, sectionPresetId, cc) != getCombiPresetValueForCc (cc))
+                        {
+                            matches = false;
+                            break;
+                        }
+                    }
+
+                    break;
+                }
+
+                case Section::brass:
+                {
+                    for (int i = 0; i < numBrassRows; ++i)
+                    {
+                        const int cc = brassCcNumbers[i];
+
+                        if (getSectionPresetValueForCc (section, sectionPresetId, cc) != getCombiPresetValueForCc (cc))
+                        {
+                            matches = false;
+                            break;
+                        }
+                    }
+
+                    break;
+                }
+
+                case Section::percussion:
+                {
+                    for (int i = 0; i < numPercussionRows; ++i)
+                    {
+                        const int cc = percussionCcNumbers[i];
+
+                        if (getSectionPresetValueForCc (section, sectionPresetId, cc) != getCombiPresetValueForCc (cc))
+                        {
+                            matches = false;
+                            break;
+                        }
+                    }
+
+                    break;
+                }
+
+                case Section::strings:
+                {
+                    for (int i = 0; i < numRows; ++i)
+                    {
+                        const int cc = ccNumbers[i];
+
+                        if (getSectionPresetValueForCc (section, sectionPresetId, cc) != getCombiPresetValueForCc (cc))
+                        {
+                            matches = false;
+                            break;
+                        }
+                    }
+
+                    break;
+                }
+            }
+
+            if (matches)
+                return sectionPresetId;
+        }
+
+        return minSectionPresetId;
+    };
+
+    woodwinds = findMatch (Section::woodwinds);
+    brass = findMatch (Section::brass);
+    percussion = findMatch (Section::percussion);
+    strings = findMatch (Section::strings);
+
+    return true;
+}
+
 int OrchConductorAudioProcessor::createUserCombiPresetFromCurrentSections (const juce::String& name)
 {
     const auto presetId = getNextAvailableUserCombiPresetId();
@@ -1371,6 +1529,8 @@ int OrchConductorAudioProcessor::createUserCombiPresetFromCurrentSections (const
     preset.stringsPresetId = getSectionPresetId (Section::strings);
 
     userCombiPresets[presetId] = preset;
+
+    saveUserCombiPresetsToUserLibrary();
 
     return presetId;
 }
@@ -1388,7 +1548,111 @@ bool OrchConductorAudioProcessor::deleteUserCombiPreset (int presetId)
     if (getCombiPresetId() == presetId)
         setCombiPresetIdFromUI (minCombiPresetId);
 
+    saveUserCombiPresetsToUserLibrary();
+
     return true;
+}
+
+juce::File OrchConductorAudioProcessor::getUserCombiLibraryFile() const
+{
+    auto dir = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                   .getChildFile ("OrchConductor");
+
+    return dir.getChildFile ("UserCombiPresets.json");
+}
+
+bool OrchConductorAudioProcessor::importUserCombiPresetsFromJson (const juce::String& jsonText)
+{
+    auto parsed = juce::JSON::parse (jsonText);
+
+    if (! parsed.isObject())
+        return false;
+
+    auto* root = parsed.getDynamicObject();
+
+    if (root == nullptr)
+        return false;
+
+    auto combiPresetsVar = root->getProperty ("combiPresets");
+
+    if (! combiPresetsVar.isArray())
+        return false;
+
+    auto* combiPresetsArray = combiPresetsVar.getArray();
+
+    if (combiPresetsArray == nullptr)
+        return false;
+
+    userCombiPresets.clear();
+
+    int nextId = firstUserCombiPresetId;
+
+    for (const auto& item : *combiPresetsArray)
+    {
+        if (! item.isObject())
+            continue;
+
+        auto* obj = item.getDynamicObject();
+
+        if (obj == nullptr)
+            continue;
+
+        const auto name = obj->getProperty ("name").toString().trim();
+
+        if (name.isEmpty())
+            continue;
+
+        auto sectionsVar = obj->getProperty ("sections");
+
+        if (! sectionsVar.isObject())
+            continue;
+
+        auto* sections = sectionsVar.getDynamicObject();
+
+        if (sections == nullptr)
+            continue;
+
+        UserCombiPreset preset;
+        preset.name = name;
+        preset.woodwindsPresetId = static_cast<int> (sections->getProperty ("woodwinds"));
+        preset.brassPresetId = static_cast<int> (sections->getProperty ("brass"));
+        preset.percussionPresetId = static_cast<int> (sections->getProperty ("percussion"));
+        preset.stringsPresetId = static_cast<int> (sections->getProperty ("strings"));
+
+        auto localId = static_cast<int> (obj->getProperty ("localId"));
+
+        if (! isUserCombiPresetId (localId) || userCombiPresets.count (localId) != 0)
+            localId = nextId;
+
+        while (userCombiPresets.count (localId) != 0)
+            ++localId;
+
+        if (! isUserCombiPresetId (localId))
+            continue;
+
+        userCombiPresets[localId] = preset;
+        nextId = juce::jmax (nextId, localId + 1);
+    }
+
+    return true;
+}
+
+void OrchConductorAudioProcessor::loadUserCombiPresetsFromUserLibrary()
+{
+    const auto file = getUserCombiLibraryFile();
+
+    if (! file.existsAsFile())
+        return;
+
+    importUserCombiPresetsFromJson (file.loadFileAsString());
+}
+
+bool OrchConductorAudioProcessor::saveUserCombiPresetsToUserLibrary() const
+{
+    const auto file = getUserCombiLibraryFile();
+    file.getParentDirectory().createDirectory();
+
+    return writeUserCombiPresetsJsonToFile (file);
 }
 
 juce::String OrchConductorAudioProcessor::exportUserCombiPresetsToJson() const
@@ -2048,6 +2312,33 @@ int OrchConductorAudioProcessor::getCombiPresetValueForCc (int ccNumber) const
     if (ccNumber == reservedHarpCcNumber)
         return 0; // Harp reserved.
 
+    if (isUserCombiPresetId (combiPresetId))
+    {
+        const auto it = userCombiPresets.find (combiPresetId);
+
+        if (it == userCombiPresets.end())
+            return 0;
+
+        const auto& preset = it->second;
+
+        auto value = getSectionPresetValueForCc (Section::woodwinds, preset.woodwindsPresetId, ccNumber);
+
+        if (value != 0)
+            return value;
+
+        value = getSectionPresetValueForCc (Section::brass, preset.brassPresetId, ccNumber);
+
+        if (value != 0)
+            return value;
+
+        value = getSectionPresetValueForCc (Section::percussion, preset.percussionPresetId, ccNumber);
+
+        if (value != 0)
+            return value;
+
+        return getSectionPresetValueForCc (Section::strings, preset.stringsPresetId, ccNumber);
+    }
+
     const auto combi = static_cast<CombiPreset> (combiPresetId);
 
     switch (combi)
@@ -2166,4 +2457,5 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new OrchConductorAudioProcessor();
 }
+
 
