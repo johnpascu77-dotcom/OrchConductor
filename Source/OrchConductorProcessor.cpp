@@ -1711,6 +1711,11 @@ bool OrchConductorAudioProcessor::importUserCombiPresetsFromJson (const juce::St
     if (root == nullptr)
         return false;
 
+    const auto schema = root->getProperty ("schema").toString();
+
+    if (schema.isNotEmpty() && schema != "orch_conductor_user_combi_presets")
+        return false;
+
     auto combiPresetsVar = root->getProperty ("combiPresets");
 
     if (! combiPresetsVar.isArray())
@@ -1721,7 +1726,7 @@ bool OrchConductorAudioProcessor::importUserCombiPresetsFromJson (const juce::St
     if (combiPresetsArray == nullptr)
         return false;
 
-    userCombiPresets.clear();
+    decltype (userCombiPresets) importedPresets;
 
     int nextId = firstUserCombiPresetId;
 
@@ -1757,23 +1762,27 @@ bool OrchConductorAudioProcessor::importUserCombiPresetsFromJson (const juce::St
         preset.percussionPresetId = static_cast<int> (sections->getProperty ("percussion"));
         preset.stringsPresetId = static_cast<int> (sections->getProperty ("strings"));
 
-        
-        readUserCombiNarrativeMetadata(*obj, preset.metadata);
-auto localId = static_cast<int> (obj->getProperty ("localId"));
+        readUserCombiNarrativeMetadata (*obj, preset.metadata);
 
-        if (! isUserCombiPresetId (localId) || userCombiPresets.count (localId) != 0)
+        auto localId = static_cast<int> (obj->getProperty ("localId"));
+
+        if (! isUserCombiPresetId (localId) || importedPresets.count (localId) != 0)
             localId = nextId;
 
-        while (userCombiPresets.count (localId) != 0)
+        while (importedPresets.count (localId) != 0)
             ++localId;
 
         if (! isUserCombiPresetId (localId))
             continue;
 
-        userCombiPresets[localId] = preset;
+        importedPresets[localId] = preset;
         nextId = juce::jmax (nextId, localId + 1);
     }
 
+    if (importedPresets.empty() && ! combiPresetsArray->isEmpty())
+        return false;
+
+    userCombiPresets = std::move (importedPresets);
     return true;
 }
 

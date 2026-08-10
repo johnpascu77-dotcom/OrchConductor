@@ -374,6 +374,54 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
                 updateStatus();
             });
     };
+    importUserCombisButton.setColour (juce::TextButton::buttonColourId, juce::Colour::fromRGB (55, 70, 55));
+    importUserCombisButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
+    addAndMakeVisible (importUserCombisButton);
+
+    importUserCombisButton.onClick = [this]
+    {
+        userCombiImportChooser = std::make_unique<juce::FileChooser> (
+            "Import User Combi Presets",
+            juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
+            "*.json");
+
+        userCombiImportChooser->launchAsync (juce::FileBrowserComponent::openMode
+                                           | juce::FileBrowserComponent::canSelectFiles,
+            [this] (const juce::FileChooser& chooser)
+            {
+                const auto file = chooser.getResult();
+
+                if (file == juce::File{})
+                    return;
+
+                if (! file.existsAsFile())
+                {
+                    lastActionText = "Last action: Import failed - file does not exist";
+                    updateStatus();
+                    return;
+                }
+
+                const auto imported = audioProcessor.importUserCombiPresetsFromJson (file.loadFileAsString());
+
+                if (! imported)
+                {
+                    lastActionText = "Last action: Import failed - invalid user combi JSON";
+                    updateStatus();
+                    return;
+                }
+
+                const auto saved = audioProcessor.saveUserCombiPresetsToUserLibrary();
+
+                addCombiPresetItems (combiPresetBox, audioProcessor);
+                combiPresetBox.setSelectedId (audioProcessor.getCombiPresetId() + 1, juce::dontSendNotification);
+
+                lastActionText = saved
+                    ? "Last action: Imported user combi presets from " + file.getFileName()
+                    : "Last action: Imported user combis, but failed to save library";
+
+                updateStatus();
+            });
+    };
 
     tableTitleLabel.setText ("Selected Output", juce::dontSendNotification);
     tableTitleLabel.setJustificationType (juce::Justification::centred);
@@ -523,7 +571,9 @@ void OrchConductorAudioProcessorEditor::resized()
     userCombiActionsRow.removeFromLeft (150);
     deleteUserCombiButton.setBounds (userCombiActionsRow.removeFromLeft (220).reduced (0, 2));
     userCombiActionsRow.removeFromLeft (10);
-    exportUserCombisButton.setBounds (userCombiActionsRow.removeFromLeft (240).reduced (0, 2));
+    exportUserCombisButton.setBounds (userCombiActionsRow.removeFromLeft (220).reduced (0, 2));
+    userCombiActionsRow.removeFromLeft (10);
+    importUserCombisButton.setBounds (userCombiActionsRow.removeFromLeft (220).reduced (0, 2));
 
     area.removeFromTop (14);
 

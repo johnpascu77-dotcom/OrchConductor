@@ -59,10 +59,12 @@ private:
     juce::TextButton saveUserCombiButton { "Save Current Sections as Combi" };
     juce::TextButton deleteUserCombiButton { "Delete User Combi" };
     juce::TextButton exportUserCombisButton { "Export User Combis JSON" };
+    juce::TextButton importUserCombisButton { "Import User Combis JSON" };
     
     juce::String lastActionText { "Last action: None" };
     int sendRequestCount { 0 };
     std::unique_ptr<juce::FileChooser> userCombiExportChooser;
+    std::unique_ptr<juce::FileChooser> userCombiImportChooser;
     void updateStatus();
     void updateOutputTable();
     void updateWoodwindsOutputTable();
