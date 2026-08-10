@@ -55,6 +55,61 @@ bool getBool(const juce::DynamicObject& object,
     return static_cast<bool>(object.getProperty(propertyName));
 }
 
+double getDouble(const juce::DynamicObject& object,
+                 const juce::Identifier& propertyName,
+                 double defaultValue = 0.0)
+{
+    if (! hasProperty(object, propertyName))
+        return defaultValue;
+
+    return static_cast<double>(object.getProperty(propertyName));
+}
+
+double clamp01(double value) noexcept
+{
+    if (value < 0.0)
+        return 0.0;
+
+    if (value > 1.0)
+        return 1.0;
+
+    return value;
+}
+
+void readNarrativeMetadata(const juce::DynamicObject& presetObject,
+                           NarrativeMetadata& destination)
+{
+    const auto metadata = presetObject.getProperty("metadata");
+    const auto* metadataObject = asObject(metadata);
+
+    if (metadataObject == nullptr)
+        return;
+
+    destination.energy = clamp01(getDouble(*metadataObject, "energy", destination.energy));
+    destination.density = clamp01(getDouble(*metadataObject, "density", destination.density));
+    destination.brightness = clamp01(getDouble(*metadataObject, "brightness", destination.brightness));
+    destination.weight = clamp01(getDouble(*metadataObject, "weight", destination.weight));
+    destination.tension = clamp01(getDouble(*metadataObject, "tension", destination.tension));
+
+    const auto registerName = getString(*metadataObject, "register", destination.registerName).trim();
+    const auto role = getString(*metadataObject, "role", destination.role).trim();
+    const auto transitionBehavior = getString(*metadataObject,
+                                              "transition_behavior",
+                                              destination.transitionBehavior).trim();
+    const auto narrativeLane = getString(*metadataObject, "narrative_lane", destination.narrativeLane).trim();
+
+    if (registerName.isNotEmpty())
+        destination.registerName = registerName;
+
+    if (role.isNotEmpty())
+        destination.role = role;
+
+    if (transitionBehavior.isNotEmpty())
+        destination.transitionBehavior = transitionBehavior;
+
+    destination.narrativeLane = narrativeLane;
+}
+
 bool readPresetValues(const juce::DynamicObject& presetObject,
                       std::vector<PresetValue>& destination,
                       juce::String& errorMessage,
@@ -134,7 +189,8 @@ bool readSectionPresetArray(const juce::DynamicObject& sectionPresetsObject,
         preset.section = getString(*presetObject, "section");
         preset.factoryId = getInt(*presetObject, "factoryId", 0);
 
-        const auto context = "sectionPresets." + propertyName.toString()
+                readNarrativeMetadata(*presetObject, preset.metadata);
+const auto context = "sectionPresets." + propertyName.toString()
                            + "[" + juce::String(i) + "]";
 
         if (! readPresetValues(*presetObject, preset.values, errorMessage, context))
@@ -185,7 +241,8 @@ bool readCombiPresets(const juce::DynamicObject& rootObject,
         preset.description = getString(*presetObject, "description");
         preset.factoryId = getInt(*presetObject, "factoryId", 0);
 
-        const auto context = "combiPresets[" + juce::String(i) + "]";
+                readNarrativeMetadata(*presetObject, preset.metadata);
+const auto context = "combiPresets[" + juce::String(i) + "]";
 
         if (! readPresetValues(*presetObject, preset.values, errorMessage, context))
             return false;
