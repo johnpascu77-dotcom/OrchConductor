@@ -427,6 +427,104 @@ constexpr int numRows = 5;
     };
 }
 
+double clampNarrativeMetadata01(double value) noexcept
+{
+    if (value < 0.0)
+        return 0.0;
+
+    if (value > 1.0)
+        return 1.0;
+
+    return value;
+}
+
+double getObjectDoubleProperty(const juce::DynamicObject& object,
+                               const juce::Identifier& propertyName,
+                               double defaultValue)
+{
+    if (! object.hasProperty(propertyName))
+        return defaultValue;
+
+    return static_cast<double>(object.getProperty(propertyName));
+}
+
+juce::String getObjectStringProperty(const juce::DynamicObject& object,
+                                     const juce::Identifier& propertyName,
+                                     const juce::String& defaultValue)
+{
+    if (! object.hasProperty(propertyName))
+        return defaultValue;
+
+    return object.getProperty(propertyName).toString();
+}
+
+void readUserCombiNarrativeMetadata(const juce::DynamicObject& presetObject,
+                                    orchconductor::NarrativeMetadata& destination)
+{
+    const auto metadata = presetObject.getProperty("metadata");
+
+    if (! metadata.isObject())
+        return;
+
+    const auto* metadataObject = metadata.getDynamicObject();
+
+    if (metadataObject == nullptr)
+        return;
+
+    destination.energy = clampNarrativeMetadata01(
+        getObjectDoubleProperty(*metadataObject, "energy", destination.energy));
+
+    destination.density = clampNarrativeMetadata01(
+        getObjectDoubleProperty(*metadataObject, "density", destination.density));
+
+    destination.brightness = clampNarrativeMetadata01(
+        getObjectDoubleProperty(*metadataObject, "brightness", destination.brightness));
+
+    destination.weight = clampNarrativeMetadata01(
+        getObjectDoubleProperty(*metadataObject, "weight", destination.weight));
+
+    destination.tension = clampNarrativeMetadata01(
+        getObjectDoubleProperty(*metadataObject, "tension", destination.tension));
+
+    const auto registerName = getObjectStringProperty(*metadataObject, "register", destination.registerName).trim();
+    const auto role = getObjectStringProperty(*metadataObject, "role", destination.role).trim();
+    const auto transitionBehavior = getObjectStringProperty(*metadataObject,
+                                                            "transition_behavior",
+                                                            destination.transitionBehavior).trim();
+    const auto narrativeLane = getObjectStringProperty(*metadataObject,
+                                                       "narrative_lane",
+                                                       destination.narrativeLane).trim();
+
+    if (registerName.isNotEmpty())
+        destination.registerName = registerName;
+
+    if (role.isNotEmpty())
+        destination.role = role;
+
+    if (transitionBehavior.isNotEmpty())
+        destination.transitionBehavior = transitionBehavior;
+
+    destination.narrativeLane = narrativeLane;
+}
+
+juce::DynamicObject::Ptr createNarrativeMetadataJsonObject(
+    const orchconductor::NarrativeMetadata& metadata)
+{
+    juce::DynamicObject::Ptr object = new juce::DynamicObject();
+
+    object->setProperty("energy", metadata.energy);
+    object->setProperty("density", metadata.density);
+    object->setProperty("brightness", metadata.brightness);
+    object->setProperty("weight", metadata.weight);
+    object->setProperty("tension", metadata.tension);
+    object->setProperty("register", metadata.registerName);
+    object->setProperty("role", metadata.role);
+    object->setProperty("transition_behavior", metadata.transitionBehavior);
+    object->setProperty("narrative_lane", metadata.narrativeLane);
+
+    return object;
+}
+
 OrchConductorAudioProcessor::OrchConductorAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
      : AudioProcessor (BusesProperties())
@@ -1659,7 +1757,9 @@ bool OrchConductorAudioProcessor::importUserCombiPresetsFromJson (const juce::St
         preset.percussionPresetId = static_cast<int> (sections->getProperty ("percussion"));
         preset.stringsPresetId = static_cast<int> (sections->getProperty ("strings"));
 
-        auto localId = static_cast<int> (obj->getProperty ("localId"));
+        
+        readUserCombiNarrativeMetadata(*obj, preset.metadata);
+auto localId = static_cast<int> (obj->getProperty ("localId"));
 
         if (! isUserCombiPresetId (localId) || userCombiPresets.count (localId) != 0)
             localId = nextId;
@@ -1716,7 +1816,9 @@ juce::String OrchConductorAudioProcessor::exportUserCombiPresetsToJson() const
         sections->setProperty ("strings", preset.stringsPresetId);
 
         presetObject->setProperty ("sections", juce::var (sections.get()));
-        combiPresets.add (juce::var (presetObject.get()));
+        
+        presetObject->setProperty ("metadata", juce::var (createNarrativeMetadataJsonObject(preset.metadata).get()));
+combiPresets.add (juce::var (presetObject.get()));
     }
 
     root->setProperty ("combiPresets", combiPresets);

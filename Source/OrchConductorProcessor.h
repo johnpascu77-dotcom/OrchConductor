@@ -217,7 +217,9 @@ private:
         int brassPresetId = 0;
         int percussionPresetId = 0;
         int stringsPresetId = 0;
-    };
+    
+        orchconductor::NarrativeMetadata metadata;
+};
 
     std::map<int, UserCombiPreset> userCombiPresets;
     static constexpr int minCombiPresetId = 0;
