@@ -504,7 +504,8 @@ void readUserCombiNarrativeMetadata(const juce::DynamicObject& presetObject,
     if (transitionBehavior.isNotEmpty())
         destination.transitionBehavior = transitionBehavior;
 
-    destination.narrativeLane = narrativeLane;
+    if (narrativeLane.isNotEmpty())
+        destination.narrativeLane = narrativeLane;
 }
 
 juce::DynamicObject::Ptr createNarrativeMetadataJsonObject(
@@ -1826,8 +1827,11 @@ juce::String OrchConductorAudioProcessor::exportUserCombiPresetsToJson() const
 
         presetObject->setProperty ("sections", juce::var (sections.get()));
         
-        presetObject->setProperty ("metadata", juce::var (createNarrativeMetadataJsonObject(preset.metadata).get()));
-combiPresets.add (juce::var (presetObject.get()));
+        presetObject->setProperty (
+            "metadata",
+            juce::var (createNarrativeMetadataJsonObject (preset.metadata).get()));
+
+        combiPresets.add (juce::var (presetObject.get()));
     }
 
     root->setProperty ("combiPresets", combiPresets);
