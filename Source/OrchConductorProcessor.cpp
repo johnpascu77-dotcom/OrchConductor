@@ -14,6 +14,7 @@ namespace
     constexpr int runtimeCombiPresetAuditMinId = 0;
     constexpr int runtimeCombiPresetAuditMaxId = 28;
     constexpr int runtimeCombiFullPayloadValueCount = 35;
+    constexpr int runtimeNarrativeLaneExpectedCount = 6;
     constexpr int reservedHarpCcNumber = 49;
     constexpr int reservedHarpCcValue = 0;
 
@@ -172,6 +173,92 @@ namespace
         }
 
         return true;
+    }
+
+    int findRuntimeCatalogNarrativeLaneIndex(const OrchConductorRuntimePresetCatalog& catalog,
+                                             const juce::String& laneId)
+    {
+        const int laneCount = catalog.getNarrativeLaneCount();
+
+        for (int laneIndex = 0; laneIndex < laneCount; ++laneIndex)
+        {
+            if (catalog.getNarrativeLaneId(laneIndex) == laneId)
+                return laneIndex;
+        }
+
+        return -1;
+    }
+
+    bool verifyRuntimeCatalogNarrativeLanePoints(const OrchConductorRuntimePresetCatalog& catalog,
+                                                 int laneIndex)
+    {
+        const int pointCount = catalog.getNarrativeLanePointCount(laneIndex);
+
+        if (pointCount <= 0)
+            return false;
+
+        double previousPosition = -1.0;
+
+        for (int pointIndex = 0; pointIndex < pointCount; ++pointIndex)
+        {
+            const auto position = catalog.getNarrativeLanePointPosition(laneIndex, pointIndex);
+            const auto combiId = catalog.getNarrativeLanePointCombiId(laneIndex, pointIndex);
+
+            if (position < 0.0 || position > 1.0)
+                return false;
+
+            if (position <= previousPosition)
+                return false;
+
+            if (combiId < runtimeCombiPresetAuditMinId || combiId > runtimeCombiPresetAuditMaxId)
+                return false;
+
+            previousPosition = position;
+        }
+
+        return true;
+    }
+
+    bool verifyRuntimeCatalogNarrativeLanes(const OrchConductorRuntimePresetCatalog& catalog)
+    {
+        if (catalog.getNarrativeLaneCount() != runtimeNarrativeLaneExpectedCount)
+            return false;
+
+        for (int laneIndex = 0; laneIndex < catalog.getNarrativeLaneCount(); ++laneIndex)
+        {
+            if (catalog.getNarrativeLaneId(laneIndex).isEmpty())
+                return false;
+
+            if (catalog.getNarrativeLaneLabel(laneIndex).isEmpty())
+                return false;
+
+            if (! verifyRuntimeCatalogNarrativeLanePoints(catalog, laneIndex))
+                return false;
+        }
+
+        const int organicBuildLaneIndex =
+            findRuntimeCatalogNarrativeLaneIndex(catalog, "organic_build");
+
+        if (organicBuildLaneIndex < 0)
+            return false;
+
+        if (catalog.getNarrativeLanePointCount(organicBuildLaneIndex) != 6)
+            return false;
+
+        const int anticlimaxLaneIndex =
+            findRuntimeCatalogNarrativeLaneIndex(catalog, "anticlimax");
+
+        if (anticlimaxLaneIndex < 0)
+            return false;
+
+        const int anticlimaxPointCount =
+            catalog.getNarrativeLanePointCount(anticlimaxLaneIndex);
+
+        if (anticlimaxPointCount <= 0)
+            return false;
+
+        return catalog.getNarrativeLanePointCombiId(anticlimaxLaneIndex,
+                                                    anticlimaxPointCount - 1) == 1;
     }
 
     bool verifyRuntimeCatalogCoverageAudit(const OrchConductorRuntimePresetCatalog& catalog)
@@ -606,8 +693,8 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
 
         runtimeCatalogCoverageAuditDiagnostic =
             runtimeCatalogCoverageAuditPassed
-                ? "Runtime catalog coverage audit passed for expected factory catalog shape."
-                : "Runtime catalog coverage audit failed for expected factory catalog shape.";
+                ? "Runtime catalog coverage audit passed for expected factory catalog shape and narrative lanes."
+                : "Runtime catalog coverage audit failed for expected factory catalog shape or narrative lanes.";
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL
         runtimeCatalogAuthorityTrialRun = true;
         runtimeCatalogAuthorityTrialBlocked = false;
