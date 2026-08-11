@@ -68,6 +68,12 @@
       "items": {
         "$ref": "#/$defs/combiPreset"
       }
+    },
+    "narrativeLanes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/narrativeLane"
+      }
     }
   },
   "$defs": {
@@ -350,6 +356,62 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/presetValue"
+          }
+        }
+      }
+    },
+    "narrativeLane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "points"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/idString"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "points": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/narrativeLanePoint"
+          }
+        }
+      }
+    },
+    "narrativeLanePoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "position",
+        "combiId"
+      ],
+      "properties": {
+        "position": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "combiId": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "label": {
+          "type": "string"
+        },
+        "transitionTags": {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         }
       }

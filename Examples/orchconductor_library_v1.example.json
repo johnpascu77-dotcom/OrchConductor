@@ -2649,5 +2649,224 @@
                                             }
                                         ]
                          }
-                     ]
+                     ],
+    "narrativeLanes":  [
+                           {
+                               "id":  "organic_build",
+                               "name":  "Organic Build",
+                               "description":  "Natural orchestral growth from solo and sparse textures to full orchestra.",
+                               "points":  [
+                                              {
+                                                  "position":  0,
+                                                  "combiId":  28,
+                                                  "label":  "Solo Lament"
+                                              },
+                                              {
+                                                  "position":  0.18,
+                                                  "combiId":  26,
+                                                  "label":  "Sparse Extremes"
+                                              },
+                                              {
+                                                  "position":  0.35,
+                                                  "combiId":  4,
+                                                  "label":  "Chamber Orchestra"
+                                              },
+                                              {
+                                                  "position":  0.55,
+                                                  "combiId":  12,
+                                                  "label":  "Warm Strings + Horns"
+                                              },
+                                              {
+                                                  "position":  0.75,
+                                                  "combiId":  3,
+                                                  "label":  "Full No Percussion"
+                                              },
+                                              {
+                                                  "position":  1,
+                                                  "combiId":  2,
+                                                  "label":  "Full Orchestra"
+                                              }
+                                          ]
+                           },
+                           {
+                               "id":  "dark_build",
+                               "name":  "Dark Build",
+                               "description":  "A low-register escalation from reeds and celli toward dark cinematic mass.",
+                               "points":  [
+                                              {
+                                                  "position":  0,
+                                                  "combiId":  21,
+                                                  "label":  "Low Reeds"
+                                              },
+                                              {
+                                                  "position":  0.22,
+                                                  "combiId":  15,
+                                                  "label":  "Bassoon + Celli"
+                                              },
+                                              {
+                                                  "position":  0.45,
+                                                  "combiId":  10,
+                                                  "label":  "Low Orchestra"
+                                              },
+                                              {
+                                                  "position":  0.65,
+                                                  "combiId":  18,
+                                                  "label":  "Dark Trailer Bed"
+                                              },
+                                              {
+                                                  "position":  0.82,
+                                                  "combiId":  20,
+                                                  "label":  "Epic Low Pulse"
+                                              },
+                                              {
+                                                  "position":  1,
+                                                  "combiId":  2,
+                                                  "label":  "Full Orchestra"
+                                              }
+                                          ]
+                           },
+                           {
+                               "id":  "bright_build",
+                               "name":  "Bright Build",
+                               "description":  "A bright escalation through flutes, violins, high winds, shimmer and brilliant tutti.",
+                               "points":  [
+                                              {
+                                                  "position":  0,
+                                                  "combiId":  14,
+                                                  "label":  "Flute + Violins"
+                                              },
+                                              {
+                                                  "position":  0.2,
+                                                  "combiId":  27,
+                                                  "label":  "Silver Shimmer"
+                                              },
+                                              {
+                                                  "position":  0.4,
+                                                  "combiId":  19,
+                                                  "label":  "High Winds Shimmer"
+                                              },
+                                              {
+                                                  "position":  0.6,
+                                                  "combiId":  9,
+                                                  "label":  "High Orchestra"
+                                              },
+                                              {
+                                                  "position":  0.8,
+                                                  "combiId":  17,
+                                                  "label":  "Heroic Brass + Strings"
+                                              },
+                                              {
+                                                  "position":  1,
+                                                  "combiId":  2,
+                                                  "label":  "Full Orchestra"
+                                              }
+                                          ]
+                           },
+                           {
+                               "id":  "heroic_build",
+                               "name":  "Heroic Build",
+                               "description":  "A brass-and-strings growth path toward a heroic orchestral climax.",
+                               "points":  [
+                                              {
+                                                  "position":  0,
+                                                  "combiId":  12,
+                                                  "label":  "Warm Strings + Horns"
+                                              },
+                                              {
+                                                  "position":  0.25,
+                                                  "combiId":  16,
+                                                  "label":  "Horn Choir + Strings"
+                                              },
+                                              {
+                                                  "position":  0.5,
+                                                  "combiId":  7,
+                                                  "label":  "Full Brass"
+                                              },
+                                              {
+                                                  "position":  0.75,
+                                                  "combiId":  17,
+                                                  "label":  "Heroic Brass + Strings"
+                                              },
+                                              {
+                                                  "position":  1,
+                                                  "combiId":  2,
+                                                  "label":  "Full Orchestra"
+                                              }
+                                          ]
+                           },
+                           {
+                               "id":  "suspense",
+                               "name":  "Suspense",
+                               "description":  "A psychological tension lane through pointillist, sparse, reed and Herrmann-style colors.",
+                               "points":  [
+                                              {
+                                                  "position":  0,
+                                                  "combiId":  25,
+                                                  "label":  "Pointillist Winds"
+                                              },
+                                              {
+                                                  "position":  0.2,
+                                                  "combiId":  26,
+                                                  "label":  "Sparse Extremes"
+                                              },
+                                              {
+                                                  "position":  0.4,
+                                                  "combiId":  21,
+                                                  "label":  "Low Reeds"
+                                              },
+                                              {
+                                                  "position":  0.6,
+                                                  "combiId":  24,
+                                                  "label":  "Suspense Winds"
+                                              },
+                                              {
+                                                  "position":  0.8,
+                                                  "combiId":  22,
+                                                  "label":  "Horn Knives"
+                                              },
+                                              {
+                                                  "position":  1,
+                                                  "combiId":  23,
+                                                  "label":  "Psycho Strings"
+                                              }
+                                          ]
+                           },
+                           {
+                               "id":  "anticlimax",
+                               "name":  "Anticlimax",
+                               "description":  "A rising scan value that removes mass, ending in exposed residue or silence.",
+                               "points":  [
+                                              {
+                                                  "position":  0,
+                                                  "combiId":  2,
+                                                  "label":  "Full Orchestra"
+                                              },
+                                              {
+                                                  "position":  0.18,
+                                                  "combiId":  3,
+                                                  "label":  "Full No Percussion"
+                                              },
+                                              {
+                                                  "position":  0.38,
+                                                  "combiId":  11,
+                                                  "label":  "Middle Orchestra"
+                                              },
+                                              {
+                                                  "position":  0.58,
+                                                  "combiId":  4,
+                                                  "label":  "Chamber Orchestra"
+                                              },
+                                              {
+                                                  "position":  0.78,
+                                                  "combiId":  28,
+                                                  "label":  "Solo Lament"
+                                              },
+                                              {
+                                                  "position":  1,
+                                                  "combiId":  1,
+                                                  "label":  "All Off"
+                                              }
+                                          ]
+                           }
+                       ]
 }
