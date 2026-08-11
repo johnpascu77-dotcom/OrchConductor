@@ -68,7 +68,10 @@ target_sources(OrchConductor
         Source/OrchConductorEmbeddedFactoryJson.h
         Source/OrchConductorRuntimePresetSource.cpp
         Source/OrchConductorRuntimePresetCatalog.cpp
+        Source/OrchConductorRuntimePresetCatalog.h
         Source/OrchConductorRuntimePresetSource.h
+        Source/OrchConductorNarrativeScanResolver.cpp
+        Source/OrchConductorNarrativeScanResolver.h
 )
 
 target_compile_definitions(OrchConductor
@@ -330,5 +333,47 @@ target_compile_definitions(OrchConductorRuntimePresetCatalogCheck
         JUCE_VST3_CAN_REPLACE_VST2=0
 )
 
+# Developer-only verification target for narrative scan resolver behavior.
+juce_add_console_app(OrchConductorNarrativeScanResolverCheck
+    PRODUCT_NAME "OrchConductorNarrativeScanResolverCheck"
+)
+
+juce_generate_juce_header(OrchConductorNarrativeScanResolverCheck)
+
+target_sources(OrchConductorNarrativeScanResolverCheck
+    PRIVATE
+        Tools/OrchConductorNarrativeScanResolverCheck.cpp
+        Source/OrchConductorPresetLibrary.cpp
+        Source/OrchConductorPresetLibraryJson.cpp
+        Source/OrchConductorEmbeddedFactoryJson.cpp
+        Source/OrchConductorRuntimePresetSource.cpp
+        Source/OrchConductorRuntimePresetCatalog.cpp
+        Source/OrchConductorNarrativeScanResolver.cpp
+)
+
+target_link_libraries(OrchConductorNarrativeScanResolverCheck
+    PRIVATE
+        juce::juce_core
+        OrchConductorFactoryJsonData
+
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)
+
+target_include_directories(OrchConductorNarrativeScanResolverCheck
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Tools
+        ${CMAKE_CURRENT_SOURCE_DIR}/Source
+)
+
+target_compile_definitions(OrchConductorNarrativeScanResolverCheck
+    PRIVATE
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0
+        JUCE_VST3_CAN_REPLACE_VST2=0
+        ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS=1
+)
 
 
