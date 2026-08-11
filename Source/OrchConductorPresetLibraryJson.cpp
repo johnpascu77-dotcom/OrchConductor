@@ -259,6 +259,106 @@ const auto context = "combiPresets[" + juce::String(i) + "]";
     return true;
 }
 
+bool readNarrativeLanes(const juce::DynamicObject& rootObject,
+                        std::vector<NarrativeLaneDefinition>& destination,
+                        juce::String& errorMessage)
+{
+    destination.clear();
+
+    const auto narrativeLanes = rootObject.getProperty("narrativeLanes");
+
+    if (narrativeLanes.isVoid())
+        return true;
+
+    const auto* narrativeLanesArray = asArray(narrativeLanes);
+
+    if (narrativeLanesArray == nullptr)
+    {
+        errorMessage = makeError("narrativeLanes is present but is not an array.");
+        return false;
+    }
+
+    for (int laneIndex = 0; laneIndex < narrativeLanesArray->size(); ++laneIndex)
+    {
+        const auto* laneObject = asObject(narrativeLanesArray->getReference(laneIndex));
+
+        if (laneObject == nullptr)
+        {
+            errorMessage = makeError("narrativeLanes contains a non-object lane at index "
+                                     + juce::String(laneIndex) + ".");
+            return false;
+        }
+
+        NarrativeLaneDefinition lane;
+        lane.id = getString(*laneObject, "id").trim();
+        lane.name = getString(*laneObject, "name").trim();
+        lane.description = getString(*laneObject, "description").trim();
+
+        const auto points = laneObject->getProperty("points");
+        const auto* pointsArray = asArray(points);
+
+        if (pointsArray == nullptr)
+        {
+            errorMessage = makeError("narrativeLanes[" + juce::String(laneIndex)
+                                     + "] is missing a points array.");
+            return false;
+        }
+
+        for (int pointIndex = 0; pointIndex < pointsArray->size(); ++pointIndex)
+        {
+            const auto* pointObject = asObject(pointsArray->getReference(pointIndex));
+
+            if (pointObject == nullptr)
+            {
+                errorMessage = makeError("narrativeLanes[" + juce::String(laneIndex)
+                                         + "].points contains a non-object point at index "
+                                         + juce::String(pointIndex) + ".");
+                return false;
+            }
+
+            NarrativeLanePointDefinition point;
+            point.position = getDouble(*pointObject, "position", 0.0);
+            point.combiId = getInt(*pointObject, "combiId", 0);
+            point.label = getString(*pointObject, "label").trim();
+
+            const auto transitionTags = pointObject->getProperty("transitionTags");
+            const auto* transitionTagsArray = asArray(transitionTags);
+
+            if (transitionTagsArray != nullptr)
+            {
+                for (const auto& tagValue : *transitionTagsArray)
+                {
+                    const auto tag = tagValue.toString().trim();
+
+                    if (tag.isNotEmpty())
+                        point.transitionTags.add(tag);
+                }
+            }
+
+            if (! point.isValid())
+            {
+                errorMessage = makeError("narrativeLanes[" + juce::String(laneIndex)
+                                         + "].points[" + juce::String(pointIndex)
+                                         + "] is invalid.");
+                return false;
+            }
+
+            lane.points.push_back(point);
+        }
+
+        if (! lane.isValid())
+        {
+            errorMessage = makeError("narrativeLanes[" + juce::String(laneIndex)
+                                     + "] is invalid.");
+            return false;
+        }
+
+        destination.push_back(lane);
+    }
+
+    return true;
+}
+
 bool readMidi(const juce::DynamicObject& rootObject,
               MidiLibraryMetadata& destination,
               juce::String& errorMessage)
@@ -492,6 +592,9 @@ PresetLibraryJsonLoadResult PresetLibraryJsonLoader::fromJsonText(const juce::St
         return result;
 
     if (! readCombiPresets(*rootObject, result.library.combiPresets, result.errorMessage))
+        return result;
+
+    if (! readNarrativeLanes(*rootObject, result.library.narrativeLanes, result.errorMessage))
         return result;
 
     if (! result.library.isValid())

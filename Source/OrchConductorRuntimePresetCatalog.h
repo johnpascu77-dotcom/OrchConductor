@@ -33,15 +33,23 @@ public:
     int getSectionCount() const noexcept;
     int getSectionPresetCount(const juce::String& sectionId) const noexcept;
     int getCombiPresetCount() const noexcept;
+    int getNarrativeLaneCount() const noexcept;
     bool hasExpectedFactoryShape() const noexcept;
 
     juce::String getSectionPresetLabel(const juce::String& sectionId, int presetIndex) const;
     juce::String getCombiPresetLabel(int presetIndex) const;
+    juce::String getNarrativeLaneId(int laneIndex) const;
+    juce::String getNarrativeLaneLabel(int laneIndex) const;
+    juce::String getNarrativeLaneDescription(int laneIndex) const;
     bool getCombiPresetNarrativeMetadata(int presetIndex,
                                          orchconductor::NarrativeMetadata& metadata) const;
 
     int getSectionPresetValueCount(const juce::String& sectionId, int presetIndex) const noexcept;
     int getCombiPresetValueCount(int presetIndex) const noexcept;
+        int getNarrativeLanePointCount(int laneIndex) const noexcept;
+    double getNarrativeLanePointPosition(int laneIndex, int pointIndex) const noexcept;
+    int getNarrativeLanePointCombiId(int laneIndex, int pointIndex) const noexcept;
+    juce::String getNarrativeLanePointLabel(int laneIndex, int pointIndex) const;
 
     OrchConductorRuntimePresetValueView getSectionPresetValue(const juce::String& sectionId,
                                                               int presetIndex,

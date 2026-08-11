@@ -132,6 +132,39 @@ const std::vector<orchconductor::PresetValue>* findCombiPresetValues(
     return &library.combiPresets[index].values;
 }
 
+const orchconductor::NarrativeLaneDefinition* findNarrativeLane(
+    const orchconductor::PresetLibraryDefinition& library,
+    int laneIndex) noexcept
+{
+    if (laneIndex < 0)
+        return nullptr;
+
+    const auto index = static_cast<size_t>(laneIndex);
+
+    if (index >= library.narrativeLanes.size())
+        return nullptr;
+
+    return &library.narrativeLanes[index];
+}
+
+const orchconductor::NarrativeLanePointDefinition* findNarrativeLanePoint(
+    const orchconductor::PresetLibraryDefinition& library,
+    int laneIndex,
+    int pointIndex) noexcept
+{
+    const auto* lane = findNarrativeLane(library, laneIndex);
+
+    if (lane == nullptr || pointIndex < 0)
+        return nullptr;
+
+    const auto index = static_cast<size_t>(pointIndex);
+
+    if (index >= lane->points.size())
+        return nullptr;
+
+    return &lane->points[index];
+}
+
 } // namespace
 
 OrchConductorRuntimePresetCatalog OrchConductorRuntimePresetCatalog::createFallbackCatalog()
@@ -216,6 +249,11 @@ int OrchConductorRuntimePresetCatalog::getCombiPresetCount() const noexcept
     return static_cast<int>(library_.combiPresets.size());
 }
 
+int OrchConductorRuntimePresetCatalog::getNarrativeLaneCount() const noexcept
+{
+    return static_cast<int>(library_.narrativeLanes.size());
+}
+
 bool OrchConductorRuntimePresetCatalog::hasExpectedFactoryShape() const noexcept
 {
     return getSectionCount() == expectedFactorySectionCount
@@ -255,6 +293,36 @@ juce::String OrchConductorRuntimePresetCatalog::getCombiPresetLabel(int presetIn
     return library_.combiPresets[index].name;
 }
 
+juce::String OrchConductorRuntimePresetCatalog::getNarrativeLaneId(int laneIndex) const
+{
+    const auto* lane = findNarrativeLane(library_, laneIndex);
+
+    if (lane == nullptr)
+        return {};
+
+    return lane->id;
+}
+
+juce::String OrchConductorRuntimePresetCatalog::getNarrativeLaneLabel(int laneIndex) const
+{
+    const auto* lane = findNarrativeLane(library_, laneIndex);
+
+    if (lane == nullptr)
+        return {};
+
+    return lane->name;
+}
+
+juce::String OrchConductorRuntimePresetCatalog::getNarrativeLaneDescription(int laneIndex) const
+{
+    const auto* lane = findNarrativeLane(library_, laneIndex);
+
+    if (lane == nullptr)
+        return {};
+
+    return lane->description;
+}
+
 bool OrchConductorRuntimePresetCatalog::getCombiPresetNarrativeMetadata(
     int presetIndex,
     orchconductor::NarrativeMetadata& metadata) const
@@ -290,6 +358,49 @@ int OrchConductorRuntimePresetCatalog::getCombiPresetValueCount(int presetIndex)
         return 0;
 
     return static_cast<int>(values->size());
+}
+
+int OrchConductorRuntimePresetCatalog::getNarrativeLanePointCount(int laneIndex) const noexcept
+{
+    const auto* lane = findNarrativeLane(library_, laneIndex);
+
+    if (lane == nullptr)
+        return 0;
+
+    return static_cast<int>(lane->points.size());
+}
+
+double OrchConductorRuntimePresetCatalog::getNarrativeLanePointPosition(int laneIndex,
+                                                                        int pointIndex) const noexcept
+{
+    const auto* point = findNarrativeLanePoint(library_, laneIndex, pointIndex);
+
+    if (point == nullptr)
+        return 0.0;
+
+    return point->position;
+}
+
+int OrchConductorRuntimePresetCatalog::getNarrativeLanePointCombiId(int laneIndex,
+                                                                    int pointIndex) const noexcept
+{
+    const auto* point = findNarrativeLanePoint(library_, laneIndex, pointIndex);
+
+    if (point == nullptr)
+        return -1;
+
+    return point->combiId;
+}
+
+juce::String OrchConductorRuntimePresetCatalog::getNarrativeLanePointLabel(int laneIndex,
+                                                                           int pointIndex) const
+{
+    const auto* point = findNarrativeLanePoint(library_, laneIndex, pointIndex);
+
+    if (point == nullptr)
+        return {};
+
+    return point->label;
 }
 
 OrchConductorRuntimePresetValueView OrchConductorRuntimePresetCatalog::getSectionPresetValue(

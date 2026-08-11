@@ -97,6 +97,56 @@ struct NarrativeMetadata
             && transitionBehavior.isNotEmpty();
     }
 };
+struct NarrativeLanePointDefinition
+{
+    double position = 0.0;
+    int combiId = 0;
+    juce::String label;
+    juce::StringArray transitionTags;
+
+    bool isValid() const noexcept
+    {
+        return position >= 0.0
+            && position <= 1.0
+            && combiId >= 0;
+    }
+};
+
+struct NarrativeLaneDefinition
+{
+    juce::String id;
+    juce::String name;
+    juce::String description;
+    std::vector<NarrativeLanePointDefinition> points;
+
+    bool hasValidSortedPoints() const noexcept
+    {
+        if (points.empty())
+            return false;
+
+        double previousPosition = -1.0;
+
+        for (const auto& point : points)
+        {
+            if (! point.isValid())
+                return false;
+
+            if (point.position <= previousPosition)
+                return false;
+
+            previousPosition = point.position;
+        }
+
+        return true;
+    }
+
+    bool isValid() const noexcept
+    {
+        return id.isNotEmpty()
+            && name.isNotEmpty()
+            && hasValidSortedPoints();
+    }
+};
 struct SectionPresetDefinition
 {
     juce::String id;
@@ -219,7 +269,7 @@ struct PresetLibraryDefinition
     std::vector<SectionPresetDefinition> percussionPresets;
     std::vector<SectionPresetDefinition> stringPresets;
     std::vector<CombiPresetDefinition> combiPresets;
-
+    std::vector<NarrativeLaneDefinition> narrativeLanes;
     bool isValid() const noexcept
     {
         if (schema != "orchconductor.library")
@@ -267,6 +317,12 @@ struct PresetLibraryDefinition
         for (const auto& preset : combiPresets)
         {
             if (! preset.isValid())
+                return false;
+        }
+
+        for (const auto& lane : narrativeLanes)
+        {
+            if (! lane.isValid())
                 return false;
         }
 
