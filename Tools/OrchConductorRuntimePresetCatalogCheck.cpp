@@ -1,4 +1,4 @@
-﻿#include <JuceHeader.h>
+#include <JuceHeader.h>
 
 #include "../Source/OrchConductorRuntimePresetCatalog.h"
 #include "../Source/OrchConductorRuntimePresetSource.h"
@@ -8,7 +8,7 @@
 namespace
 {
 
-constexpr int expectedFactorySectionCount = 5;
+constexpr int expectedFactorySectionCount = 4;
 constexpr int expectedFactoryWoodwindPresetCount = 20;
 constexpr int expectedFactoryBrassPresetCount = 17;
 constexpr int expectedFactoryPercussionPresetCount = 9;
@@ -404,6 +404,4 @@ int main()
 
     return 0;
 }
-
-
 

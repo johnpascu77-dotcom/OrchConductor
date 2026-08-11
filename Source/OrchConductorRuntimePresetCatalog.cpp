@@ -3,11 +3,11 @@
 namespace
 {
 
-constexpr int expectedFactorySectionCount = 5;
-constexpr int expectedFactoryWoodwindPresetCount = 28;
-constexpr int expectedFactoryBrassPresetCount = 19;
-constexpr int expectedFactoryPercussionPresetCount = 12;
-constexpr int expectedFactoryStringPresetCount = 16;
+constexpr int expectedFactorySectionCount = 4;
+constexpr int expectedFactoryWoodwindPresetCount = 20;
+constexpr int expectedFactoryBrassPresetCount = 17;
+constexpr int expectedFactoryPercussionPresetCount = 9;
+constexpr int expectedFactoryStringPresetCount = 14;
 constexpr int expectedFactoryCombiPresetCount = 29;
 
 orchconductor::SectionPresetDefinition makeFallbackSectionPreset(const juce::String& section,
@@ -199,8 +199,6 @@ int OrchConductorRuntimePresetCatalog::getSectionCount() const noexcept
     if (! library_.stringPresets.empty())
         ++count;
 
-    if (! library_.combiPresets.empty())
-        ++count;
 
     return count;
 }
@@ -220,8 +218,7 @@ int OrchConductorRuntimePresetCatalog::getCombiPresetCount() const noexcept
 
 bool OrchConductorRuntimePresetCatalog::hasExpectedFactoryShape() const noexcept
 {
-    return library_.isValid()
-        && getSectionCount() == expectedFactorySectionCount
+    return getSectionCount() == expectedFactorySectionCount
         && hasExpectedSectionPresetCounts(library_)
         && getCombiPresetCount() == expectedFactoryCombiPresetCount;
 }
