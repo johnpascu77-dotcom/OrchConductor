@@ -1,5 +1,5 @@
 ﻿
-# OrchConductor Session Refresher â€” Phase 10C Complete
+# OrchConductor Session Refresher Phase 10C Complete
 
 Date: 2026-08-11  
 Branch: `phase-10C-narrative-metadata-display`
@@ -193,7 +193,7 @@ But do not automatically start with validation-heavy work.
 
 Possible practical next steps:
 
-### Option A â€” Runtime JSON catalog authority investigation
+### Option A €” Runtime JSON catalog authority investigation
 
 Goal: figure out why the UI currently reports:
 
@@ -213,7 +213,7 @@ Select-String -Path .\Source\*.h,.\Source\*.cpp,.\Resources\* `
     -Context 2,5
 ```
 
-### Option B â€” UI polish only
+### Option B €” UI polish only
 
 Small, safe improvements:
 
@@ -221,7 +221,7 @@ Small, safe improvements:
 - Slightly improve narrative metadata panel spacing.
 - Possibly reduce text size or make metadata easier to read.
 
-### Option C â€” User combi metadata editing/import UX later
+### Option C €” User combi metadata editing/import UX later
 
 Not immediate unless requested.
 
