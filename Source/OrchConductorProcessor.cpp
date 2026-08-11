@@ -7,10 +7,10 @@
 namespace
 {
     constexpr int runtimeSectionPresetAuditMinId = 0;
-    constexpr int runtimeWoodwindPresetAuditMaxId = 27;
-    constexpr int runtimeBrassPresetAuditMaxId = 18;
-    constexpr int runtimePercussionPresetAuditMaxId = 11;
-    constexpr int runtimeStringPresetAuditMaxId = 15;
+    constexpr int runtimeWoodwindPresetAuditMaxId = 19;
+    constexpr int runtimeBrassPresetAuditMaxId = 16;
+    constexpr int runtimePercussionPresetAuditMaxId = 8;
+    constexpr int runtimeStringPresetAuditMaxId = 13;
     constexpr int runtimeCombiPresetAuditMinId = 0;
     constexpr int runtimeCombiPresetAuditMaxId = 28;
     constexpr int runtimeCombiFullPayloadValueCount = 35;
@@ -1286,11 +1286,12 @@ void OrchConductorAudioProcessor::setCombiPresetId (int presetId)
     int mappedPercussion = percussionPresetId;
     int mappedStrings = stringsPresetId;
 
-    if (getSectionPresetIdsForCombiPreset (presetId,
-                                           mappedWoodwinds,
-                                           mappedBrass,
-                                           mappedPercussion,
-                                           mappedStrings))
+    if (! runtimePresetCatalogAuthorityActive
+        && getSectionPresetIdsForCombiPreset (presetId,
+                                              mappedWoodwinds,
+                                              mappedBrass,
+                                              mappedPercussion,
+                                              mappedStrings))
     {
         woodwindsPresetId = mappedWoodwinds;
         brassPresetId = mappedBrass;
@@ -1674,6 +1675,68 @@ bool OrchConductorAudioProcessor::getSectionPresetIdsForCombiPreset (int presetI
     return true;
 }
 
+juce::String OrchConductorAudioProcessor::createUserCombiNameFromCurrentSections() const
+{
+    juce::StringArray parts;
+
+    auto makeCleanPart = [] (juce::String label)
+    {
+        label = label.trim();
+
+        const auto firstSpace = label.indexOfChar (' ');
+
+        if (firstSpace > 0)
+        {
+            const auto prefix = label.substring (0, firstSpace);
+            bool prefixIsNumeric = prefix.isNotEmpty();
+
+            for (auto c : prefix)
+            {
+                if (! juce::CharacterFunctions::isDigit (c))
+                {
+                    prefixIsNumeric = false;
+                    break;
+                }
+            }
+
+            if (prefixIsNumeric)
+                label = label.substring (firstSpace + 1).trim();
+        }
+
+        if (label.endsWithIgnoreCase (" Only"))
+            label = label.dropLastCharacters (5).trim();
+
+        return label;
+    };
+
+    auto addPart = [&parts, &makeCleanPart] (int presetId, const juce::String& label)
+    {
+        if (presetId == 0)
+            return;
+
+        auto clean = makeCleanPart (label);
+
+        if (clean.isNotEmpty())
+            parts.add (clean);
+    };
+
+    addPart (getSectionPresetId (Section::woodwinds),
+             getSectionPresetLabel (Section::woodwinds, getSectionPresetId (Section::woodwinds)));
+
+    addPart (getSectionPresetId (Section::brass),
+             getSectionPresetLabel (Section::brass, getSectionPresetId (Section::brass)));
+
+    addPart (getSectionPresetId (Section::percussion),
+             getSectionPresetLabel (Section::percussion, getSectionPresetId (Section::percussion)));
+
+    addPart (getSectionPresetId (Section::strings),
+             getSectionPresetLabel (Section::strings, getSectionPresetId (Section::strings)));
+
+    if (parts.isEmpty())
+        return "All Off";
+
+    return parts.joinIntoString ("+");
+}
 int OrchConductorAudioProcessor::createUserCombiPresetFromCurrentSections (const juce::String& name)
 {
     const auto presetId = getNextAvailableUserCombiPresetId();

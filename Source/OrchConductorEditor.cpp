@@ -128,7 +128,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 9B", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 10E", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -151,7 +151,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         updateStatus();
     };
 
-    sectionPresetsLabel.setText ("Section Presets", juce::dontSendNotification);
+    sectionPresetsLabel.setText ("Manual Section Presets", juce::dontSendNotification);
     sectionPresetsLabel.setJustificationType (juce::Justification::centred);
     styleLabel (sectionPresetsLabel, juce::Colour::fromRGB (245, 245, 245), 15.0f, juce::Font::bold);
     addAndMakeVisible (sectionPresetsLabel);
@@ -306,8 +306,13 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     {
         auto name = userCombiNameEditor.getText().trim();
 
-        if (name.isEmpty())
-            name = "User Combi";
+        if (name.isEmpty()
+            || name.equalsIgnoreCase ("My Combi")
+            || name.equalsIgnoreCase ("User Combi"))
+        {
+            name = audioProcessor.createUserCombiNameFromCurrentSections();
+            userCombiNameEditor.setText (name, juce::dontSendNotification);
+        }
 
         const auto id = audioProcessor.createUserCombiPresetFromCurrentSections (name);
 
@@ -507,7 +512,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     addAndMakeVisible (narrativeMetadataValueLabel);
 
     ccMapLabel.setText (
-        "Phase 9B: runtime combi workflow UX | CC49 reserved for Harp",
+        "Phase 10E: runtime combi workflow UX | CC49 reserved for Harp",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -556,7 +561,7 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colour::fromRGB (120, 140, 155));
     g.setFont (juce::FontOptions (13.0f, juce::Font::plain));
-    g.drawText ("Phase 9B: " + getUserFacingCatalogStatus (audioProcessor) + " | " + getUserFacingCatalogDetail (audioProcessor),
+    g.drawText ("Phase 10E: " + getUserFacingCatalogStatus (audioProcessor) + " | " + getUserFacingCatalogDetail (audioProcessor),
                 futureArea.toNearestInt().reduced (16, 8),
                 juce::Justification::centred);
 }
@@ -735,8 +740,8 @@ void OrchConductorAudioProcessorEditor::updateStatus()
 {
     ccMapLabel.setText (
         audioProcessor.isCombiModeActive()
-            ? "Phase 9B: Combi mode active - section preset controls are overridden until edited | CC49 reserved for Harp"
-            : "Phase 9B: Manual section mode - section preset controls define output | CC49 reserved for Harp",
+            ? "Phase 10E: Combi mode active - manual sections bypassed until Manual Sections is selected | CC49 reserved for Harp"
+            : "Phase 10E: Manual Sections active - section presets drive output | CC49 reserved for Harp",
         juce::dontSendNotification);
 
     const juce::String autoSendText = audioProcessor.getSendOnPresetChange() ? " | Auto-send: On" : " | Auto-send: Off";
@@ -931,22 +936,5 @@ void OrchConductorAudioProcessorEditor::updatePercussionOutputTable()
 
     percussionTableRowsLabel.setText (rows, juce::dontSendNotification);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

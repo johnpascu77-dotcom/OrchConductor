@@ -120,6 +120,7 @@ public:
 
     int getSectionPresetId (Section section) const;
 
+    juce::String createUserCombiNameFromCurrentSections() const;
     int createUserCombiPresetFromCurrentSections (const juce::String& name);
     bool deleteUserCombiPreset (int presetId);
 
@@ -232,12 +233,12 @@ private:
     static constexpr int minSectionPresetId = 0;
 
     // Phase 1H expanded section dropdown limits.
-    static constexpr int maxWoodwindsPresetId = 27;
-    static constexpr int maxBrassPresetId = 18;
-    static constexpr int maxPercussionPresetId = 11;
+    static constexpr int maxWoodwindsPresetId = 19;
+    static constexpr int maxBrassPresetId = 16;
+    static constexpr int maxPercussionPresetId = 8;
 
     static constexpr int minStringsPresetId = 0;
-    static constexpr int maxStringsPresetId = 15;
+    static constexpr int maxStringsPresetId = 13;
 
     int combiPresetId { static_cast<int> (CombiPreset::manualSections) };
 
@@ -304,4 +305,5 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OrchConductorAudioProcessor)
 };
+
 
