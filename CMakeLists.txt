@@ -220,6 +220,7 @@ target_sources(OrchConductorProcessorJsonProbeCheck
         Source/OrchConductorEmbeddedFactoryJson.cpp
         Source/OrchConductorRuntimePresetSource.cpp
         Source/OrchConductorRuntimePresetCatalog.cpp
+        Source/OrchConductorNarrativeScanResolver.cpp
 )
 
 target_link_libraries(OrchConductorProcessorJsonProbeCheck
@@ -265,6 +266,7 @@ target_sources(OrchConductorProcessorMidiRegressionCheck
         Source/OrchConductorEmbeddedFactoryJson.cpp
         Source/OrchConductorRuntimePresetSource.cpp
         Source/OrchConductorRuntimePresetCatalog.cpp
+        Source/OrchConductorNarrativeScanResolver.cpp
 )
 
 target_link_libraries(OrchConductorProcessorMidiRegressionCheck

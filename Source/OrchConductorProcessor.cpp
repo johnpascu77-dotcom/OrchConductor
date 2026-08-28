@@ -3,6 +3,7 @@
 #include "OrchConductorEditor.h"
 #include "OrchConductorRuntimePresetSource.h"
 #include "OrchConductorRuntimePresetCatalog.h"
+#include "OrchConductorNarrativeScanResolver.h"
 
 namespace
 {
@@ -1115,7 +1116,13 @@ void OrchConductorAudioProcessor::syncAutomatedParameters()
         const auto value = static_cast<AuthorityMode> (authorityModeParameter->getIndex());
 
         if (value != authorityMode)
+        {
             authorityMode = value;
+
+            // Force a fresh resolve (and send) the next time narrative scan runs.
+            lastResolvedNarrativePointIndex = -1;
+            lastResolvedNarrativeCombiId = -1;
+        }
     }
 
     if (narrativeLaneParameter != nullptr)
@@ -1176,6 +1183,29 @@ void OrchConductorAudioProcessor::setNarrativePosition (double position)
 
     if (narrativePositionParameter != nullptr)
         *narrativePositionParameter = static_cast<float> (clamped);
+}
+
+void OrchConductorAudioProcessor::updateNarrativeScanResolution()
+{
+    // Narrative lanes live only in the loaded runtime catalog. If the catalog
+    // is the fallback (no lanes) the resolver returns an invalid selection and
+    // nothing is sent.
+    const auto selection = OrchConductorNarrativeScanResolver::resolve (
+        runtimePresetCatalog,
+        narrativeLaneIndex,
+        narrativePosition,
+        lastResolvedNarrativePointIndex);
+
+    if (! selection.isValid)
+        return;
+
+    lastResolvedNarrativePointIndex = selection.pointIndex;
+
+    if (selection.combiId != lastResolvedNarrativeCombiId)
+    {
+        lastResolvedNarrativeCombiId = selection.combiId;
+        sendPresetRequested = true;
+    }
 }
 
 juce::String OrchConductorAudioProcessor::getRuntimeCatalogSectionId (Section section)
@@ -1242,26 +1272,31 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
 
     syncAutomatedParameters();
 
+    if (authorityMode == AuthorityMode::narrativeScan)
+        updateNarrativeScanResolution();
+
     const bool shouldSendAllOff = consumeSendAllOffRequest();
     const bool shouldSendPreset = consumeSendPresetRequest();
 
     if (! shouldSendAllOff && ! shouldSendPreset)
         return;
 
-    const bool useCombi = isCombiModeActive() && ! shouldSendAllOff;
+    // Narrative scan borrows the combi CC payload path but resolves its own
+    // combi id instead of touching combiPresetId / the combiPreset parameter.
+    const bool useCombi = ! shouldSendAllOff && isEffectiveCombiModeActive();
 
     for (int i = 0; i < numWoodwindsRows; ++i)
     {
         const int cc = woodwindsCcNumbers[i];
 
         int value = shouldSendAllOff ? 0
-                  : useCombi        ? getCombiPresetValueForCc (cc)
+                  : useCombi        ? getCombiPresetValueForCc (getEffectiveCombiPresetId(), cc)
                                     : getWoodwindsPresetValueForIndex (i);
 
         if (! shouldSendAllOff)
         {
             if (useCombi)
-                tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+                tryGetRuntimeCombiPresetValueForCc (getEffectiveCombiPresetId(), cc, value);
 
             if (! useCombi)
                 tryGetRuntimeSectionPresetValueForCc (Section::woodwinds, woodwindsPresetId, cc, value);
@@ -1275,13 +1310,13 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
         const int cc = brassCcNumbers[i];
 
         int value = shouldSendAllOff ? 0
-                  : useCombi        ? getCombiPresetValueForCc (cc)
+                  : useCombi        ? getCombiPresetValueForCc (getEffectiveCombiPresetId(), cc)
                                     : getBrassPresetValueForIndex (i);
 
         if (! shouldSendAllOff)
         {
             if (useCombi)
-                tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+                tryGetRuntimeCombiPresetValueForCc (getEffectiveCombiPresetId(), cc, value);
 
             if (! useCombi)
                 tryGetRuntimeSectionPresetValueForCc (Section::brass, brassPresetId, cc, value);
@@ -1295,13 +1330,13 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
         const int cc = percussionCcNumbers[i];
 
         int value = shouldSendAllOff ? 0
-                  : useCombi        ? getCombiPresetValueForCc (cc)
+                  : useCombi        ? getCombiPresetValueForCc (getEffectiveCombiPresetId(), cc)
                                     : getPercussionPresetValueForIndex (i);
 
         if (! shouldSendAllOff)
         {
             if (useCombi)
-                tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+                tryGetRuntimeCombiPresetValueForCc (getEffectiveCombiPresetId(), cc, value);
 
             if (! useCombi)
                 tryGetRuntimeSectionPresetValueForCc (Section::percussion, percussionPresetId, cc, value);
@@ -1313,7 +1348,7 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     int reservedCc49Value = 0;
 
     if (! shouldSendAllOff && useCombi)
-        tryGetRuntimeCombiPresetValueForCc (combiPresetId, reservedHarpCcNumber, reservedCc49Value);
+        tryGetRuntimeCombiPresetValueForCc (getEffectiveCombiPresetId(), reservedHarpCcNumber, reservedCc49Value);
 
     midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, reservedHarpCcNumber, reservedCc49Value), 0);
 
@@ -1322,13 +1357,13 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
         const int cc = ccNumbers[i];
 
         int value = shouldSendAllOff ? 0
-                  : useCombi        ? getCombiPresetValueForCc (cc)
+                  : useCombi        ? getCombiPresetValueForCc (getEffectiveCombiPresetId(), cc)
                                     : getPresetValueForIndex (i);
 
         if (! shouldSendAllOff)
         {
             if (useCombi)
-                tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+                tryGetRuntimeCombiPresetValueForCc (getEffectiveCombiPresetId(), cc, value);
 
             if (! useCombi)
                 tryGetRuntimeSectionPresetValueForCc (Section::strings, stringsPresetId, cc, value);
@@ -1518,6 +1553,32 @@ void OrchConductorAudioProcessor::setCombiPresetId (int presetId)
 bool OrchConductorAudioProcessor::isCombiModeActive() const
 {
     return combiPresetId != static_cast<int> (CombiPreset::manualSections);
+}
+
+bool OrchConductorAudioProcessor::isNarrativeScanDriving() const
+{
+    return authorityMode == AuthorityMode::narrativeScan
+        && lastResolvedNarrativeCombiId >= 0;
+}
+
+int OrchConductorAudioProcessor::getEffectiveCombiPresetId() const
+{
+    return isNarrativeScanDriving() ? lastResolvedNarrativeCombiId : combiPresetId;
+}
+
+bool OrchConductorAudioProcessor::isEffectiveCombiModeActive() const
+{
+    return isNarrativeScanDriving() || isCombiModeActive();
+}
+
+int OrchConductorAudioProcessor::getResolvedNarrativeCombiId() const
+{
+    return lastResolvedNarrativeCombiId;
+}
+
+int OrchConductorAudioProcessor::getResolvedNarrativeLanePointIndex() const
+{
+    return lastResolvedNarrativePointIndex;
 }
 
 juce::String OrchConductorAudioProcessor::getCombiPresetName() const
@@ -2322,12 +2383,12 @@ OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getOutputRow
         return makeOutputRow ("Invalid", 0, 0);
 
     const int cc = ccNumbers[index];
-    int value = isCombiModeActive()
-        ? getCombiPresetValueForCc (cc)
+    int value = isEffectiveCombiModeActive()
+        ? getCombiPresetValueForCc (getEffectiveCombiPresetId(), cc)
         : getPresetValueForIndex (index);
 
-    if (isCombiModeActive())
-        tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+    if (isEffectiveCombiModeActive())
+        tryGetRuntimeCombiPresetValueForCc (getEffectiveCombiPresetId(), cc, value);
     else
         tryGetRuntimeSectionPresetValueForCc (Section::strings, stringsPresetId, cc, value);
 
@@ -2345,12 +2406,12 @@ OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getWoodwinds
         return makeOutputRow ("Invalid", 0, 0);
 
     const int cc = woodwindsCcNumbers[index];
-    int value = isCombiModeActive()
-        ? getCombiPresetValueForCc (cc)
+    int value = isEffectiveCombiModeActive()
+        ? getCombiPresetValueForCc (getEffectiveCombiPresetId(), cc)
         : getWoodwindsPresetValueForIndex (index);
 
-    if (isCombiModeActive())
-        tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+    if (isEffectiveCombiModeActive())
+        tryGetRuntimeCombiPresetValueForCc (getEffectiveCombiPresetId(), cc, value);
     else
         tryGetRuntimeSectionPresetValueForCc (Section::woodwinds, woodwindsPresetId, cc, value);
 
@@ -2368,12 +2429,12 @@ OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getBrassOutp
         return makeOutputRow ("Invalid", 0, 0);
 
     const int cc = brassCcNumbers[index];
-    int value = isCombiModeActive()
-        ? getCombiPresetValueForCc (cc)
+    int value = isEffectiveCombiModeActive()
+        ? getCombiPresetValueForCc (getEffectiveCombiPresetId(), cc)
         : getBrassPresetValueForIndex (index);
 
-    if (isCombiModeActive())
-        tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+    if (isEffectiveCombiModeActive())
+        tryGetRuntimeCombiPresetValueForCc (getEffectiveCombiPresetId(), cc, value);
     else
         tryGetRuntimeSectionPresetValueForCc (Section::brass, brassPresetId, cc, value);
 
@@ -2391,12 +2452,12 @@ OrchConductorAudioProcessor::OutputRow OrchConductorAudioProcessor::getPercussio
         return makeOutputRow ("Invalid", 0, 0);
 
     const int cc = percussionCcNumbers[index];
-    int value = isCombiModeActive()
-        ? getCombiPresetValueForCc (cc)
+    int value = isEffectiveCombiModeActive()
+        ? getCombiPresetValueForCc (getEffectiveCombiPresetId(), cc)
         : getPercussionPresetValueForIndex (index);
 
-    if (isCombiModeActive())
-        tryGetRuntimeCombiPresetValueForCc (combiPresetId, cc, value);
+    if (isEffectiveCombiModeActive())
+        tryGetRuntimeCombiPresetValueForCc (getEffectiveCombiPresetId(), cc, value);
     else
         tryGetRuntimeSectionPresetValueForCc (Section::percussion, percussionPresetId, cc, value);
 

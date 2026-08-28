@@ -253,6 +253,68 @@ bool verifyCombiOverridesSectionPresets()
     return ok;
 }
 
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+bool verifyNarrativeScanDrivesCombiSend()
+{
+    OrchConductorAudioProcessor processor;
+
+    // Narrative lanes only exist when the runtime catalog loaded and became
+    // authoritative. If it did not, skip rather than fail - this mirrors the
+    // resolver's own safe-degradation behaviour.
+    if (processor.doesRuntimePresetCatalogAuthorityProbeRequireFallback())
+    {
+        std::cout << "[SKIP] narrative scan: runtime catalog not authoritative" << std::endl;
+        return true;
+    }
+
+    processor.setAuthorityMode(OrchConductorAudioProcessor::AuthorityMode::narrativeScan);
+    processor.setNarrativeLaneIndex(0);   // organic_build
+    processor.setNarrativePosition(0.0);  // -> lane point 0 -> combi 28 (Solo English Horn Lament)
+
+    const auto atStart = captureMidi(processor);
+
+    bool ok = true;
+
+    ok = verifyStandardSendShape(atStart, "narrative scan start send") && ok;
+    ok = checkEquals(processor.getResolvedNarrativeCombiId(),
+                     static_cast<int>(OrchConductorAudioProcessor::CombiPreset::soloEnglishHornLament),
+                     "narrative scan start resolved combi id") && ok;
+
+    for (int cc = 20; cc <= 54; ++cc)
+    {
+        if (cc == 25 || cc == 52 || cc == 53)
+            ok = expectCcValue(atStart, cc, 127, "narrative scan start") && ok;
+        else if (cc == 54)
+            ok = expectCcValue(atStart, cc, 64, "narrative scan start") && ok;
+        else
+            ok = expectCcValue(atStart, cc, 0, "narrative scan start") && ok;
+    }
+
+    // Same position again: resolved combi unchanged -> no send.
+    const auto held = captureMidi(processor);
+    ok = checkEquals(held.eventCount, 0, "narrative scan no send while combi unchanged") && ok;
+
+    // Move to the far end of the lane -> point 5 -> combi 2 (Full Orchestra).
+    processor.setNarrativePosition(1.0);
+    const auto atEnd = captureMidi(processor);
+
+    ok = verifyStandardSendShape(atEnd, "narrative scan end send") && ok;
+    ok = checkEquals(processor.getResolvedNarrativeCombiId(),
+                     static_cast<int>(OrchConductorAudioProcessor::CombiPreset::utilityFullOrchestra),
+                     "narrative scan end resolved combi id") && ok;
+
+    for (int cc = 20; cc <= 48; ++cc)
+        ok = expectCcValue(atEnd, cc, 127, "narrative scan end full orchestra") && ok;
+
+    ok = expectCcValue(atEnd, 49, 0, "narrative scan end reserved") && ok;
+
+    for (int cc = 50; cc <= 54; ++cc)
+        ok = expectCcValue(atEnd, cc, 127, "narrative scan end full strings") && ok;
+
+    return ok;
+}
+#endif
+
 bool verifySendRequestConsumed()
 {
     OrchConductorAudioProcessor processor;
@@ -429,6 +491,9 @@ int main()
     ok = verifyManualSectionLowStringsSend() && ok;
     ok = verifyManualSectionWoodwindsAndBrassSend() && ok;
     ok = verifyCombiOverridesSectionPresets() && ok;
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+    ok = verifyNarrativeScanDrivesCombiSend() && ok;
+#endif
     ok = verifySendRequestConsumed() && ok;
     ok = verifyProbeDiagnosticsPresentAndNonAuthoritative() && ok;
 

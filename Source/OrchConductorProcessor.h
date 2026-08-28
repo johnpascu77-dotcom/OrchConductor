@@ -181,6 +181,16 @@ public:
     int getMaxSectionPresetId (Section section) const;
     bool isCombiModeActive() const;
 
+    // True when Narrative Scan mode is selected and has resolved a valid combi.
+    bool isNarrativeScanDriving() const;
+    // The combi id that currently drives output: the narrative-resolved one
+    // while Narrative Scan is driving, otherwise the selected combiPresetId.
+    int getEffectiveCombiPresetId() const;
+    // isCombiModeActive() OR narrative scan is driving.
+    bool isEffectiveCombiModeActive() const;
+    int getResolvedNarrativeCombiId() const;
+    int getResolvedNarrativeLanePointIndex() const;
+
     static int getNumOutputRows();
     OutputRow getOutputRow (int index) const;
     int getTotalActivePlayers() const;
@@ -321,6 +331,11 @@ private:
     juce::AudioParameterInt* narrativeLaneParameter { nullptr };
     juce::AudioParameterFloat* narrativePositionParameter { nullptr };
     void syncAutomatedParameters();
+
+    // Phase 10F.5 increment 2: resolve the selected narrative lane + position
+    // to a combi id and request a send when that id changes. Only called while
+    // authorityMode == narrativeScan.
+    void updateNarrativeScanResolution();
 
     int getPresetValueForIndex (int index) const;
     int getWoodwindsPresetValueForIndex (int index) const;
