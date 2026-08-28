@@ -103,16 +103,16 @@ and, in the template, different routing paths. Any new bridge CC must avoid **bo
 
 Use the MIDI-spec **undefined** controllers, clear of both plugins:
 
-| CC | Parameter | Notes |
-|---|---|---|
-| `102` | `narrativePosition` | 0..127 → 0.0..1.0 |
-| `103` | `narrativeLane` | 0..127 → nearest lane index (clamp to `laneCount-1`) |
-| `104` | `authorityMode` | optional; 0..42 = Manual, 43..85 = Combi, 86..127 = Narrative Scan |
+| CC | Parameter | Mapping | Status |
+|---|---|---|---|
+| `102` | `narrativePosition` | value / 127 → 0.0..1.0 | **live** |
+| `103` | `narrativeLane` | value, clamped to the runtime catalog's lane count | **live** |
+| `104` | `authorityMode` | <43 = Manual, <86 = Combi, else Narrative Scan | **live** |
 
-OrchConductor listens for these on its **input MIDI**, on a configurable channel (default: **any**,
-since it currently ignores all input). Because they are plugin parameters too, a user who prefers
-Bitwig-native routing can ignore the CC path entirely and drive `narrativePosition` with an
-automation lane or a Bitwig modulator — no MC required.
+OrchConductor listens for these on its **input MIDI, any channel** (`processBlock` →
+`applyNarrativeControlCcInput`); the messages pass through untouched. Because they are also plain
+plugin parameters, a user who prefers Bitwig-native routing can ignore the CC path entirely and
+drive `Narrative Position` with an automation lane or a Bitwig modulator — no MC required.
 
 ### Rule for the template
 
@@ -137,10 +137,15 @@ Built and confirmed live in Bitwig 2026-08-28, on `phase-10F-narrative-scan-lane
   position slider, resolved-combi status line), authority↔combi-box coherence, removed the stale
   10E overlap panel, editor made resizable (980×800 default).
 
-All 7 acceptance criteria below are met. The one deferred design choice (§10) — live CC vs. exported
-automation for the MC bridge — is still open and does not block anything; the parameter contract
-stands either way. Bridge CC listening (§5, CC102-104) is **not yet implemented** — only the
-automatable parameters exist so far. That, and the MC-side emit (§8), are the remaining work.
+All 7 acceptance criteria below are met.
+
+**Bridge CC listening (§5, CC102-104) is live** — `64104bc`. And the **MC side is live** — MC's
+`narrative-position` synthetic modulator-target dimension (see §8) emits the blueprint playhead's
+0→1 progress as a CC through the existing ModulatorTarget path. Confirmed end-to-end in Bitwig
+2026-08-28: MC ModulatorTarget CC102 → OrchConductor Narrative Scan walks the selected lane.
+
+The one deferred design choice (§10) — live CC vs. exported automation — is moot now that both work;
+the ModulatorTarget path is the live option and the parameter stays automatable for the baked one.
 
 Original increment plan (for reference):
 
@@ -195,19 +200,27 @@ branch.
 
 ---
 
-## 8. MC-side work (later, small)
+## 8. MC-side work — DONE
 
-Once 10F.5 is live:
+Implemented in Composer Mastermind (`main`), confirmed live 2026-08-28:
 
-- MC computes a `narrativePosition` from the blueprint playhead (elapsed / total, or a dedicated
-  blueprint curve — MC's call).
-- MC emits it as **CC102** via the existing `CCDispatcher`, on the dedicated narrative routing.
-- Optionally emit `narrativeLane` (CC103) if the blueprint wants to switch dramaturgical shape
-  mid-piece; otherwise the lane is set once in OrchConductor's UI per project.
+- New **synthetic modulator-target dimension** `ComposerCore::kNarrativePositionDimension`
+  (`"narrative-position"`). It is *not* an `ArcSet` dimension — `sendModulatorTargetUpdates`
+  special-cases it and calls `ComposerCore::getNarrativePositionAt(currentBar)` instead of sampling
+  an authored Arc.
+- `getNarrativePositionAt` = `(currentBar − minStartBar) / (maxSectionEnd − minStartBar)`, clamped
+  0..1; returns 0 when no blueprint is current. Read under `blueprintMutex`.
+- The user adds a **Modulator Target** in the Modulators tab: CC `102`, a dedicated MIDI channel,
+  mode `arc`, dimension `narrative-position`. It then rides the entire existing ModulatorTarget
+  path — per-bar dispatch from `processBar`, `CCMapping::encodeFloat` 0..127, project persistence,
+  the Modulators-tab dropdown (offered for targets, not for `ModulationRoute`s — it is not an MPL
+  parameter).
 - No new IPC. No `PatternSyncServer` changes. No two-way state.
+- Lane (CC103) is still set in OrchConductor's own UI per project — MC has no concept of which
+  OrchConductor lane a blueprint maps to, so it only emits position.
 
-This is a MC feature to schedule separately; it does not block OrchConductor 10F.5 and OrchConductor
-10F.5 does not depend on it.
+Dispatch granularity is one update per bar (same as every other arc-driven ModulatorTarget); fine
+for section-length narrative movement.
 
 ---
 
@@ -245,9 +258,10 @@ contract. Revisit only if lane-scanning proves too coarse in real use.
 1. ~~Checkpoint build of `phase-10F-narrative-scan-lanes`, confirm no regression vs 10E.~~ **DONE**
 2. ~~OrchConductor Phase 10F.5 (params+state / resolve+send / UI).~~ **DONE** — `cd4427f`, `8f4da10`,
    `d16f94d`; confirmed live in Bitwig 2026-08-28.
-3. Live-test standalone with a Bitwig modulator / automation lane on `Narrative Position`
-   (hand-drag confirmed; sustained modulator run not yet exercised).
-4. **NEXT** — decide the bridge transport (§10), then either: add CC102-104 listening to
-   OrchConductor, and/or MC-side emit of `narrativePosition` from the blueprint playhead (§8).
-5. Full-rig test: MC blueprint → OrchConductor narrative scan → OrchGate instances, notes from a
-   mix of MPL and clips.
+3. ~~Live-test standalone with a Bitwig modulator / automation lane.~~ Hand-drag confirmed.
+4. ~~Bridge: CC102-104 listening in OrchConductor + MC-side `narrative-position` emit.~~ **DONE** —
+   OrchConductor `64104bc`; MC `narrative-position` modulator dimension. Confirmed: MC ModulatorTarget
+   CC102 → OrchConductor Narrative Scan walks the lane.
+5. **NEXT** — full-rig test: MC blueprint → OrchConductor narrative scan → OrchGate instances, with
+   note material from a mix of MPL and clips, and the OrchNoteMapper→OrchGate chains actually
+   wired. (Steps 1-4 proved the control path; step 5 proves it in a real orchestral template.)
