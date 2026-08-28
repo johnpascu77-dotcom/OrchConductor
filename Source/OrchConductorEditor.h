@@ -21,6 +21,9 @@ private:
     juce::Label buildLabel;
 
     juce::Label combiPresetLabel;
+    juce::Label authorityModeLabel;
+    juce::Label narrativeScanLabel;
+    juce::Label narrativeScanStatusLabel;
     juce::Label sectionPresetsLabel;
     juce::Label woodwindsPresetLabel;
     juce::Label brassPresetLabel;
@@ -46,6 +49,9 @@ private:
     juce::Label statusLabel;
 
     juce::ComboBox combiPresetBox;
+    juce::ComboBox authorityModeBox;
+    juce::ComboBox narrativeLaneBox;
+    juce::Slider narrativePositionSlider;
     juce::ComboBox woodwindsPresetBox;
     juce::ComboBox brassPresetBox;
     juce::ComboBox percussionPresetBox;
@@ -69,6 +75,8 @@ private:
     std::unique_ptr<juce::FileChooser> userCombiImportChooser;
     void updateStatus();
     void updateNarrativeMetadataDisplay();
+    void updateNarrativeScanControls();
+    void rebuildNarrativeLaneItems();
     void updateOutputTable();
     void updateWoodwindsOutputTable();
     void updateBrassOutputTable();

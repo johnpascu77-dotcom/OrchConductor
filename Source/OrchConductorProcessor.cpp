@@ -1581,6 +1581,30 @@ int OrchConductorAudioProcessor::getResolvedNarrativeLanePointIndex() const
     return lastResolvedNarrativePointIndex;
 }
 
+int OrchConductorAudioProcessor::getNarrativeLaneCount() const
+{
+    return runtimePresetCatalog.getNarrativeLaneCount();
+}
+
+juce::String OrchConductorAudioProcessor::getNarrativeLaneLabel (int laneIndex) const
+{
+    if (laneIndex < 0 || laneIndex >= runtimePresetCatalog.getNarrativeLaneCount())
+        return {};
+
+    return runtimePresetCatalog.getNarrativeLaneLabel (laneIndex);
+}
+
+juce::String OrchConductorAudioProcessor::getNarrativeLanePointLabel (int laneIndex, int pointIndex) const
+{
+    if (laneIndex < 0 || laneIndex >= runtimePresetCatalog.getNarrativeLaneCount())
+        return {};
+
+    if (pointIndex < 0 || pointIndex >= runtimePresetCatalog.getNarrativeLanePointCount (laneIndex))
+        return {};
+
+    return runtimePresetCatalog.getNarrativeLanePointLabel (laneIndex, pointIndex);
+}
+
 juce::String OrchConductorAudioProcessor::getCombiPresetName() const
 {
     return getCombiPresetLabel (combiPresetId);

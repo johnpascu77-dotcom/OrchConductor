@@ -1,5 +1,7 @@
 #include "OrchConductorEditor.h"
 
+#include <cmath>
+
 namespace
 {
     void styleLabel (juce::Label& label, juce::Colour colour, float size, int style = juce::Font::plain)
@@ -53,12 +55,6 @@ namespace
             : "Catalog: Factory fallback active";
     }
 
-    juce::String getUserFacingCatalogDetail (const OrchConductorAudioProcessor& processor)
-    {
-        return processor.isRuntimePresetCatalogAuthorityActive()
-            ? "MIDI map and output previews follow catalog values"
-            : "MIDI map and output previews use built-in values";
-    }
     void appendMidiMapSectionHeader (juce::String& text, const juce::String& sectionName)
     {
         text << sectionName << "\n";
@@ -114,7 +110,9 @@ namespace
 OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConductorAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
-    setSize (980, 760);
+    setResizable (true, true);
+    setResizeLimits (900, 620, 1400, 1100);
+    setSize (980, 800);
 
     titleLabel.setText ("OrchConductor", juce::dontSendNotification);
     titleLabel.setJustificationType (juce::Justification::centred);
@@ -128,7 +126,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 10E", juce::dontSendNotification);
+    buildLabel.setText ("Build: Phase 10F", juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));
@@ -147,9 +145,96 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     {
         const int selected = combiPresetBox.getSelectedId() - 1;
         audioProcessor.setCombiPresetIdFromUI (selected);
+
+        // Picking a combi (or 00) is an authority choice; follow it unless the
+        // user is deliberately in Narrative Scan.
+        if (audioProcessor.getAuthorityMode() != OrchConductorAudioProcessor::AuthorityMode::narrativeScan)
+        {
+            audioProcessor.setAuthorityMode (
+                selected == 0 ? OrchConductorAudioProcessor::AuthorityMode::manualSections
+                              : OrchConductorAudioProcessor::AuthorityMode::combiPreset);
+        }
+
+        updateNarrativeMetadataDisplay();
+        updateNarrativeScanControls();
+        updateStatus();
+    };
+
+    authorityModeLabel.setText ("Authority Mode", juce::dontSendNotification);
+    styleLabel (authorityModeLabel, juce::Colours::white, 14.0f, juce::Font::bold);
+    addAndMakeVisible (authorityModeLabel);
+
+    authorityModeBox.addItem ("Manual Sections", 1);
+    authorityModeBox.addItem ("Combi Preset", 2);
+    authorityModeBox.addItem ("Narrative Scan", 3);
+    authorityModeBox.setSelectedId (static_cast<int> (audioProcessor.getAuthorityMode()) + 1, juce::dontSendNotification);
+    styleComboBox (authorityModeBox, true);
+    addAndMakeVisible (authorityModeBox);
+
+    authorityModeBox.onChange = [this]
+    {
+        const auto mode = static_cast<OrchConductorAudioProcessor::AuthorityMode> (authorityModeBox.getSelectedId() - 1);
+        audioProcessor.setAuthorityMode (mode);
+
+        // Keep the combi/section controls coherent with the chosen authority so
+        // the status line never contradicts the selector. Narrative Scan leaves
+        // the combi box alone (it does not drive output in that mode).
+        if (mode == OrchConductorAudioProcessor::AuthorityMode::manualSections)
+        {
+            combiPresetBox.setSelectedId (1, juce::sendNotificationSync); // -> Manual Sections (combi 0)
+        }
+        else if (mode == OrchConductorAudioProcessor::AuthorityMode::combiPreset
+                 && ! audioProcessor.isCombiModeActive())
+        {
+            combiPresetBox.setSelectedId (
+                static_cast<int> (OrchConductorAudioProcessor::CombiPreset::utilityFullOrchestra) + 1,
+                juce::sendNotificationSync);
+        }
+
+        updateNarrativeScanControls();
         updateNarrativeMetadataDisplay();
         updateStatus();
     };
+
+    narrativeScanLabel.setText ("Narrative Scan", juce::dontSendNotification);
+    styleLabel (narrativeScanLabel, juce::Colours::white, 14.0f, juce::Font::bold);
+    addAndMakeVisible (narrativeScanLabel);
+
+    rebuildNarrativeLaneItems();
+    narrativeLaneBox.setSelectedId (audioProcessor.getNarrativeLaneIndex() + 1, juce::dontSendNotification);
+    styleComboBox (narrativeLaneBox, true);
+    addAndMakeVisible (narrativeLaneBox);
+
+    narrativeLaneBox.onChange = [this]
+    {
+        audioProcessor.setNarrativeLaneIndex (narrativeLaneBox.getSelectedId() - 1);
+        updateNarrativeScanControls();
+        updateStatus();
+    };
+
+    narrativePositionSlider.setSliderStyle (juce::Slider::LinearHorizontal);
+    narrativePositionSlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 70, 22);
+    narrativePositionSlider.setRange (0.0, 1.0, 0.001);
+    narrativePositionSlider.setValue (audioProcessor.getNarrativePosition(), juce::dontSendNotification);
+    narrativePositionSlider.setColour (juce::Slider::backgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+    narrativePositionSlider.setColour (juce::Slider::trackColourId, juce::Colour::fromRGB (95, 200, 245));
+    narrativePositionSlider.setColour (juce::Slider::thumbColourId, juce::Colours::white);
+    narrativePositionSlider.setColour (juce::Slider::textBoxTextColourId, juce::Colours::white);
+    narrativePositionSlider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+    narrativePositionSlider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colour::fromRGB (70, 85, 95));
+    addAndMakeVisible (narrativePositionSlider);
+
+    narrativePositionSlider.onValueChange = [this]
+    {
+        audioProcessor.setNarrativePosition (narrativePositionSlider.getValue());
+        updateNarrativeScanControls();
+        updateStatus();
+    };
+
+    narrativeScanStatusLabel.setJustificationType (juce::Justification::centred);
+    narrativeScanStatusLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (205, 220, 230));
+    narrativeScanStatusLabel.setFont (juce::FontOptions (12.0f));
+    addAndMakeVisible (narrativeScanStatusLabel);
 
     sectionPresetsLabel.setText ("Manual Section Presets", juce::dontSendNotification);
     sectionPresetsLabel.setJustificationType (juce::Justification::centred);
@@ -529,6 +614,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     updateBrassOutputTable();
     updatePercussionOutputTable();
     updateNarrativeMetadataDisplay();
+    updateNarrativeScanControls();
     updateStatus();
 
     // Phase 2A: keep UI synced when host restores plugin state after editor creation.
@@ -547,23 +633,6 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
     auto bounds = getLocalBounds().toFloat().reduced (2.0f);
     g.setColour (juce::Colour::fromRGB (95, 200, 245));
     g.drawRoundedRectangle (bounds, 8.0f, 2.0f);
-
-    const auto panelColour = juce::Colour::fromRGB (24, 32, 42);
-    const auto outlineColour = juce::Colour::fromRGB (55, 75, 90);
-
-    const juce::Rectangle<float> futureArea (48.0f, 476.0f, 884.0f, 80.0f);
-
-    g.setColour (panelColour);
-    g.fillRoundedRectangle (futureArea, 6.0f);
-
-    g.setColour (outlineColour);
-    g.drawRoundedRectangle (futureArea, 6.0f, 1.0f);
-
-    g.setColour (juce::Colour::fromRGB (120, 140, 155));
-    g.setFont (juce::FontOptions (13.0f, juce::Font::plain));
-    g.drawText ("Phase 10E: " + getUserFacingCatalogStatus (audioProcessor) + " | " + getUserFacingCatalogDetail (audioProcessor),
-                futureArea.toNearestInt().reduced (16, 8),
-                juce::Justification::centred);
 }
 
 void OrchConductorAudioProcessorEditor::resized()
@@ -579,6 +648,12 @@ void OrchConductorAudioProcessorEditor::resized()
     auto combiRow = area.removeFromTop (38);
     combiPresetLabel.setBounds (combiRow.removeFromLeft (150));
     combiPresetBox.setBounds (combiRow.removeFromLeft (650));
+
+    area.removeFromTop (8);
+
+    auto authorityRow = area.removeFromTop (34);
+    authorityModeLabel.setBounds (authorityRow.removeFromLeft (150));
+    authorityModeBox.setBounds (authorityRow.removeFromLeft (300));
 
     area.removeFromTop (8);
 
@@ -630,6 +705,19 @@ void OrchConductorAudioProcessorEditor::resized()
 
     area.removeFromTop (14);
 
+    narrativeScanLabel.setBounds (area.removeFromTop (22));
+
+    area.removeFromTop (4);
+
+    auto narrativeScanRow = area.removeFromTop (34);
+    narrativeLaneBox.setBounds (narrativeScanRow.removeFromLeft (300));
+    narrativeScanRow.removeFromLeft (16);
+    narrativePositionSlider.setBounds (narrativeScanRow.removeFromLeft (560));
+
+    narrativeScanStatusLabel.setBounds (area.removeFromTop (20));
+
+    area.removeFromTop (12);
+
     narrativeMetadataLabel.setBounds (area.removeFromTop (22));
     narrativeMetadataValueLabel.setBounds (area.removeFromTop (64).reduced (8, 0));
 
@@ -645,8 +733,13 @@ void OrchConductorAudioProcessorEditor::resized()
     auto midiMapRow = area.removeFromTop (38);
     midiMapButton.setBounds (midiMapRow.withSizeKeepingCentre (200, 34));
 
-    ccMapLabel.setBounds (48, 678, 884, 24);
-    statusLabel.setBounds (48, 706, 884, 28);
+    // Footer anchored to the window bottom so shrinking the editor squeezes the
+    // middle, not the status line.
+    auto footer = getLocalBounds().reduced (48, 0);
+    footer.removeFromBottom (16);
+    statusLabel.setBounds (footer.removeFromBottom (26));
+    footer.removeFromBottom (4);
+    ccMapLabel.setBounds (footer.removeFromBottom (22));
 }
 
 
@@ -682,6 +775,18 @@ void OrchConductorAudioProcessorEditor::timerCallback()
     if (sendOnChangeToggle.getToggleState() != sendOnChange)
         sendOnChangeToggle.setToggleState (sendOnChange, juce::dontSendNotification);
 
+    const int authorityId = static_cast<int> (audioProcessor.getAuthorityMode()) + 1;
+    if (authorityModeBox.getSelectedId() != authorityId)
+        authorityModeBox.setSelectedId (authorityId, juce::dontSendNotification);
+
+    const int laneId = audioProcessor.getNarrativeLaneIndex() + 1;
+    if (narrativeLaneBox.getSelectedId() != laneId && narrativeLaneBox.getNumItems() >= laneId)
+        narrativeLaneBox.setSelectedId (laneId, juce::dontSendNotification);
+
+    if (std::abs (narrativePositionSlider.getValue() - audioProcessor.getNarrativePosition()) > 0.0005)
+        narrativePositionSlider.setValue (audioProcessor.getNarrativePosition(), juce::dontSendNotification);
+
+    updateNarrativeScanControls();
     updateStatus();
 }
 
@@ -738,15 +843,44 @@ void OrchConductorAudioProcessorEditor::updateNarrativeMetadataDisplay()
 
 void OrchConductorAudioProcessorEditor::updateStatus()
 {
+    const bool narrative =
+        audioProcessor.getAuthorityMode() == OrchConductorAudioProcessor::AuthorityMode::narrativeScan;
+
+    const juce::String authorityText = narrative
+        ? "Authority: Narrative Scan"
+        : (audioProcessor.isCombiModeActive() ? "Authority: Combi Preset"
+                                              : "Authority: Manual Sections");
+
     ccMapLabel.setText (
-        audioProcessor.isCombiModeActive()
-            ? "Phase 10E: Combi mode active - manual sections bypassed until Manual Sections is selected | CC49 reserved for Harp"
-            : "Phase 10E: Manual Sections active - section presets drive output | CC49 reserved for Harp",
+        "Phase 10F | " + authorityText + " | " + getUserFacingCatalogStatus (audioProcessor)
+        + " | CC49 reserved for Harp",
         juce::dontSendNotification);
 
     const juce::String autoSendText = audioProcessor.getSendOnPresetChange() ? " | Auto-send: On" : " | Auto-send: Off";
     const juce::String activePlayersText = " | Active players: " + juce::String (audioProcessor.getTotalActivePlayers());
     const juce::String sendFeedbackText = " | " + lastActionText + " | Send requests: " + juce::String (sendRequestCount);
+
+    if (narrative)
+    {
+        const int laneIndex = audioProcessor.getNarrativeLaneIndex();
+        const int combiId = audioProcessor.getResolvedNarrativeCombiId();
+
+        const juce::String resolvedText = combiId >= 0
+            ? audioProcessor.getCombiPresetLabel (combiId)
+            : juce::String ("(no lane resolved)");
+
+        statusLabel.setText (
+            "Narrative Scan: " + audioProcessor.getNarrativeLaneLabel (laneIndex)
+            + " @ " + juce::String (juce::roundToInt (audioProcessor.getNarrativePosition() * 100.0)) + "%"
+            + " -> " + resolvedText
+            + activePlayersText
+            + " | Harp reserved"
+            + autoSendText
+            + sendFeedbackText,
+            juce::dontSendNotification);
+
+        return;
+    }
 
     if (audioProcessor.isCombiModeActive())
     {
@@ -767,6 +901,65 @@ void OrchConductorAudioProcessorEditor::updateStatus()
         + " | Harp reserved"
         + autoSendText
         + sendFeedbackText,
+        juce::dontSendNotification);
+}
+
+void OrchConductorAudioProcessorEditor::rebuildNarrativeLaneItems()
+{
+    narrativeLaneBox.clear (juce::dontSendNotification);
+
+    const int count = audioProcessor.getNarrativeLaneCount();
+
+    if (count <= 0)
+    {
+        narrativeLaneBox.addItem ("(no narrative lanes)", 1);
+        return;
+    }
+
+    for (int i = 0; i < count; ++i)
+    {
+        const auto label = audioProcessor.getNarrativeLaneLabel (i);
+
+        narrativeLaneBox.addItem (
+            juce::String (i).paddedLeft ('0', 2) + " "
+            + (label.isNotEmpty() ? label : juce::String ("Lane ") + juce::String (i)),
+            i + 1);
+    }
+}
+
+void OrchConductorAudioProcessorEditor::updateNarrativeScanControls()
+{
+    const bool narrative =
+        audioProcessor.getAuthorityMode() == OrchConductorAudioProcessor::AuthorityMode::narrativeScan;
+
+    styleComboBox (narrativeLaneBox, narrative);
+    narrativePositionSlider.setEnabled (narrative);
+
+    if (! narrative)
+    {
+        narrativeScanStatusLabel.setText (
+            "Narrative Scan inactive - set Authority Mode to Narrative Scan to drive output from a lane.",
+            juce::dontSendNotification);
+        return;
+    }
+
+    const int laneIndex = audioProcessor.getNarrativeLaneIndex();
+    const int pointIndex = audioProcessor.getResolvedNarrativeLanePointIndex();
+    const int combiId = audioProcessor.getResolvedNarrativeCombiId();
+
+    if (combiId < 0)
+    {
+        narrativeScanStatusLabel.setText (
+            "Lane " + juce::String (laneIndex) + " has no resolvable points.",
+            juce::dontSendNotification);
+        return;
+    }
+
+    const juce::String pointLabel = audioProcessor.getNarrativeLanePointLabel (laneIndex, pointIndex);
+
+    narrativeScanStatusLabel.setText (
+        "Resolved -> " + audioProcessor.getCombiPresetLabel (combiId)
+        + (pointLabel.isNotEmpty() ? juce::String ("  (") + pointLabel + ")" : juce::String()),
         juce::dontSendNotification);
 }
 

@@ -191,6 +191,11 @@ public:
     int getResolvedNarrativeCombiId() const;
     int getResolvedNarrativeLanePointIndex() const;
 
+    // Runtime-catalog narrative lane metadata for the editor.
+    int getNarrativeLaneCount() const;
+    juce::String getNarrativeLaneLabel (int laneIndex) const;
+    juce::String getNarrativeLanePointLabel (int laneIndex, int pointIndex) const;
+
     static int getNumOutputRows();
     OutputRow getOutputRow (int index) const;
     int getTotalActivePlayers() const;
