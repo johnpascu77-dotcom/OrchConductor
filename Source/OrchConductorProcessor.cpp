@@ -657,6 +657,27 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
         juce::ParameterID { "sendOnPresetChange", 1 },
         "Send on Preset Change",
         sendOnPresetChange));
+
+    // Phase 10F.5 narrative-scan parameters. Appended last to keep existing
+    // host automation slots stable. Not consumed by the send path in increment 1.
+    addParameter (authorityModeParameter = new juce::AudioParameterChoice (
+        juce::ParameterID { "authorityMode", 1 },
+        "Authority Mode",
+        juce::StringArray { "Manual Sections", "Combi Preset", "Narrative Scan" },
+        static_cast<int> (AuthorityMode::manualSections)));
+
+    addParameter (narrativeLaneParameter = new juce::AudioParameterInt (
+        juce::ParameterID { "narrativeLane", 1 },
+        "Narrative Lane",
+        minNarrativeLaneParameterId,
+        maxNarrativeLaneParameterId,
+        0));
+
+    addParameter (narrativePositionParameter = new juce::AudioParameterFloat (
+        juce::ParameterID { "narrativePosition", 1 },
+        "Narrative Position",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f),
+        0.0f));
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     const auto runtimeJsonPresetProbe = orchconductor::RuntimePresetSource::loadEmbeddedFactoryJsonIfEnabled();
 
@@ -1026,6 +1047,8 @@ int OrchConductorAudioProcessor::getTotalActivePlayers() const
 }
 void OrchConductorAudioProcessor::prepareToPlay (double, int)
 {
+    lastResolvedNarrativePointIndex = -1;
+    lastResolvedNarrativeCombiId = -1;
 }
 
 void OrchConductorAudioProcessor::releaseResources()
@@ -1086,7 +1109,75 @@ void OrchConductorAudioProcessor::syncAutomatedParameters()
         if (value != sendOnPresetChange)
             sendOnPresetChange = value;
     }
+
+    if (authorityModeParameter != nullptr)
+    {
+        const auto value = static_cast<AuthorityMode> (authorityModeParameter->getIndex());
+
+        if (value != authorityMode)
+            authorityMode = value;
+    }
+
+    if (narrativeLaneParameter != nullptr)
+    {
+        const int value = narrativeLaneParameter->get();
+
+        if (value != narrativeLaneIndex)
+            narrativeLaneIndex = value;
+    }
+
+    if (narrativePositionParameter != nullptr)
+    {
+        const double value = static_cast<double> (narrativePositionParameter->get());
+
+        if (value != narrativePosition)
+            narrativePosition = value;
+    }
 }
+OrchConductorAudioProcessor::AuthorityMode OrchConductorAudioProcessor::getAuthorityMode() const
+{
+    return authorityMode;
+}
+
+void OrchConductorAudioProcessor::setAuthorityMode (AuthorityMode mode)
+{
+    authorityMode = mode;
+
+    if (authorityModeParameter != nullptr
+        && authorityModeParameter->getIndex() != static_cast<int> (mode))
+        *authorityModeParameter = static_cast<int> (mode);
+}
+
+int OrchConductorAudioProcessor::getNarrativeLaneIndex() const
+{
+    return narrativeLaneIndex;
+}
+
+void OrchConductorAudioProcessor::setNarrativeLaneIndex (int laneIndex)
+{
+    const int clamped = juce::jlimit (minNarrativeLaneParameterId, maxNarrativeLaneParameterId, laneIndex);
+
+    narrativeLaneIndex = clamped;
+
+    if (narrativeLaneParameter != nullptr && narrativeLaneParameter->get() != clamped)
+        *narrativeLaneParameter = clamped;
+}
+
+double OrchConductorAudioProcessor::getNarrativePosition() const
+{
+    return narrativePosition;
+}
+
+void OrchConductorAudioProcessor::setNarrativePosition (double position)
+{
+    const double clamped = juce::jlimit (0.0, 1.0, position);
+
+    narrativePosition = clamped;
+
+    if (narrativePositionParameter != nullptr)
+        *narrativePositionParameter = static_cast<float> (clamped);
+}
+
 juce::String OrchConductorAudioProcessor::getRuntimeCatalogSectionId (Section section)
 {
     switch (section)
@@ -1261,7 +1352,7 @@ void OrchConductorAudioProcessor::getStateInformation (juce::MemoryBlock& destDa
 {
     juce::MemoryOutputStream stream (destData, true);
 
-    stream.writeInt (2);
+    stream.writeInt (3);
     stream.writeInt (combiPresetId);
     stream.writeInt (woodwindsPresetId);
     stream.writeInt (brassPresetId);
@@ -1280,6 +1371,11 @@ void OrchConductorAudioProcessor::getStateInformation (juce::MemoryBlock& destDa
         stream.writeInt (preset.percussionPresetId);
         stream.writeInt (preset.stringsPresetId);
     }
+
+    // v3: narrative-scan authority state.
+    stream.writeInt (static_cast<int> (authorityMode));
+    stream.writeInt (narrativeLaneIndex);
+    stream.writeDouble (narrativePosition);
 }
 
 void OrchConductorAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
@@ -1295,7 +1391,7 @@ void OrchConductorAudioProcessor::setStateInformation (const void* data, int siz
         return;
     }
 
-    if (firstInt == 1 || firstInt == 2)
+    if (firstInt == 1 || firstInt == 2 || firstInt == 3)
     {
         const auto version = firstInt;
         const auto combi = stream.readInt();
@@ -1343,6 +1439,20 @@ void OrchConductorAudioProcessor::setStateInformation (const void* data, int siz
 
         sendOnPresetChange = previousSendOnPresetChange;
         setSendOnPresetChange (restoredSendOnPresetChange);
+
+        if (version >= 3 && ! stream.isExhausted())
+        {
+            const auto restoredAuthorityMode = stream.readInt();
+            const auto restoredNarrativeLane = stream.readInt();
+            const auto restoredNarrativePosition = stream.readDouble();
+
+            if (restoredAuthorityMode >= static_cast<int> (AuthorityMode::manualSections)
+                && restoredAuthorityMode <= static_cast<int> (AuthorityMode::narrativeScan))
+                setAuthorityMode (static_cast<AuthorityMode> (restoredAuthorityMode));
+
+            setNarrativeLaneIndex (restoredNarrativeLane);
+            setNarrativePosition (restoredNarrativePosition);
+        }
 
         return;
     }

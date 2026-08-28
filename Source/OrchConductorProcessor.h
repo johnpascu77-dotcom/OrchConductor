@@ -99,6 +99,16 @@ public:
         tutti
     };
 
+    // Which source drives the CC20-54 output. Phase 10F.5 adds the third mode;
+    // the manual-vs-combi split previously lived only implicitly in
+    // isCombiModeActive(). Not yet consumed in the send path (increment 1).
+    enum class AuthorityMode
+    {
+        manualSections = 0,
+        combiPreset,
+        narrativeScan
+    };
+
     struct OutputRow
     {
         juce::String instrumentName;
@@ -137,6 +147,17 @@ public:
 
     void setPreset (Preset newPreset);
     Preset getPreset() const;
+
+    // Phase 10F.5 narrative-scan authority state. Increment 1: parameters +
+    // persistence + sync only. No resolver call, no send behaviour yet.
+    AuthorityMode getAuthorityMode() const;
+    void setAuthorityMode (AuthorityMode mode);
+
+    int getNarrativeLaneIndex() const;
+    void setNarrativeLaneIndex (int laneIndex);
+
+    double getNarrativePosition() const;
+    void setNarrativePosition (double position);
 
     void requestSendPreset();
     void requestSendAllOff();
@@ -240,12 +261,23 @@ private:
     static constexpr int minStringsPresetId = 0;
     static constexpr int maxStringsPresetId = 13;
 
+    // Narrative lane parameter range. Kept generous; the actual usable count
+    // comes from the runtime catalog and is clamped at resolve time.
+    static constexpr int minNarrativeLaneParameterId = 0;
+    static constexpr int maxNarrativeLaneParameterId = 15;
+
     int combiPresetId { static_cast<int> (CombiPreset::manualSections) };
 
     int woodwindsPresetId { 0 };
     int brassPresetId { 0 };
     int percussionPresetId { 0 };
     int stringsPresetId { static_cast<int> (Preset::allOff) };
+
+    AuthorityMode authorityMode { AuthorityMode::manualSections };
+    int narrativeLaneIndex { 0 };
+    double narrativePosition { 0.0 };
+    int lastResolvedNarrativePointIndex { -1 };
+    int lastResolvedNarrativeCombiId { -1 };
 
     bool sendPresetRequested { false };
     bool sendAllOffRequested { false };
@@ -285,6 +317,9 @@ private:
     juce::AudioParameterInt* percussionPresetParameter { nullptr };
     juce::AudioParameterInt* stringsPresetParameter { nullptr };
     juce::AudioParameterBool* sendOnPresetChangeParameter { nullptr };
+    juce::AudioParameterChoice* authorityModeParameter { nullptr };
+    juce::AudioParameterInt* narrativeLaneParameter { nullptr };
+    juce::AudioParameterFloat* narrativePositionParameter { nullptr };
     void syncAutomatedParameters();
 
     int getPresetValueForIndex (int index) const;
