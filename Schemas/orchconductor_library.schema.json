@@ -408,6 +408,11 @@
         "label": {
           "type": "string"
         },
+        "pitchFieldIndex": {
+          "type": "integer",
+          "minimum": -1,
+          "description": "Optional OrchNoteFilter pitch-class field for this point. -1 (default) leaves the field alone; >= 0 indexes OrchNoteFilter's append-only field-preset list (0 = Chromatic). Emitted as the field-select CC when the resolved lane point changes."
+        },
         "transitionTags": {
           "type": "array",
           "items": {

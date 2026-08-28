@@ -2659,32 +2659,38 @@
                                               {
                                                   "position":  0,
                                                   "combiId":  28,
-                                                  "label":  "Solo Lament"
+                                                  "label":  "Solo Lament",
+                                                  "pitchFieldIndex":  12
                                               },
                                               {
                                                   "position":  0.18,
                                                   "combiId":  26,
-                                                  "label":  "Sparse Extremes"
+                                                  "label":  "Sparse Extremes",
+                                                  "pitchFieldIndex":  8
                                               },
                                               {
                                                   "position":  0.35,
                                                   "combiId":  4,
-                                                  "label":  "Chamber Orchestra"
+                                                  "label":  "Chamber Orchestra",
+                                                  "pitchFieldIndex":  10
                                               },
                                               {
                                                   "position":  0.55,
                                                   "combiId":  12,
-                                                  "label":  "Warm Strings + Horns"
+                                                  "label":  "Warm Strings + Horns",
+                                                  "pitchFieldIndex":  3
                                               },
                                               {
                                                   "position":  0.75,
                                                   "combiId":  3,
-                                                  "label":  "Full No Percussion"
+                                                  "label":  "Full No Percussion",
+                                                  "pitchFieldIndex":  1
                                               },
                                               {
                                                   "position":  1,
                                                   "combiId":  2,
-                                                  "label":  "Full Orchestra"
+                                                  "label":  "Full Orchestra",
+                                                  "pitchFieldIndex":  0
                                               }
                                           ]
                            },

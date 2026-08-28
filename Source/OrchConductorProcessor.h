@@ -200,6 +200,7 @@ public:
     bool isEffectiveCombiModeActive() const;
     int getResolvedNarrativeCombiId() const;
     int getResolvedNarrativeLanePointIndex() const;
+    int getLastSentFieldSelectIndex() const;
 
     // Runtime-catalog narrative lane metadata for the editor.
     int getNarrativeLaneCount() const;
@@ -304,6 +305,15 @@ private:
     int lastResolvedNarrativePointIndex { -1 };
     int lastResolvedNarrativeCombiId { -1 };
 
+    // Field-select CC (OrchNoteFilter pitch-class field, see NarrativeLanePointDefinition
+    // ::pitchFieldIndex). Staged when the resolved lane point changes, emitted
+    // next processBlock, suppressed when the field index is unchanged.
+    int pendingFieldSelectIndex { -1 };
+    int lastSentFieldSelectIndex { -1 };
+    // OrchNoteFilter's field-preset list length minus one (indices 0..N). Keep in
+    // sync with OrchNoteFilter's append-only preset list.
+    static constexpr int maxPitchFieldIndex = 14;
+
     bool sendPresetRequested { false };
     bool sendAllOffRequested { false };
     bool sendOnPresetChange { false };
@@ -347,6 +357,7 @@ private:
     juce::AudioParameterChoice* authorityModeParameter { nullptr };
     juce::AudioParameterInt* narrativeLaneParameter { nullptr };
     juce::AudioParameterFloat* narrativePositionParameter { nullptr };
+    juce::AudioParameterInt* fieldSelectCcParameter { nullptr };
     void syncAutomatedParameters();
 
     // Phase 10F.5 increment 2: resolve the selected narrative lane + position

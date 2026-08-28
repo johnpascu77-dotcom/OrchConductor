@@ -403,6 +403,17 @@ juce::String OrchConductorRuntimePresetCatalog::getNarrativeLanePointLabel(int l
     return point->label;
 }
 
+int OrchConductorRuntimePresetCatalog::getNarrativeLanePointPitchFieldIndex(int laneIndex,
+                                                                           int pointIndex) const noexcept
+{
+    const auto* point = findNarrativeLanePoint(library_, laneIndex, pointIndex);
+
+    if (point == nullptr)
+        return -1;
+
+    return point->pitchFieldIndex;
+}
+
 OrchConductorRuntimePresetValueView OrchConductorRuntimePresetCatalog::getSectionPresetValue(
     const juce::String& sectionId,
     int presetIndex,

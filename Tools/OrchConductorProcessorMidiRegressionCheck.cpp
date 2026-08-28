@@ -383,7 +383,9 @@ bool verifyNarrativeScanDrivesCombiSend()
 
     bool ok = true;
 
-    ok = verifyStandardSendShape(atStart, "narrative scan start send") && ok;
+    // Start: point 0 -> combi 28 + field #12 (CC105). Full combi payload plus
+    // the one field-select CC.
+    ok = checkEquals(atStart.eventCount, expectedSendCcCount + 1, "narrative scan start event count") && ok;
     ok = checkEquals(processor.getResolvedNarrativeCombiId(),
                      static_cast<int>(OrchConductorAudioProcessor::CombiPreset::soloEnglishHornLament),
                      "narrative scan start resolved combi id") && ok;
@@ -398,15 +400,19 @@ bool verifyNarrativeScanDrivesCombiSend()
             ok = expectCcValue(atStart, cc, 0, "narrative scan start") && ok;
     }
 
-    // Same position again: resolved combi unchanged -> no send.
-    const auto held = captureMidi(processor);
-    ok = checkEquals(held.eventCount, 0, "narrative scan no send while combi unchanged") && ok;
+    // field #12 -> round(12/14 * 127) == 109
+    ok = expectCcValue(atStart, 105, 109, "narrative scan start field select") && ok;
+    ok = checkEquals(processor.getLastSentFieldSelectIndex(), 12, "narrative scan start field index") && ok;
 
-    // Move to the far end of the lane -> point 5 -> combi 2 (Full Orchestra).
+    // Same position again: resolved combi + field unchanged -> no send.
+    const auto held = captureMidi(processor);
+    ok = checkEquals(held.eventCount, 0, "narrative scan no send while combi/field unchanged") && ok;
+
+    // Move to the far end of the lane -> point 5 -> combi 2 + field #0.
     processor.setNarrativePosition(1.0);
     const auto atEnd = captureMidi(processor);
 
-    ok = verifyStandardSendShape(atEnd, "narrative scan end send") && ok;
+    ok = checkEquals(atEnd.eventCount, expectedSendCcCount + 1, "narrative scan end event count") && ok;
     ok = checkEquals(processor.getResolvedNarrativeCombiId(),
                      static_cast<int>(OrchConductorAudioProcessor::CombiPreset::utilityFullOrchestra),
                      "narrative scan end resolved combi id") && ok;
@@ -418,6 +424,9 @@ bool verifyNarrativeScanDrivesCombiSend()
 
     for (int cc = 50; cc <= 54; ++cc)
         ok = expectCcValue(atEnd, cc, 127, "narrative scan end full strings") && ok;
+
+    ok = expectCcValue(atEnd, 105, 0, "narrative scan end field select (#0)") && ok;
+    ok = checkEquals(processor.getLastSentFieldSelectIndex(), 0, "narrative scan end field index") && ok;
 
     return ok;
 }

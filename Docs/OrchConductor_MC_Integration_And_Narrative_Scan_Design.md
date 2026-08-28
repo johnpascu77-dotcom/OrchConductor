@@ -262,6 +262,38 @@ contract. Revisit only if lane-scanning proves too coarse in real use.
 4. ~~Bridge: CC102-104 listening in OrchConductor + MC-side `narrative-position` emit.~~ **DONE** —
    OrchConductor `64104bc`; MC `narrative-position` modulator dimension. Confirmed: MC ModulatorTarget
    CC102 → OrchConductor Narrative Scan walks the lane.
-5. **NEXT** — full-rig test: MC blueprint → OrchConductor narrative scan → OrchGate instances, with
-   note material from a mix of MPL and clips, and the OrchNoteMapper→OrchGate chains actually
-   wired. (Steps 1-4 proved the control path; step 5 proves it in a real orchestral template.)
+5. ~~Full-rig test in a populated template.~~ Confirmed with 2 instruments; whole-section rollout
+   pending. Surfaced 3 Bitwig-routing lessons + one real CC-collision fix (§12).
+6. ~~Harmonic field on the same lane.~~ **DONE** (§13).
+7. **NEXT** — whole-section rollout of the Note FX Layer + OrchNoteFilter chain; MC emits its own
+   MotifEngine pitch classes as the field (MC-side, not scheduled).
+
+---
+
+## 12. Rig-integration lessons (Bitwig-side)
+
+1. **Stale track taps** — changing OrchConductor's own MIDI input silently invalidates every
+   downstream track tapping OC's output (dropdown still shows the source, routes nothing). Fix:
+   re-pick the Note Input. Motivates a section MIDI-bus topology (3 bus tracks tap OC, instrument
+   tracks tap their bus).
+2. **Note Receiver needs an empty second Note-FX layer** — a lone Note Receiver *replaces* the
+   track input; add an empty `Layer 2` and MPL notes + OC's CC merge. This is the fan-out
+   mechanism — one MPL instance, per-track Note FX Layer, no `OrchNoteDistributor` needed.
+3. **CC collision (fixed)** — OC's CC20-54 output overlaps MPL's CC20-64 control map (MPL Rate on
+   CC23 was opening the Oboe 1 gate). OC was forwarding its whole input stream. Fix: `68fa9f3`
+   adds **"Pass Input Through", default OFF** — reads bridge CCs 102-104, then clears the input,
+   outputs only its own CC20-54.
+
+## 13. Harmonic field on the same lane — DONE (`<this branch>`, 2026-08-29)
+
+- `NarrativeLanePointDefinition` gains optional `pitchFieldIndex` (int; -1 = leave the field
+  alone; >= 0 indexes OrchNoteFilter's **append-only** field-preset list, 0 = Chromatic). Schema +
+  parser + runtime-catalog accessor. Example `organic_build` walks pentatonic → whole-tone →
+  octatonic → Dorian → major → chromatic.
+- OrchConductor gains a **`Field Select CC`** parameter (default **105**, 0 = off). When the
+  resolved lane *point* changes and its `pitchFieldIndex` differs from the last one sent, OC emits
+  `CC105 = round(index / 14 * 127)` next `processBlock`, on channel 1, alongside the CC20-54
+  payload, suppressed when unchanged. OrchNoteFilter decodes it back to a preset index.
+- One `Narrative Position` automation lane now evolves **orchestration + density + harmonic
+  field** together.
+- **Coupling**: OC's `maxPitchFieldIndex = 14` ↔ OrchNoteFilter's 15-entry list. Both append-only.

@@ -974,10 +974,12 @@ void OrchConductorAudioProcessorEditor::updateNarrativeScanControls()
     }
 
     const juce::String pointLabel = audioProcessor.getNarrativeLanePointLabel (laneIndex, pointIndex);
+    const int fieldIndex = audioProcessor.getLastSentFieldSelectIndex();
 
     narrativeScanStatusLabel.setText (
         "Resolved -> " + audioProcessor.getCombiPresetLabel (combiId)
-        + (pointLabel.isNotEmpty() ? juce::String ("  (") + pointLabel + ")" : juce::String()),
+        + (pointLabel.isNotEmpty() ? juce::String ("  (") + pointLabel + ")" : juce::String())
+        + (fieldIndex >= 0 ? juce::String ("  |  field #") + juce::String (fieldIndex) : juce::String()),
         juce::dontSendNotification);
 }
 

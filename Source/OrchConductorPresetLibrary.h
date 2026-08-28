@@ -104,11 +104,18 @@ struct NarrativeLanePointDefinition
     juce::String label;
     juce::StringArray transitionTags;
 
+    // Optional OrchNoteFilter pitch-class field for this lane point. -1 = leave
+    // the harmonic field alone; >= 0 is an index into OrchNoteFilter's
+    // append-only field-preset list (0 = Chromatic). Sent as a CC when the
+    // resolved lane point changes - see OrchConductorProcessor's field-select CC.
+    int pitchFieldIndex = -1;
+
     bool isValid() const noexcept
     {
         return position >= 0.0
             && position <= 1.0
-            && combiId >= 0;
+            && combiId >= 0
+            && pitchFieldIndex >= -1;
     }
 };
 

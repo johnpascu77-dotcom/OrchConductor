@@ -691,6 +691,11 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
         "Narrative Position",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f),
         0.0f));
+
+    addParameter (fieldSelectCcParameter = new juce::AudioParameterInt (
+        juce::ParameterID { "fieldSelectCc", 1 },
+        "Field Select CC (0 = off)",
+        0, 127, 105));
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     const auto runtimeJsonPresetProbe = orchconductor::RuntimePresetSource::loadEmbeddedFactoryJsonIfEnabled();
 
@@ -1062,6 +1067,8 @@ void OrchConductorAudioProcessor::prepareToPlay (double, int)
 {
     lastResolvedNarrativePointIndex = -1;
     lastResolvedNarrativeCombiId = -1;
+    pendingFieldSelectIndex = -1;
+    lastSentFieldSelectIndex = -1;
 }
 
 void OrchConductorAudioProcessor::releaseResources()
@@ -1168,6 +1175,8 @@ void OrchConductorAudioProcessor::setAuthorityMode (AuthorityMode mode)
         // regardless of which path (UI / automation / CC) changed the mode.
         lastResolvedNarrativePointIndex = -1;
         lastResolvedNarrativeCombiId = -1;
+        pendingFieldSelectIndex = -1;
+        lastSentFieldSelectIndex = -1;
     }
 
     authorityMode = mode;
@@ -1269,13 +1278,28 @@ void OrchConductorAudioProcessor::updateNarrativeScanResolution()
     if (! selection.isValid)
         return;
 
+    const int previousPointIndex = lastResolvedNarrativePointIndex;
     lastResolvedNarrativePointIndex = selection.pointIndex;
+
+    if (selection.pointIndex != previousPointIndex)
+    {
+        const int fieldIndex =
+            runtimePresetCatalog.getNarrativeLanePointPitchFieldIndex (narrativeLaneIndex, selection.pointIndex);
+
+        if (fieldIndex >= 0 && fieldIndex != lastSentFieldSelectIndex)
+            pendingFieldSelectIndex = fieldIndex;
+    }
 
     if (selection.combiId != lastResolvedNarrativeCombiId)
     {
         lastResolvedNarrativeCombiId = selection.combiId;
         sendPresetRequested = true;
     }
+}
+
+int OrchConductorAudioProcessor::getLastSentFieldSelectIndex() const
+{
+    return lastSentFieldSelectIndex;
 }
 
 juce::String OrchConductorAudioProcessor::getRuntimeCatalogSectionId (Section section)
@@ -1353,6 +1377,21 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
 
     if (authorityMode == AuthorityMode::narrativeScan)
         updateNarrativeScanResolution();
+
+    if (pendingFieldSelectIndex >= 0)
+    {
+        const int cc = fieldSelectCcParameter != nullptr ? fieldSelectCcParameter->get() : 105;
+
+        if (cc > 0)
+        {
+            const int ccValue = juce::jlimit (0, 127,
+                juce::roundToInt (static_cast<double> (pendingFieldSelectIndex) / maxPitchFieldIndex * 127.0));
+            midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, cc, ccValue), 0);
+        }
+
+        lastSentFieldSelectIndex = pendingFieldSelectIndex;
+        pendingFieldSelectIndex = -1;
+    }
 
     const bool shouldSendAllOff = consumeSendAllOffRequest();
     const bool shouldSendPreset = consumeSendPresetRequest();

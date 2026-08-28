@@ -320,6 +320,7 @@ bool readNarrativeLanes(const juce::DynamicObject& rootObject,
             point.position = getDouble(*pointObject, "position", 0.0);
             point.combiId = getInt(*pointObject, "combiId", 0);
             point.label = getString(*pointObject, "label").trim();
+            point.pitchFieldIndex = getInt(*pointObject, "pitchFieldIndex", -1);
 
             const auto transitionTags = pointObject->getProperty("transitionTags");
             const auto* transitionTagsArray = asArray(transitionTags);
