@@ -123,9 +123,26 @@ own single CC today.
 
 ---
 
-## 6. OrchConductor build: Phase 10F.5 (standalone, no MC awareness)
+## 6. OrchConductor build: Phase 10F.5 (standalone, no MC awareness) — DONE
 
-Follows the order already sketched in `PHASE_10F_HANDOFF.md`:
+Built and confirmed live in Bitwig 2026-08-28, on `phase-10F-narrative-scan-lanes`:
+
+- `cd4427f` increment 1 — `AuthorityMode` enum + `Authority Mode` / `Narrative Lane` /
+  `Narrative Position` parameters, synced to passive state, state version v2→v3.
+- `8f4da10` increment 2 — `processBlock` resolves lane+position → combi id and sends the CC20-54
+  payload only on combi change; shared `isNarrativeScanDriving()` / `getEffectiveCombiPresetId()` /
+  `isEffectiveCombiModeActive()` so the send path and the MIDI-map/output-table previews agree,
+  without touching `combiPresetId` or the `combiPreset` parameter. New regression case.
+- `d16f94d` increment 3 — Authority Mode selector + Narrative Scan UI section (lane dropdown,
+  position slider, resolved-combi status line), authority↔combi-box coherence, removed the stale
+  10E overlap panel, editor made resizable (980×800 default).
+
+All 7 acceptance criteria below are met. The one deferred design choice (§10) — live CC vs. exported
+automation for the MC bridge — is still open and does not block anything; the parameter contract
+stands either way. Bridge CC listening (§5, CC102-104) is **not yet implemented** — only the
+automatable parameters exist so far. That, and the MC-side emit (§8), are the remaining work.
+
+Original increment plan (for reference):
 
 - **10F.5A — passive state.** Add `activeNarrativeLaneIndex`, `narrativePosition`,
   `lastResolvedNarrativePointIndex`, `lastResolvedNarrativeCombiId` as plain members. No parameters,
@@ -225,11 +242,12 @@ contract. Revisit only if lane-scanning proves too coarse in real use.
 
 ## 11. Sequencing
 
-1. Checkpoint build of the `phase-10F-narrative-scan-lanes` branch as-is (runtime-JSON already the
-   default), run `OrchConductorNarrativeScanResolverCheck`, confirm no regression vs 10E in
-   Bitwig. (§7)
-2. OrchConductor Phase 10F.5A–F on `phase-10F-narrative-scan-lanes`. (§6)
-3. Live-test standalone: hand-drawn automation + a Bitwig modulator driving `narrativePosition`.
-4. MC-side: emit CC102 from the blueprint playhead. (§8)
+1. ~~Checkpoint build of `phase-10F-narrative-scan-lanes`, confirm no regression vs 10E.~~ **DONE**
+2. ~~OrchConductor Phase 10F.5 (params+state / resolve+send / UI).~~ **DONE** — `cd4427f`, `8f4da10`,
+   `d16f94d`; confirmed live in Bitwig 2026-08-28.
+3. Live-test standalone with a Bitwig modulator / automation lane on `Narrative Position`
+   (hand-drag confirmed; sustained modulator run not yet exercised).
+4. **NEXT** — decide the bridge transport (§10), then either: add CC102-104 listening to
+   OrchConductor, and/or MC-side emit of `narrativePosition` from the blueprint playhead (§8).
 5. Full-rig test: MC blueprint → OrchConductor narrative scan → OrchGate instances, notes from a
    mix of MPL and clips.
