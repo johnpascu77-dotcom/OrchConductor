@@ -330,6 +330,17 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         updateStatus();
     };
 
+    passInputThroughToggle.setButtonText ("Pass Input Through (leave OFF for the MC/MPL rig)");
+    passInputThroughToggle.setToggleState (audioProcessor.getPassInputThrough(), juce::dontSendNotification);
+    passInputThroughToggle.setColour (juce::ToggleButton::textColourId, juce::Colour::fromRGB (205, 220, 230));
+    addAndMakeVisible (passInputThroughToggle);
+
+    passInputThroughToggle.onClick = [this]
+    {
+        audioProcessor.setPassInputThroughFromUI (passInputThroughToggle.getToggleState());
+        updateStatus();
+    };
+
     sendButton.setButtonText ("Send Current Presets");
     sendButton.setColour (juce::TextButton::buttonColourId, juce::Colour::fromRGB (45, 75, 95));
     sendButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
@@ -733,6 +744,9 @@ void OrchConductorAudioProcessorEditor::resized()
     auto midiMapRow = area.removeFromTop (38);
     midiMapButton.setBounds (midiMapRow.withSizeKeepingCentre (200, 34));
 
+    area.removeFromTop (6);
+    passInputThroughToggle.setBounds (area.removeFromTop (24).withSizeKeepingCentre (420, 24));
+
     // Footer anchored to the window bottom so shrinking the editor squeezes the
     // middle, not the status line.
     auto footer = getLocalBounds().reduced (48, 0);
@@ -774,6 +788,10 @@ void OrchConductorAudioProcessorEditor::timerCallback()
     const bool sendOnChange = audioProcessor.getSendOnPresetChange();
     if (sendOnChangeToggle.getToggleState() != sendOnChange)
         sendOnChangeToggle.setToggleState (sendOnChange, juce::dontSendNotification);
+
+    const bool passThrough = audioProcessor.getPassInputThrough();
+    if (passInputThroughToggle.getToggleState() != passThrough)
+        passInputThroughToggle.setToggleState (passThrough, juce::dontSendNotification);
 
     const int authorityId = static_cast<int> (audioProcessor.getAuthorityMode()) + 1;
     if (authorityModeBox.getSelectedId() != authorityId)

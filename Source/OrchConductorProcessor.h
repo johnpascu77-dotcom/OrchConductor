@@ -169,6 +169,16 @@ public:
     void setSendOnPresetChangeFromUI (bool shouldSend);
     bool getSendOnPresetChange() const;
 
+    // When false (default), processBlock discards all input MIDI after reading
+    // the bridge CCs (102-104) and outputs only OrchConductor's own CC20-54.
+    // OrchConductor is a control-path terminus; forwarding the input stream
+    // leaks a driving plugin's own CC traffic (e.g. MPL Rate on CC23) onto the
+    // OrchGates, which share CC numbers with it. Set true only if OC is being
+    // used inline and something downstream genuinely needs the passthrough.
+    void setPassInputThrough (bool shouldPass);
+    void setPassInputThroughFromUI (bool shouldPass);
+    bool getPassInputThrough() const;
+
     juce::String getPresetName() const;
     juce::String getCombiPresetName() const;
     juce::String getCombiPresetLabel (int presetId) const;
@@ -297,6 +307,7 @@ private:
     bool sendPresetRequested { false };
     bool sendAllOffRequested { false };
     bool sendOnPresetChange { false };
+    bool passInputThrough { false };
 
     OrchConductorRuntimePresetCatalog runtimePresetCatalog { OrchConductorRuntimePresetCatalog::createFallbackCatalog() };
     bool runtimePresetCatalogAuthorityActive { false };
@@ -332,6 +343,7 @@ private:
     juce::AudioParameterInt* percussionPresetParameter { nullptr };
     juce::AudioParameterInt* stringsPresetParameter { nullptr };
     juce::AudioParameterBool* sendOnPresetChangeParameter { nullptr };
+    juce::AudioParameterBool* passInputThroughParameter { nullptr };
     juce::AudioParameterChoice* authorityModeParameter { nullptr };
     juce::AudioParameterInt* narrativeLaneParameter { nullptr };
     juce::AudioParameterFloat* narrativePositionParameter { nullptr };

@@ -305,12 +305,14 @@ bool verifyNarrativeControlCcInput()
     ok = checkEquals (processor.getNarrativeLaneIndex(), 1, "CC103=1 selects narrative lane 1") && ok;
 
     // CC102 high -> narrative position ~1.0, resolves a combi and sends it.
+    // The input CC102 itself is consumed (passthrough defaults off), so the
+    // output is exactly the 35-CC combi payload.
     const auto captured = captureMidiWithInput (processor, 102, 127);
     ok = checkPass (processor.getNarrativePosition() > 0.99,
                     "CC102=127 drives narrative position to ~1.0") && ok;
-    ok = checkPass (captured.ccValues.count (102) == 1, "input CC102 is passed through") && ok;
-    ok = checkPass (captured.eventCount >= expectedSendCcCount + 1,
-                    "CC102 position change triggered a full combi send") && ok;
+    ok = checkPass (captured.ccValues.count (102) == 0, "input CC102 is consumed, not forwarded") && ok;
+    ok = checkEquals (captured.eventCount, expectedSendCcCount,
+                      "CC102 position change triggered a full combi send") && ok;
     ok = checkPass (processor.getResolvedNarrativeCombiId() >= 0,
                     "CC-driven narrative scan resolved a combi") && ok;
 
@@ -319,6 +321,43 @@ bool verifyNarrativeControlCcInput()
     ok = checkEquals (static_cast<int> (processor.getAuthorityMode()),
                       static_cast<int> (OrchConductorAudioProcessor::AuthorityMode::manualSections),
                       "CC104=0 selects Manual Sections authority") && ok;
+
+    return ok;
+}
+
+bool verifyInputPassthroughDefaultsBlocked()
+{
+    bool ok = true;
+
+    // Default: an unrelated input CC (e.g. MPL Rate on CC23) must not appear
+    // in OrchConductor's output.
+    {
+        OrchConductorAudioProcessor processor;
+        const auto captured = captureMidiWithInput (processor, 23, 100);
+        ok = checkPass (captured.ccValues.count (23) == 0,
+                        "input CC23 is dropped by default (passthrough off)") && ok;
+        ok = checkEquals (captured.eventCount, 0,
+                          "no output without a send request and passthrough off") && ok;
+    }
+
+    // Passthrough on: the same CC is forwarded.
+    {
+        OrchConductorAudioProcessor processor;
+        processor.setPassInputThrough (true);
+        const auto captured = captureMidiWithInput (processor, 23, 100);
+        ok = checkPass (captured.ccValues.count (23) == 1,
+                        "input CC23 is forwarded when passthrough is on") && ok;
+    }
+
+    // Bridge CCs are still read with passthrough off (they are consumed before
+    // the buffer is cleared).
+    {
+        OrchConductorAudioProcessor processor;
+        captureMidiWithInput (processor, 104, 127);
+        ok = checkEquals (static_cast<int> (processor.getAuthorityMode()),
+                          static_cast<int> (OrchConductorAudioProcessor::AuthorityMode::narrativeScan),
+                          "CC104 still read with passthrough off") && ok;
+    }
 
     return ok;
 }
@@ -563,6 +602,7 @@ int main()
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     ok = verifyNarrativeScanDrivesCombiSend() && ok;
     ok = verifyNarrativeControlCcInput() && ok;
+    ok = verifyInputPassthroughDefaultsBlocked() && ok;
 #endif
     ok = verifySendRequestConsumed() && ok;
     ok = verifyProbeDiagnosticsPresentAndNonAuthoritative() && ok;
