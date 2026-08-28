@@ -254,6 +254,75 @@ bool verifyCombiOverridesSectionPresets()
 }
 
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+CapturedMidi captureMidiWithInput (OrchConductorAudioProcessor& processor,
+                                   int inputCc,
+                                   int inputValue)
+{
+    juce::AudioBuffer<float> buffer (2, 64);
+    juce::MidiBuffer midi;
+    midi.addEvent (juce::MidiMessage::controllerEvent (1, inputCc, inputValue), 0);
+
+    buffer.clear();
+    processor.processBlock (buffer, midi);
+
+    CapturedMidi captured;
+    captured.eventCount = midi.getNumEvents();
+
+    for (const auto metadata : midi)
+    {
+        const auto message = metadata.getMessage();
+
+        if (message.isController())
+        {
+            captured.channels.push_back (message.getChannel());
+            captured.ccValues[message.getControllerNumber()] = message.getControllerValue();
+        }
+    }
+
+    return captured;
+}
+
+bool verifyNarrativeControlCcInput()
+{
+    OrchConductorAudioProcessor processor;
+
+    if (processor.doesRuntimePresetCatalogAuthorityProbeRequireFallback())
+    {
+        std::cout << "[SKIP] narrative control CC input: runtime catalog not authoritative" << std::endl;
+        return true;
+    }
+
+    bool ok = true;
+
+    // CC104 high -> Narrative Scan authority mode.
+    captureMidiWithInput (processor, 104, 127);
+    ok = checkEquals (static_cast<int> (processor.getAuthorityMode()),
+                      static_cast<int> (OrchConductorAudioProcessor::AuthorityMode::narrativeScan),
+                      "CC104=127 selects Narrative Scan authority") && ok;
+
+    // CC103 -> narrative lane index.
+    captureMidiWithInput (processor, 103, 1);
+    ok = checkEquals (processor.getNarrativeLaneIndex(), 1, "CC103=1 selects narrative lane 1") && ok;
+
+    // CC102 high -> narrative position ~1.0, resolves a combi and sends it.
+    const auto captured = captureMidiWithInput (processor, 102, 127);
+    ok = checkPass (processor.getNarrativePosition() > 0.99,
+                    "CC102=127 drives narrative position to ~1.0") && ok;
+    ok = checkPass (captured.ccValues.count (102) == 1, "input CC102 is passed through") && ok;
+    ok = checkPass (captured.eventCount >= expectedSendCcCount + 1,
+                    "CC102 position change triggered a full combi send") && ok;
+    ok = checkPass (processor.getResolvedNarrativeCombiId() >= 0,
+                    "CC-driven narrative scan resolved a combi") && ok;
+
+    // CC104 low -> back to Manual Sections.
+    captureMidiWithInput (processor, 104, 0);
+    ok = checkEquals (static_cast<int> (processor.getAuthorityMode()),
+                      static_cast<int> (OrchConductorAudioProcessor::AuthorityMode::manualSections),
+                      "CC104=0 selects Manual Sections authority") && ok;
+
+    return ok;
+}
+
 bool verifyNarrativeScanDrivesCombiSend()
 {
     OrchConductorAudioProcessor processor;
@@ -493,6 +562,7 @@ int main()
     ok = verifyCombiOverridesSectionPresets() && ok;
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     ok = verifyNarrativeScanDrivesCombiSend() && ok;
+    ok = verifyNarrativeControlCcInput() && ok;
 #endif
     ok = verifySendRequestConsumed() && ok;
     ok = verifyProbeDiagnosticsPresentAndNonAuthoritative() && ok;

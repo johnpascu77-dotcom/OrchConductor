@@ -342,6 +342,10 @@ private:
     // authorityMode == narrativeScan.
     void updateNarrativeScanResolution();
 
+    // Phase 10F.5 MC bridge: map input CC102/103/104 onto narrative position /
+    // lane / authority mode. Input messages are left in the buffer untouched.
+    void applyNarrativeControlCcInput (const juce::MidiBuffer& midiMessages);
+
     int getPresetValueForIndex (int index) const;
     int getWoodwindsPresetValueForIndex (int index) const;
     int getBrassPresetValueForIndex (int index) const;

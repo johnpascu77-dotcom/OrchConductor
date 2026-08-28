@@ -19,6 +19,13 @@ namespace
     constexpr int reservedHarpCcNumber = 49;
     constexpr int reservedHarpCcValue = 0;
 
+    // Phase 10F.5 MC bridge: undefined MIDI CCs (102-119 range), clear of both
+    // OrchConductor's own CC20-54 output and MPL's CC20-64 external-control map.
+    // Read on any channel from input MIDI; passed through untouched.
+    constexpr int narrativePositionCcNumber = 102;
+    constexpr int narrativeLaneCcNumber = 103;
+    constexpr int authorityModeCcNumber = 104;
+
     struct ExpectedRuntimeCatalogValue
     {
         int ccNumber = -1;
@@ -1116,13 +1123,7 @@ void OrchConductorAudioProcessor::syncAutomatedParameters()
         const auto value = static_cast<AuthorityMode> (authorityModeParameter->getIndex());
 
         if (value != authorityMode)
-        {
-            authorityMode = value;
-
-            // Force a fresh resolve (and send) the next time narrative scan runs.
-            lastResolvedNarrativePointIndex = -1;
-            lastResolvedNarrativeCombiId = -1;
-        }
+            setAuthorityMode (value);
     }
 
     if (narrativeLaneParameter != nullptr)
@@ -1148,6 +1149,14 @@ OrchConductorAudioProcessor::AuthorityMode OrchConductorAudioProcessor::getAutho
 
 void OrchConductorAudioProcessor::setAuthorityMode (AuthorityMode mode)
 {
+    if (mode != authorityMode)
+    {
+        // Force a fresh resolve (and send) the next time narrative scan runs,
+        // regardless of which path (UI / automation / CC) changed the mode.
+        lastResolvedNarrativePointIndex = -1;
+        lastResolvedNarrativeCombiId = -1;
+    }
+
     authorityMode = mode;
 
     if (authorityModeParameter != nullptr
@@ -1163,6 +1172,13 @@ int OrchConductorAudioProcessor::getNarrativeLaneIndex() const
 void OrchConductorAudioProcessor::setNarrativeLaneIndex (int laneIndex)
 {
     const int clamped = juce::jlimit (minNarrativeLaneParameterId, maxNarrativeLaneParameterId, laneIndex);
+
+    if (clamped != narrativeLaneIndex)
+    {
+        // Fresh nearest-point lookup for the new lane; keep the last combi id so
+        // an unchanged resolved combi still suppresses a redundant send.
+        lastResolvedNarrativePointIndex = -1;
+    }
 
     narrativeLaneIndex = clamped;
 
@@ -1183,6 +1199,47 @@ void OrchConductorAudioProcessor::setNarrativePosition (double position)
 
     if (narrativePositionParameter != nullptr)
         *narrativePositionParameter = static_cast<float> (clamped);
+}
+
+void OrchConductorAudioProcessor::applyNarrativeControlCcInput (const juce::MidiBuffer& midiMessages)
+{
+    for (const auto metadata : midiMessages)
+    {
+        const auto message = metadata.getMessage();
+
+        if (! message.isController())
+            continue;
+
+        const int cc = message.getControllerNumber();
+        const int value = juce::jlimit (0, 127, message.getControllerValue());
+
+        if (cc == narrativePositionCcNumber)
+        {
+            const double position = static_cast<double> (value) / 127.0;
+
+            if (std::abs (position - narrativePosition) > 0.0001)
+                setNarrativePosition (position);
+        }
+        else if (cc == narrativeLaneCcNumber)
+        {
+            const int laneCount = getNarrativeLaneCount();
+            const int maxLane = laneCount > 0 ? juce::jmin (laneCount - 1, maxNarrativeLaneParameterId)
+                                              : maxNarrativeLaneParameterId;
+            const int lane = juce::jlimit (0, maxLane, value);
+
+            if (lane != narrativeLaneIndex)
+                setNarrativeLaneIndex (lane);
+        }
+        else if (cc == authorityModeCcNumber)
+        {
+            const auto mode = value < 43  ? AuthorityMode::manualSections
+                            : value < 86  ? AuthorityMode::combiPreset
+                                          : AuthorityMode::narrativeScan;
+
+            if (mode != authorityMode)
+                setAuthorityMode (mode);
+        }
+    }
 }
 
 void OrchConductorAudioProcessor::updateNarrativeScanResolution()
@@ -1269,6 +1326,8 @@ bool OrchConductorAudioProcessor::tryGetRuntimeCombiPresetValueForCc (int preset
 void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     buffer.clear();
+
+    applyNarrativeControlCcInput (midiMessages);
 
     syncAutomatedParameters();
 
