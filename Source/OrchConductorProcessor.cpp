@@ -666,10 +666,11 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
         "Send on Preset Change",
         sendOnPresetChange));
 
-    addParameter (passInputThroughParameter = new juce::AudioParameterBool (
-        juce::ParameterID { "passInputThrough", 1 },
-        "Pass Input Through",
-        passInputThrough));
+    addParameter (inputPassthroughParameter = new juce::AudioParameterChoice (
+        juce::ParameterID { "inputPassthrough", 1 },
+        "Input Passthrough",
+        juce::StringArray { "Off", "Control CCs (>= 105)", "All" },
+        static_cast<int> (inputPassthroughMode)));
 
     // Phase 10F.5 narrative-scan parameters. Appended last to keep existing
     // host automation slots stable. Not consumed by the send path in increment 1.
@@ -1130,12 +1131,13 @@ void OrchConductorAudioProcessor::syncAutomatedParameters()
             sendOnPresetChange = value;
     }
 
-    if (passInputThroughParameter != nullptr)
+    if (inputPassthroughParameter != nullptr)
     {
-        const bool value = passInputThroughParameter->get();
+        const auto value = static_cast<InputPassthroughMode> (
+            juce::jlimit (0, 2, inputPassthroughParameter->getIndex()));
 
-        if (value != passInputThrough)
-            passInputThrough = value;
+        if (value != inputPassthroughMode)
+            inputPassthroughMode = value;
     }
 
     if (authorityModeParameter != nullptr)
@@ -1366,12 +1368,34 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
 
     applyNarrativeControlCcInput (midiMessages);
 
-    // OrchConductor is a control-path terminus. Unless passthrough is explicitly
-    // enabled, drop the input stream here (after the bridge CCs are read) so a
-    // driving plugin's own CC traffic - notably MPL's CC20-64 control map, which
-    // overlaps OC's CC20-54 output - never reaches the OrchGates.
-    if (! passInputThrough)
-        midiMessages.clear();
+    // Decide what of the input stream survives (after the bridge CCs are read).
+    // OC's own CC20-54 / CC105 are added later and are unaffected by this.
+    switch (inputPassthroughMode)
+    {
+        case InputPassthroughMode::off:
+            midiMessages.clear();
+            break;
+
+        case InputPassthroughMode::controlCcs:
+        {
+            juce::MidiBuffer kept;
+
+            for (const auto metadata : midiMessages)
+            {
+                const auto message = metadata.getMessage();
+
+                if (message.isController()
+                    && message.getControllerNumber() >= controlCcPassthroughFloor)
+                    kept.addEvent (message, metadata.samplePosition);
+            }
+
+            midiMessages.swapWith (kept);
+            break;
+        }
+
+        case InputPassthroughMode::all:
+            break;
+    }
 
     syncAutomatedParameters();
 
@@ -1530,9 +1554,10 @@ void OrchConductorAudioProcessor::getStateInformation (juce::MemoryBlock& destDa
     stream.writeInt (narrativeLaneIndex);
     stream.writeDouble (narrativePosition);
 
-    // v3 (appended): input-passthrough toggle. Read behind an exhaustion guard,
-    // so a project saved before this field loads with the default (false).
-    stream.writeBool (passInputThrough);
+    // v3 (appended): input-passthrough. A legacy bool slot (kept so an older
+    // build reads something sane) followed by the real 3-way mode int.
+    stream.writeBool (inputPassthroughMode != InputPassthroughMode::off);
+    stream.writeInt (static_cast<int> (inputPassthroughMode));
 }
 
 void OrchConductorAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
@@ -1612,7 +1637,23 @@ void OrchConductorAudioProcessor::setStateInformation (const void* data, int siz
         }
 
         if (version >= 3 && ! stream.isExhausted())
-            setPassInputThrough (stream.readBool());
+        {
+            const bool legacyPass = stream.readBool();
+
+            if (! stream.isExhausted())
+            {
+                const int mode = stream.readInt();
+
+                if (mode >= 0 && mode <= 2)
+                    setInputPassthroughMode (static_cast<InputPassthroughMode> (mode));
+            }
+            else
+            {
+                // Older save: only the legacy bool was written.
+                setInputPassthroughMode (legacyPass ? InputPassthroughMode::all
+                                                    : InputPassthroughMode::off);
+            }
+        }
 
         return;
     }
@@ -2517,30 +2558,31 @@ bool OrchConductorAudioProcessor::getSendOnPresetChange() const
     return sendOnPresetChange;
 }
 
-void OrchConductorAudioProcessor::setPassInputThrough (bool shouldPass)
+OrchConductorAudioProcessor::InputPassthroughMode OrchConductorAudioProcessor::getInputPassthroughMode() const
 {
-    passInputThrough = shouldPass;
-
-    if (passInputThroughParameter != nullptr
-        && passInputThroughParameter->get() != shouldPass)
-        *passInputThroughParameter = shouldPass;
+    return inputPassthroughMode;
 }
 
-void OrchConductorAudioProcessor::setPassInputThroughFromUI (bool shouldPass)
+void OrchConductorAudioProcessor::setInputPassthroughMode (InputPassthroughMode mode)
 {
-    if (passInputThroughParameter != nullptr)
+    inputPassthroughMode = mode;
+
+    if (inputPassthroughParameter != nullptr
+        && inputPassthroughParameter->getIndex() != static_cast<int> (mode))
+        *inputPassthroughParameter = static_cast<int> (mode);
+}
+
+void OrchConductorAudioProcessor::setInputPassthroughModeFromUI (InputPassthroughMode mode)
+{
+    if (inputPassthroughParameter != nullptr)
     {
-        passInputThroughParameter->beginChangeGesture();
-        passInputThroughParameter->setValueNotifyingHost (shouldPass ? 1.0f : 0.0f);
-        passInputThroughParameter->endChangeGesture();
+        inputPassthroughParameter->beginChangeGesture();
+        inputPassthroughParameter->setValueNotifyingHost (
+            inputPassthroughParameter->convertTo0to1 (static_cast<float> (static_cast<int> (mode))));
+        inputPassthroughParameter->endChangeGesture();
     }
 
-    setPassInputThrough (shouldPass);
-}
-
-bool OrchConductorAudioProcessor::getPassInputThrough() const
-{
-    return passInputThrough;
+    setInputPassthroughMode (mode);
 }
 
 juce::String OrchConductorAudioProcessor::getPresetName() const

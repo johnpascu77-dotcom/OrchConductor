@@ -325,38 +325,50 @@ bool verifyNarrativeControlCcInput()
     return ok;
 }
 
-bool verifyInputPassthroughDefaultsBlocked()
+bool verifyInputPassthroughModes()
 {
+    using Mode = OrchConductorAudioProcessor::InputPassthroughMode;
+
     bool ok = true;
 
-    // Default: an unrelated input CC (e.g. MPL Rate on CC23) must not appear
-    // in OrchConductor's output.
+    // Default is "Control CCs (>= 100)": a low CC (MPL Rate on 23) is dropped,
+    // a high CC (MC field mask on 110) is forwarded.
     {
         OrchConductorAudioProcessor processor;
-        const auto captured = captureMidiWithInput (processor, 23, 100);
-        ok = checkPass (captured.ccValues.count (23) == 0,
-                        "input CC23 is dropped by default (passthrough off)") && ok;
-        ok = checkEquals (captured.eventCount, 0,
-                          "no output without a send request and passthrough off") && ok;
+        ok = checkEquals (static_cast<int> (processor.getInputPassthroughMode()),
+                          static_cast<int> (Mode::controlCcs), "default passthrough mode is Control CCs") && ok;
+
+        const auto low = captureMidiWithInput (processor, 23, 100);
+        ok = checkPass (low.ccValues.count (23) == 0, "Control CCs: input CC23 is dropped") && ok;
+
+        const auto high = captureMidiWithInput (processor, 110, 127);
+        ok = checkPass (high.ccValues.count (110) == 1, "Control CCs: input CC110 is forwarded") && ok;
     }
 
-    // Passthrough on: the same CC is forwarded.
+    // Off: everything dropped.
     {
         OrchConductorAudioProcessor processor;
-        processor.setPassInputThrough (true);
-        const auto captured = captureMidiWithInput (processor, 23, 100);
-        ok = checkPass (captured.ccValues.count (23) == 1,
-                        "input CC23 is forwarded when passthrough is on") && ok;
+        processor.setInputPassthroughMode (Mode::off);
+        const auto captured = captureMidiWithInput (processor, 110, 127);
+        ok = checkPass (captured.ccValues.count (110) == 0, "Off: input CC110 is dropped") && ok;
+        ok = checkEquals (captured.eventCount, 0, "Off: no output without a send request") && ok;
     }
 
-    // Bridge CCs are still read with passthrough off (they are consumed before
-    // the buffer is cleared).
+    // All: low CC forwarded.
     {
         OrchConductorAudioProcessor processor;
+        processor.setInputPassthroughMode (Mode::all);
+        const auto captured = captureMidiWithInput (processor, 23, 100);
+        ok = checkPass (captured.ccValues.count (23) == 1, "All: input CC23 is forwarded") && ok;
+    }
+
+    // Bridge CCs (102-104) are read regardless of mode (consumed before the filter).
+    {
+        OrchConductorAudioProcessor processor; // default Control CCs
         captureMidiWithInput (processor, 104, 127);
         ok = checkEquals (static_cast<int> (processor.getAuthorityMode()),
                           static_cast<int> (OrchConductorAudioProcessor::AuthorityMode::narrativeScan),
-                          "CC104 still read with passthrough off") && ok;
+                          "CC104 still read under Control CCs mode") && ok;
     }
 
     return ok;
@@ -611,7 +623,7 @@ int main()
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     ok = verifyNarrativeScanDrivesCombiSend() && ok;
     ok = verifyNarrativeControlCcInput() && ok;
-    ok = verifyInputPassthroughDefaultsBlocked() && ok;
+    ok = verifyInputPassthroughModes() && ok;
 #endif
     ok = verifySendRequestConsumed() && ok;
     ok = verifyProbeDiagnosticsPresentAndNonAuthoritative() && ok;

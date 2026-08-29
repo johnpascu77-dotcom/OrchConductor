@@ -330,14 +330,22 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         updateStatus();
     };
 
-    passInputThroughToggle.setButtonText ("Pass Input Through (leave OFF for the MC/MPL rig)");
-    passInputThroughToggle.setToggleState (audioProcessor.getPassInputThrough(), juce::dontSendNotification);
-    passInputThroughToggle.setColour (juce::ToggleButton::textColourId, juce::Colour::fromRGB (205, 220, 230));
-    addAndMakeVisible (passInputThroughToggle);
+    inputPassthroughLabel.setText ("Input Passthrough", juce::dontSendNotification);
+    styleLabel (inputPassthroughLabel, juce::Colours::white, 13.0f, juce::Font::bold);
+    addAndMakeVisible (inputPassthroughLabel);
 
-    passInputThroughToggle.onClick = [this]
+    inputPassthroughBox.addItem ("Off", 1);
+    inputPassthroughBox.addItem ("Control CCs (>= 105)", 2);
+    inputPassthroughBox.addItem ("All", 3);
+    inputPassthroughBox.setSelectedId (
+        static_cast<int> (audioProcessor.getInputPassthroughMode()) + 1, juce::dontSendNotification);
+    styleComboBox (inputPassthroughBox, true);
+    addAndMakeVisible (inputPassthroughBox);
+
+    inputPassthroughBox.onChange = [this]
     {
-        audioProcessor.setPassInputThroughFromUI (passInputThroughToggle.getToggleState());
+        audioProcessor.setInputPassthroughModeFromUI (
+            static_cast<OrchConductorAudioProcessor::InputPassthroughMode> (inputPassthroughBox.getSelectedId() - 1));
         updateStatus();
     };
 
@@ -745,7 +753,11 @@ void OrchConductorAudioProcessorEditor::resized()
     midiMapButton.setBounds (midiMapRow.withSizeKeepingCentre (200, 34));
 
     area.removeFromTop (6);
-    passInputThroughToggle.setBounds (area.removeFromTop (24).withSizeKeepingCentre (420, 24));
+    {
+        auto row = area.removeFromTop (26);
+        inputPassthroughLabel.setBounds (row.removeFromLeft (140));
+        inputPassthroughBox.setBounds (row.removeFromLeft (260));
+    }
 
     // Footer anchored to the window bottom so shrinking the editor squeezes the
     // middle, not the status line.
@@ -789,9 +801,9 @@ void OrchConductorAudioProcessorEditor::timerCallback()
     if (sendOnChangeToggle.getToggleState() != sendOnChange)
         sendOnChangeToggle.setToggleState (sendOnChange, juce::dontSendNotification);
 
-    const bool passThrough = audioProcessor.getPassInputThrough();
-    if (passInputThroughToggle.getToggleState() != passThrough)
-        passInputThroughToggle.setToggleState (passThrough, juce::dontSendNotification);
+    const int passthroughId = static_cast<int> (audioProcessor.getInputPassthroughMode()) + 1;
+    if (inputPassthroughBox.getSelectedId() != passthroughId)
+        inputPassthroughBox.setSelectedId (passthroughId, juce::dontSendNotification);
 
     const int authorityId = static_cast<int> (audioProcessor.getAuthorityMode()) + 1;
     if (authorityModeBox.getSelectedId() != authorityId)

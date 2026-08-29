@@ -169,15 +169,27 @@ public:
     void setSendOnPresetChangeFromUI (bool shouldSend);
     bool getSendOnPresetChange() const;
 
-    // When false (default), processBlock discards all input MIDI after reading
-    // the bridge CCs (102-104) and outputs only OrchConductor's own CC20-54.
-    // OrchConductor is a control-path terminus; forwarding the input stream
-    // leaks a driving plugin's own CC traffic (e.g. MPL Rate on CC23) onto the
-    // OrchGates, which share CC numbers with it. Set true only if OC is being
-    // used inline and something downstream genuinely needs the passthrough.
-    void setPassInputThrough (bool shouldPass);
-    void setPassInputThroughFromUI (bool shouldPass);
-    bool getPassInputThrough() const;
+    // What processBlock does with the input MIDI stream after reading the bridge
+    // CCs (102-104):
+    //   Off        - drop everything; output only OrchConductor's own CC20-54.
+    //   ControlCcs - forward controller events with CC >= 105 (MC's field-mask
+    //                CC110-121 and any future high control CCs), drop the rest.
+    //                102-104 are OC's own bridge input and stay consumed. This
+    //                makes OC the single control-CC relay for the downstream
+    //                tracks while still blocking the MPL collision zone (20-64).
+    //   All        - forward the whole stream (inline / debugging use).
+    // Default: ControlCcs. OrchConductor is a control-path node; forwarding the
+    // MPL note-transform CCs would leak e.g. MPL Rate on CC23 onto the OrchGates.
+    enum class InputPassthroughMode
+    {
+        off = 0,
+        controlCcs,
+        all
+    };
+
+    InputPassthroughMode getInputPassthroughMode() const;
+    void setInputPassthroughMode (InputPassthroughMode mode);
+    void setInputPassthroughModeFromUI (InputPassthroughMode mode);
 
     juce::String getPresetName() const;
     juce::String getCombiPresetName() const;
@@ -317,7 +329,8 @@ private:
     bool sendPresetRequested { false };
     bool sendAllOffRequested { false };
     bool sendOnPresetChange { false };
-    bool passInputThrough { false };
+    InputPassthroughMode inputPassthroughMode { InputPassthroughMode::controlCcs };
+    static constexpr int controlCcPassthroughFloor = 105;
 
     OrchConductorRuntimePresetCatalog runtimePresetCatalog { OrchConductorRuntimePresetCatalog::createFallbackCatalog() };
     bool runtimePresetCatalogAuthorityActive { false };
@@ -353,7 +366,7 @@ private:
     juce::AudioParameterInt* percussionPresetParameter { nullptr };
     juce::AudioParameterInt* stringsPresetParameter { nullptr };
     juce::AudioParameterBool* sendOnPresetChangeParameter { nullptr };
-    juce::AudioParameterBool* passInputThroughParameter { nullptr };
+    juce::AudioParameterChoice* inputPassthroughParameter { nullptr };
     juce::AudioParameterChoice* authorityModeParameter { nullptr };
     juce::AudioParameterInt* narrativeLaneParameter { nullptr };
     juce::AudioParameterFloat* narrativePositionParameter { nullptr };

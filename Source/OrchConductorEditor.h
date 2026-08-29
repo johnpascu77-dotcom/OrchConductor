@@ -58,7 +58,8 @@ private:
     juce::ComboBox presetBox;
 
     juce::ToggleButton sendOnChangeToggle;
-    juce::ToggleButton passInputThroughToggle;
+    juce::Label inputPassthroughLabel;
+    juce::ComboBox inputPassthroughBox;
     juce::TextButton sendButton;
     juce::TextButton allOffButton;
     juce::TextButton midiMapButton;

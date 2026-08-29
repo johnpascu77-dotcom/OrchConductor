@@ -280,9 +280,13 @@ contract. Revisit only if lane-scanning proves too coarse in real use.
    track input; add an empty `Layer 2` and MPL notes + OC's CC merge. This is the fan-out
    mechanism — one MPL instance, per-track Note FX Layer, no `OrchNoteDistributor` needed.
 3. **CC collision (fixed)** — OC's CC20-54 output overlaps MPL's CC20-64 control map (MPL Rate on
-   CC23 was opening the Oboe 1 gate). OC was forwarding its whole input stream. Fix: `68fa9f3`
-   adds **"Pass Input Through", default OFF** — reads bridge CCs 102-104, then clears the input,
-   outputs only its own CC20-54.
+   CC23 was opening the Oboe 1 gate). OC was forwarding its whole input stream. Fix: the
+   **`Input Passthrough`** parameter — `Off` / `Control CCs (>= 105)` / `All`, default
+   **Control CCs**. It reads the bridge CCs (102-104) as always, then keeps only input controller
+   events with `CC >= 105` (MC's field-mask CC110-121 and future high control CCs) and drops the
+   rest — so OC blocks the MPL collision zone (20-64) but relays the control plane, letting a
+   clip-fed wash track receive both OC's CC20-54 *and* MC's field mask on the single OC wire with
+   no Note Receiver. (`68fa9f3` first added this as a 2-state toggle; widened to the 3-way here.)
 
 ## 13. Harmonic field on the same lane — DONE (`<this branch>`, 2026-08-29)
 
