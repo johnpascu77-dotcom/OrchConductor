@@ -1070,6 +1070,7 @@ void OrchConductorAudioProcessor::prepareToPlay (double, int)
     lastResolvedNarrativeCombiId = -1;
     pendingFieldSelectIndex = -1;
     lastSentFieldSelectIndex = -1;
+    explicitSendPresetRequested = false;
 }
 
 void OrchConductorAudioProcessor::releaseResources()
@@ -1402,23 +1403,45 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     if (authorityMode == AuthorityMode::narrativeScan)
         updateNarrativeScanResolution();
 
-    if (pendingFieldSelectIndex >= 0)
-    {
-        const int cc = fieldSelectCcParameter != nullptr ? fieldSelectCcParameter->get() : 105;
-
-        if (cc > 0)
-        {
-            const int ccValue = juce::jlimit (0, 127,
-                juce::roundToInt (static_cast<double> (pendingFieldSelectIndex) / maxPitchFieldIndex * 127.0));
-            midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, cc, ccValue), 0);
-        }
-
-        lastSentFieldSelectIndex = pendingFieldSelectIndex;
-        pendingFieldSelectIndex = -1;
-    }
-
     const bool shouldSendAllOff = consumeSendAllOffRequest();
     const bool shouldSendPreset = consumeSendPresetRequest();
+    const bool explicitSend = explicitSendPresetRequested;
+    explicitSendPresetRequested = false;
+
+    // Field-select CC (OrchNoteFilter pitch field). Emitted when the resolved
+    // lane point changes, and re-emitted on an explicit "Send Current Presets"
+    // (the current point's own field, so it can't push a stale value) so a
+    // late-joining OrchNoteFilter can be brought current.
+    {
+        int fieldToSend = pendingFieldSelectIndex;
+
+        if (fieldToSend < 0
+            && explicitSend
+            && authorityMode == AuthorityMode::narrativeScan
+            && lastResolvedNarrativePointIndex >= 0)
+        {
+            const int currentPointField = runtimePresetCatalog.getNarrativeLanePointPitchFieldIndex (
+                narrativeLaneIndex, lastResolvedNarrativePointIndex);
+
+            if (currentPointField >= 0)
+                fieldToSend = currentPointField;
+        }
+
+        if (fieldToSend >= 0)
+        {
+            const int cc = fieldSelectCcParameter != nullptr ? fieldSelectCcParameter->get() : 105;
+
+            if (cc > 0)
+            {
+                const int ccValue = juce::jlimit (0, 127,
+                    juce::roundToInt (static_cast<double> (fieldToSend) / maxPitchFieldIndex * 127.0));
+                midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, cc, ccValue), 0);
+            }
+
+            lastSentFieldSelectIndex = fieldToSend;
+            pendingFieldSelectIndex = -1;
+        }
+    }
 
     if (! shouldSendAllOff && ! shouldSendPreset)
         return;
@@ -2519,6 +2542,7 @@ OrchConductorAudioProcessor::Preset OrchConductorAudioProcessor::getPreset() con
 void OrchConductorAudioProcessor::requestSendPreset()
 {
     sendPresetRequested = true;
+    explicitSendPresetRequested = true;
 }
 
 void OrchConductorAudioProcessor::requestSendAllOff()

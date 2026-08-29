@@ -420,6 +420,12 @@ bool verifyNarrativeScanDrivesCombiSend()
     const auto held = captureMidi(processor);
     ok = checkEquals(held.eventCount, 0, "narrative scan no send while combi/field unchanged") && ok;
 
+    // Explicit "Send Current Presets" re-emits the field CC (for a late-joining
+    // OrchNoteFilter) even though nothing resolved-changed.
+    processor.requestSendPreset();
+    const auto resync = captureMidi(processor);
+    ok = expectCcValue(resync, 105, 109, "narrative scan re-sync re-emits field select") && ok;
+
     // Move to the far end of the lane -> point 5 -> combi 2 + field #0.
     processor.setNarrativePosition(1.0);
     const auto atEnd = captureMidi(processor);

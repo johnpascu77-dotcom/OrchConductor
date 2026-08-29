@@ -327,6 +327,7 @@ private:
     static constexpr int maxPitchFieldIndex = 14;
 
     bool sendPresetRequested { false };
+    bool explicitSendPresetRequested { false }; // set only by requestSendPreset(), not by narrative resolve
     bool sendAllOffRequested { false };
     bool sendOnPresetChange { false };
     InputPassthroughMode inputPassthroughMode { InputPassthroughMode::controlCcs };
