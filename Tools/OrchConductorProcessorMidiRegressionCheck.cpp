@@ -11,7 +11,9 @@ namespace
 {
 
 constexpr int expectedMidiChannel = 1;
-constexpr int expectedSendCcCount = 35;
+// 35 original instrument CCs (20-54) plus CC55 (Piano), added alongside
+// Harp (CC49) as a user-combi-only override - see UserCombiPreset.
+constexpr int expectedSendCcCount = 36;
 
 int fail(const juce::String& message)
 {
@@ -110,6 +112,8 @@ bool verifyStandardSendShape(const CapturedMidi& captured, const juce::String& c
     for (int cc = 50; cc <= 54; ++cc)
         ok = checkPass(captured.ccValues.count(cc) == 1, context + " contains CC" + juce::String(cc)) && ok;
 
+    ok = checkPass(captured.ccValues.count(55) == 1, context + " contains Piano CC55") && ok;
+
     return ok;
 }
 
@@ -138,7 +142,7 @@ bool verifyAllOffSend()
 
     ok = verifyStandardSendShape(captured, "all off send") && ok;
 
-    for (int cc = 20; cc <= 54; ++cc)
+    for (int cc = 20; cc <= 55; ++cc)
     {
         if (cc == 49)
             ok = expectCcValue(captured, cc, 0, "all off reserved") && ok;
@@ -166,6 +170,7 @@ bool verifyManualSectionLowStringsSend()
     ok = verifyStandardSendShape(captured, "manual low strings send") && ok;
 
     ok = expectCcValue(captured, 49, 0, "manual low strings reserved") && ok;
+    ok = expectCcValue(captured, 55, 0, "manual low strings piano") && ok;
 
     ok = expectCcValue(captured, 50, 0, "manual low strings violin I") && ok;
     ok = expectCcValue(captured, 51, 0, "manual low strings violin II") && ok;
@@ -211,6 +216,8 @@ bool verifyManualSectionWoodwindsAndBrassSend()
     for (int cc = 50; cc <= 54; ++cc)
         ok = expectCcValue(captured, cc, 0, "manual strings all off") && ok;
 
+    ok = expectCcValue(captured, 55, 0, "manual full winds/brass piano") && ok;
+
     return ok;
 }
 
@@ -236,7 +243,7 @@ bool verifyCombiOverridesSectionPresets()
 
     // Solo English Horn Lament:
     // CC25 = 127, CC52 = 127, CC53 = 127, CC54 = 64, all other non-reserved CCs zero.
-    for (int cc = 20; cc <= 54; ++cc)
+    for (int cc = 20; cc <= 55; ++cc)
     {
         if (cc == 25)
             ok = expectCcValue(captured, cc, 127, "solo English Horn Lament english horn") && ok;
@@ -249,6 +256,82 @@ bool verifyCombiOverridesSectionPresets()
         else
             ok = expectCcValue(captured, cc, 0, "solo English Horn Lament inactive/reserved") && ok;
     }
+
+    return ok;
+}
+
+bool verifyUserCombiHarpPianoOverride()
+{
+    OrchConductorAudioProcessor processor;
+
+    const juce::String importJson = R"JSON(
+    {
+        "schema": "orch_conductor_user_combi_presets",
+        "version": 1,
+        "combiPresets": [
+            {
+                "name": "Test Harp Piano Override",
+                "sections": { "woodwinds": 0, "brass": 0, "percussion": 0, "strings": 0 },
+                "harpValue": 100,
+                "pianoValue": 90
+            }
+        ]
+    }
+    )JSON";
+
+    bool ok = checkPass(processor.importUserCombiPresetsFromJson(importJson),
+                         "user combi harp/piano override JSON imported");
+
+    // importUserCombiPresetsFromJson *replaces* the whole user-combi map (it
+    // may have pre-existing entries loaded from this machine's real
+    // UserCombiPresets.json on construction), so the id our one entry landed
+    // on is whatever the map's max id is right after import - not something
+    // predictable from getNextAvailableUserCombiPresetId() beforehand.
+    const int importedCombiId = processor.getMaxCombiPresetId();
+
+    processor.setCombiPresetId(importedCombiId);
+    processor.requestSendPreset();
+
+    const auto captured = captureMidi(processor);
+
+    ok = verifyStandardSendShape(captured, "user combi harp/piano override send") && ok;
+
+    ok = expectCcValue(captured, 49, 100, "user combi harp override") && ok;
+    ok = expectCcValue(captured, 55, 90, "user combi piano override") && ok;
+
+    for (int cc = 20; cc <= 48; ++cc)
+        ok = expectCcValue(captured, cc, 0, "user combi harp/piano override (all off elsewhere)") && ok;
+
+    for (int cc = 50; cc <= 54; ++cc)
+        ok = expectCcValue(captured, cc, 0, "user combi harp/piano override (all off elsewhere)") && ok;
+
+    // A combi that doesn't set harpValue/pianoValue at all (an "unset" -1,
+    // matching a plain factory combi) must still resolve both to 0.
+    const juce::String noOverrideJson = R"JSON(
+    {
+        "schema": "orch_conductor_user_combi_presets",
+        "version": 1,
+        "combiPresets": [
+            {
+                "name": "Test No Override",
+                "sections": { "woodwinds": 0, "brass": 0, "percussion": 0, "strings": 0 }
+            }
+        ]
+    }
+    )JSON";
+
+    OrchConductorAudioProcessor processor2;
+
+    ok = checkPass(processor2.importUserCombiPresetsFromJson(noOverrideJson),
+                    "user combi no-override JSON imported") && ok;
+
+    processor2.setCombiPresetId(processor2.getMaxCombiPresetId());
+    processor2.requestSendPreset();
+
+    const auto captured2 = captureMidi(processor2);
+
+    ok = expectCcValue(captured2, 49, 0, "user combi no-override harp") && ok;
+    ok = expectCcValue(captured2, 55, 0, "user combi no-override piano") && ok;
 
     return ok;
 }
@@ -626,6 +709,7 @@ int main()
     ok = verifyManualSectionLowStringsSend() && ok;
     ok = verifyManualSectionWoodwindsAndBrassSend() && ok;
     ok = verifyCombiOverridesSectionPresets() && ok;
+    ok = verifyUserCombiHarpPianoOverride() && ok;
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     ok = verifyNarrativeScanDrivesCombiSend() && ok;
     ok = verifyNarrativeControlCcInput() && ok;

@@ -234,6 +234,12 @@ public:
     int getDefaultMaxPlayersForCc (int ccNumber) const;
     int getActivePlayersForValue (int value, int maxPlayers) const;
 
+    // CC49 (Harp) and CC55 (Piano): only reachable via a user combi's
+    // harpValue/pianoValue override (see UserCombiPreset). 0 outside combi
+    // mode or when the active combi doesn't override them.
+    int getHarpCcValue() const;
+    int getPianoCcValue() const;
+
     bool wasRuntimeJsonPresetProbeLoaded() const;
     bool doesRuntimeJsonPresetProbeRequireFallback() const;
     juce::String getRuntimeJsonPresetProbeDiagnostic() const;
@@ -279,7 +285,16 @@ private:
         int brassPresetId = 0;
         int percussionPresetId = 0;
         int stringsPresetId = 0;
-    
+
+        // Harp (CC49) and Piano (CC55) don't belong to any of the 4 section
+        // families above, so they can't ride along via a section preset id.
+        // -1 means "not overridden" (sends 0); >= 0 is the literal CC value
+        // to send when this combi is active. No manual/slider UI exists for
+        // these two - the only way to set them is by hand-editing the
+        // exported UserCombiPresets.json and re-importing it.
+        int harpValue = -1;
+        int pianoValue = -1;
+
         orchconductor::NarrativeMetadata metadata;
 };
 

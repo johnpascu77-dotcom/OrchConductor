@@ -18,6 +18,7 @@ namespace
     constexpr int runtimeNarrativeLaneExpectedCount = 6;
     constexpr int reservedHarpCcNumber = 49;
     constexpr int reservedHarpCcValue = 0;
+    constexpr int pianoCcNumber = 55;
 
     // Phase 10F.5 MC bridge: undefined MIDI CCs (102-119 range), clear of both
     // OrchConductor's own CC20-54 output and MPL's CC20-64 external-control map.
@@ -1057,12 +1058,25 @@ int OrchConductorAudioProcessor::getTotalActivePlayers() const
     for (int i = 0; i < getNumPercussionOutputRows(); ++i)
         total += getPercussionOutputRow (i).activePlayers;
 
-    // Harp is reserved at CC49 and currently always inactive in the UI layer.
+    // Harp (CC49) and Piano (CC55) have no dedicated row/UI - they only
+    // contribute when the active user combi overrides them.
+    total += getActivePlayersForValue (getHarpCcValue(), 1);
+    total += getActivePlayersForValue (getPianoCcValue(), 1);
 
     for (int i = 0; i < getNumOutputRows(); ++i)
         total += getOutputRow (i).activePlayers;
 
     return total;
+}
+
+int OrchConductorAudioProcessor::getHarpCcValue() const
+{
+    return isCombiModeActive() ? getCombiPresetValueForCc (reservedHarpCcNumber) : 0;
+}
+
+int OrchConductorAudioProcessor::getPianoCcValue() const
+{
+    return isCombiModeActive() ? getCombiPresetValueForCc (pianoCcNumber) : 0;
 }
 void OrchConductorAudioProcessor::prepareToPlay (double, int)
 {
@@ -1510,12 +1524,27 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, cc, value), 0);
     }
 
-    int reservedCc49Value = 0;
+    // Harp (CC49) and Piano (CC55) have no manual/section control surface -
+    // they only carry a value when a user combi's harpValue/pianoValue
+    // override is set (see UserCombiPreset). Every factory combi still
+    // resolves both to 0.
+    int harpValue = (! shouldSendAllOff && useCombi)
+                        ? getCombiPresetValueForCc (getEffectiveCombiPresetId(), reservedHarpCcNumber)
+                        : 0;
 
     if (! shouldSendAllOff && useCombi)
-        tryGetRuntimeCombiPresetValueForCc (getEffectiveCombiPresetId(), reservedHarpCcNumber, reservedCc49Value);
+        tryGetRuntimeCombiPresetValueForCc (getEffectiveCombiPresetId(), reservedHarpCcNumber, harpValue);
 
-    midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, reservedHarpCcNumber, reservedCc49Value), 0);
+    midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, reservedHarpCcNumber, harpValue), 0);
+
+    int pianoValue = (! shouldSendAllOff && useCombi)
+                          ? getCombiPresetValueForCc (getEffectiveCombiPresetId(), pianoCcNumber)
+                          : 0;
+
+    if (! shouldSendAllOff && useCombi)
+        tryGetRuntimeCombiPresetValueForCc (getEffectiveCombiPresetId(), pianoCcNumber, pianoValue);
+
+    midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, pianoCcNumber, pianoValue), 0);
 
     for (int i = 0; i < numRows; ++i)
     {
@@ -1552,7 +1581,7 @@ void OrchConductorAudioProcessor::getStateInformation (juce::MemoryBlock& destDa
 {
     juce::MemoryOutputStream stream (destData, true);
 
-    stream.writeInt (3);
+    stream.writeInt (4);
     stream.writeInt (combiPresetId);
     stream.writeInt (woodwindsPresetId);
     stream.writeInt (brassPresetId);
@@ -1570,6 +1599,8 @@ void OrchConductorAudioProcessor::getStateInformation (juce::MemoryBlock& destDa
         stream.writeInt (preset.brassPresetId);
         stream.writeInt (preset.percussionPresetId);
         stream.writeInt (preset.stringsPresetId);
+        stream.writeInt (preset.harpValue);
+        stream.writeInt (preset.pianoValue);
     }
 
     // v3: narrative-scan authority state.
@@ -1596,7 +1627,7 @@ void OrchConductorAudioProcessor::setStateInformation (const void* data, int siz
         return;
     }
 
-    if (firstInt == 1 || firstInt == 2 || firstInt == 3)
+    if (firstInt == 1 || firstInt == 2 || firstInt == 3 || firstInt == 4)
     {
         const auto version = firstInt;
         const auto combi = stream.readInt();
@@ -1625,6 +1656,12 @@ void OrchConductorAudioProcessor::setStateInformation (const void* data, int siz
                 preset.brassPresetId = stream.readInt();
                 preset.percussionPresetId = stream.readInt();
                 preset.stringsPresetId = stream.readInt();
+
+                if (version >= 4 && ! stream.isExhausted())
+                {
+                    preset.harpValue = stream.readInt();
+                    preset.pianoValue = stream.readInt();
+                }
 
                 if (id >= firstUserCombiPresetId && id <= maxCombiPresetParameterId)
                     restoredUserCombiPresets[id] = preset;
@@ -2318,6 +2355,11 @@ bool OrchConductorAudioProcessor::importUserCombiPresetsFromJson (const juce::St
         preset.percussionPresetId = static_cast<int> (sections->getProperty ("percussion"));
         preset.stringsPresetId = static_cast<int> (sections->getProperty ("strings"));
 
+        preset.harpValue = obj->hasProperty ("harpValue")
+                                ? static_cast<int> (obj->getProperty ("harpValue")) : -1;
+        preset.pianoValue = obj->hasProperty ("pianoValue")
+                                ? static_cast<int> (obj->getProperty ("pianoValue")) : -1;
+
         readUserCombiNarrativeMetadata (*obj, preset.metadata);
 
         auto localId = static_cast<int> (obj->getProperty ("localId"));
@@ -2381,7 +2423,12 @@ juce::String OrchConductorAudioProcessor::exportUserCombiPresetsToJson() const
         sections->setProperty ("strings", preset.stringsPresetId);
 
         presetObject->setProperty ("sections", juce::var (sections.get()));
-        
+
+        // Harp/Piano: -1 (not overridden) is written as-is so re-import can
+        // tell "unset" apart from an explicit 0.
+        presetObject->setProperty ("harpValue", preset.harpValue);
+        presetObject->setProperty ("pianoValue", preset.pianoValue);
+
         presetObject->setProperty (
             "metadata",
             juce::var (createNarrativeMetadataJsonObject (preset.metadata).get()));
@@ -3293,9 +3340,6 @@ int OrchConductorAudioProcessor::getCombiPresetValueForCc (int ccNumber) const
 }
 int OrchConductorAudioProcessor::getCombiPresetValueForCc (int presetId, int ccNumber) const
 {
-    if (ccNumber == reservedHarpCcNumber)
-        return 0; // Harp reserved.
-
     if (isUserCombiPresetId (presetId))
     {
         const auto it = userCombiPresets.find (presetId);
@@ -3304,6 +3348,14 @@ int OrchConductorAudioProcessor::getCombiPresetValueForCc (int presetId, int ccN
             return 0;
 
         const auto& preset = it->second;
+
+        // Harp/Piano don't belong to any of the 4 section families composed
+        // below, so they're resolved as an explicit per-combi override first.
+        if (ccNumber == reservedHarpCcNumber)
+            return preset.harpValue >= 0 ? preset.harpValue : 0;
+
+        if (ccNumber == pianoCcNumber)
+            return preset.pianoValue >= 0 ? preset.pianoValue : 0;
 
         auto value = getSectionPresetValueForCc (Section::woodwinds, preset.woodwindsPresetId, ccNumber);
 

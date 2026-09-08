@@ -616,7 +616,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     addAndMakeVisible (narrativeMetadataValueLabel);
 
     ccMapLabel.setText (
-        "Phase 10E: runtime combi workflow UX | CC49 reserved for Harp",
+        "Phase 10G: user-combi Harp/Piano overrides | CC49 Harp, CC55 Piano (user-combi only)",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -882,8 +882,8 @@ void OrchConductorAudioProcessorEditor::updateStatus()
                                               : "Authority: Manual Sections");
 
     ccMapLabel.setText (
-        "Phase 10F | " + authorityText + " | " + getUserFacingCatalogStatus (audioProcessor)
-        + " | CC49 reserved for Harp",
+        "Phase 10G | " + authorityText + " | " + getUserFacingCatalogStatus (audioProcessor)
+        + " | CC49 Harp / CC55 Piano (user-combi only)",
         juce::dontSendNotification);
 
     const juce::String autoSendText = audioProcessor.getSendOnPresetChange() ? " | Auto-send: On" : " | Auto-send: Off";
@@ -904,7 +904,7 @@ void OrchConductorAudioProcessorEditor::updateStatus()
             + " @ " + juce::String (juce::roundToInt (audioProcessor.getNarrativePosition() * 100.0)) + "%"
             + " -> " + resolvedText
             + activePlayersText
-            + " | Harp reserved"
+            + " | Harp/Piano: factory default (0)"
             + autoSendText
             + sendFeedbackText,
             juce::dontSendNotification);
@@ -914,10 +914,14 @@ void OrchConductorAudioProcessorEditor::updateStatus()
 
     if (audioProcessor.isCombiModeActive())
     {
+        const juce::String harpPianoText =
+            " | Harp: " + juce::String (audioProcessor.getHarpCcValue())
+            + " | Piano: " + juce::String (audioProcessor.getPianoCcValue());
+
         statusLabel.setText (
             "Combi active: " + audioProcessor.getCombiPresetName()
             + activePlayersText
-            + " | Harp reserved"
+            + harpPianoText
             + autoSendText
             + sendFeedbackText,
             juce::dontSendNotification);
@@ -928,7 +932,7 @@ void OrchConductorAudioProcessorEditor::updateStatus()
     statusLabel.setText (
         "Manual Sections | Strings: " + audioProcessor.getPresetName()
         + activePlayersText
-        + " | Harp reserved"
+        + " | Harp/Piano: off (manual mode)"
         + autoSendText
         + sendFeedbackText,
         juce::dontSendNotification);
@@ -1096,8 +1100,11 @@ juce::String OrchConductorAudioProcessorEditor::buildMidiMapText() const
         appendMidiMapRow (text, row.ccNumber, row.instrumentName, row.value, row.activePlayers, row.maxPlayers);
     }
 
-    appendMidiMapSectionHeader (text, "Reserved");
-    text << "CC49  Harp - reserved\n";
+    appendMidiMapSectionHeader (text, "Harp / Piano (user-combi override only)");
+    text << "CC49  Harp   - value " << audioProcessor.getHarpCcValue()
+         << " (no manual control; set via a user combi's harpValue override)\n";
+    text << "CC55  Piano  - value " << audioProcessor.getPianoCcValue()
+         << " (no manual control; set via a user combi's pianoValue override)\n";
 
     text << "\n";
     appendMidiMapSectionHeader (text, "Strings");
