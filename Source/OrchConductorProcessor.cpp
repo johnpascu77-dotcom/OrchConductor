@@ -505,7 +505,7 @@ constexpr int numRows = 5;
         32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42
     };
 
-    constexpr int numPercussionRows = 6;
+    constexpr int numPercussionRows = 13;
 
     const char* percussionInstrumentNames[numPercussionRows] =
     {
@@ -514,12 +514,23 @@ constexpr int numRows = 5;
         "Xylophone",
         "Marimba",
         "Vibraphone",
-        "Tubular Bells"
+        "Tubular Bells",
+        // Unpitched percussion (CCs proposed in OrchPercMapper's CcMap -
+        // see that repo's Design doc §7 for the fixed note-identity mapping
+        // these instruments get downstream).
+        "Bass Drum",
+        "Snare Drum",
+        "Cymbals",
+        "Piatti",
+        "Tam-Tam",
+        "Tambourine",
+        "Triangle"
     };
 
     constexpr int percussionCcNumbers[numPercussionRows] =
     {
-        43, 44, 45, 46, 47, 48
+        43, 44, 45, 46, 47, 48,
+        56, 57, 58, 59, 60, 61, 62
     };
 }
 
@@ -1971,7 +1982,11 @@ juce::String OrchConductorAudioProcessor::getSectionPresetLabel (Section section
         "Vibraphone Only", "Tubular Bells Only", "Mallets", "Full Melodic Percussion",
         "High Orchestra Percussion",
         "Middle Orchestra Percussion",
-        "Shimmer Percussion"
+        "Shimmer Percussion",
+        "Bass Drum Only", "Snare Drum Only", "Cymbals Only", "Piatti Only",
+        "Tam-Tam Only", "Tambourine Only", "Triangle Only",
+        "Unpitched Percussion",
+        "Full Percussion"
     };
 
     switch (section)
@@ -2939,6 +2954,19 @@ int OrchConductorAudioProcessor::getPercussionPresetValueForIndex (int index) co
 
         case 11: // Shimmer Percussion: CC44, CC47, CC48
             return (index == 1 || index == 4 || index == 5) ? 127 : 0;
+
+        case 12: return index == 6 ? 127 : 0;    // Bass Drum Only
+        case 13: return index == 7 ? 127 : 0;    // Snare Drum Only
+        case 14: return index == 8 ? 127 : 0;    // Cymbals Only
+        case 15: return index == 9 ? 127 : 0;    // Piatti Only
+        case 16: return index == 10 ? 127 : 0;   // Tam-Tam Only
+        case 17: return index == 11 ? 127 : 0;   // Tambourine Only
+        case 18: return index == 12 ? 127 : 0;   // Triangle Only
+
+        case 19:                                 // Unpitched Percussion
+            return (index >= 6 && index <= 12) ? 127 : 0;
+
+        case 20: return 127;                     // Full Percussion (all 13 rows)
     }
 
     return 0;
@@ -3132,6 +3160,19 @@ int OrchConductorAudioProcessor::getPercussionPresetValueForIndex (int presetId,
 
         case 11: // Shimmer Percussion: CC44, CC47, CC48
             return (index == 1 || index == 4 || index == 5) ? 127 : 0;
+
+        case 12: return index == 6 ? 127 : 0;    // Bass Drum Only
+        case 13: return index == 7 ? 127 : 0;    // Snare Drum Only
+        case 14: return index == 8 ? 127 : 0;    // Cymbals Only
+        case 15: return index == 9 ? 127 : 0;    // Piatti Only
+        case 16: return index == 10 ? 127 : 0;   // Tam-Tam Only
+        case 17: return index == 11 ? 127 : 0;   // Tambourine Only
+        case 18: return index == 12 ? 127 : 0;   // Triangle Only
+
+        case 19:                                 // Unpitched Percussion
+            return (index >= 6 && index <= 12) ? 127 : 0;
+
+        case 20: return 127;                     // Full Percussion (all 13 rows)
     }
 
     return 0;

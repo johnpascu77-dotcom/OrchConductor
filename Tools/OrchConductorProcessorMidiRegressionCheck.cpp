@@ -11,9 +11,10 @@ namespace
 {
 
 constexpr int expectedMidiChannel = 1;
-// 35 original instrument CCs (20-54) plus CC55 (Piano), added alongside
-// Harp (CC49) as a user-combi-only override - see UserCombiPreset.
-constexpr int expectedSendCcCount = 36;
+// 35 original instrument CCs (20-54) + CC55 (Piano, alongside Harp CC49's
+// user-combi-only override) + the 7 unpitched percussion instruments
+// (56-62), all always-sent alongside Timpani/mallets.
+constexpr int expectedSendCcCount = 43;
 
 int fail(const juce::String& message)
 {
@@ -114,6 +115,9 @@ bool verifyStandardSendShape(const CapturedMidi& captured, const juce::String& c
 
     ok = checkPass(captured.ccValues.count(55) == 1, context + " contains Piano CC55") && ok;
 
+    for (int cc = 56; cc <= 62; ++cc)
+        ok = checkPass(captured.ccValues.count(cc) == 1, context + " contains unpitched percussion CC" + juce::String(cc)) && ok;
+
     return ok;
 }
 
@@ -142,7 +146,7 @@ bool verifyAllOffSend()
 
     ok = verifyStandardSendShape(captured, "all off send") && ok;
 
-    for (int cc = 20; cc <= 55; ++cc)
+    for (int cc = 20; cc <= 62; ++cc)
     {
         if (cc == 49)
             ok = expectCcValue(captured, cc, 0, "all off reserved") && ok;
@@ -218,6 +222,69 @@ bool verifyManualSectionWoodwindsAndBrassSend()
 
     ok = expectCcValue(captured, 55, 0, "manual full winds/brass piano") && ok;
 
+    for (int cc = 56; cc <= 62; ++cc)
+        ok = expectCcValue(captured, cc, 0, "manual unpitched percussion all off") && ok;
+
+    return ok;
+}
+
+bool verifyManualUnpitchedPercussionPresets()
+{
+    bool ok = true;
+
+    // "Bass Drum Only" (preset 12): only CC56 on, every other percussion
+    // row (Timpani/mallets and the other 6 unpitched instruments) off.
+    {
+        OrchConductorAudioProcessor processor;
+        processor.setCombiPresetId(static_cast<int>(OrchConductorAudioProcessor::CombiPreset::manualSections));
+        processor.setSectionPresetId(OrchConductorAudioProcessor::Section::percussion, 12);
+        processor.requestSendPreset();
+
+        const auto captured = captureMidi(processor);
+
+        ok = verifyStandardSendShape(captured, "manual Bass Drum Only send") && ok;
+        ok = expectCcValue(captured, 56, 127, "Bass Drum Only bass drum") && ok;
+
+        for (int cc = 43; cc <= 48; ++cc)
+            ok = expectCcValue(captured, cc, 0, "Bass Drum Only mallets/timpani off") && ok;
+
+        for (int cc = 57; cc <= 62; ++cc)
+            ok = expectCcValue(captured, cc, 0, "Bass Drum Only other unpitched off") && ok;
+    }
+
+    // "Unpitched Percussion" (preset 19): all 7 unpitched instruments on,
+    // Timpani/mallets untouched.
+    {
+        OrchConductorAudioProcessor processor;
+        processor.setCombiPresetId(static_cast<int>(OrchConductorAudioProcessor::CombiPreset::manualSections));
+        processor.setSectionPresetId(OrchConductorAudioProcessor::Section::percussion, 19);
+        processor.requestSendPreset();
+
+        const auto captured = captureMidi(processor);
+
+        for (int cc = 56; cc <= 62; ++cc)
+            ok = expectCcValue(captured, cc, 127, "Unpitched Percussion all 7 on") && ok;
+
+        for (int cc = 43; cc <= 48; ++cc)
+            ok = expectCcValue(captured, cc, 0, "Unpitched Percussion mallets/timpani off") && ok;
+    }
+
+    // "Full Percussion" (preset 20): every one of the 13 percussion rows on.
+    {
+        OrchConductorAudioProcessor processor;
+        processor.setCombiPresetId(static_cast<int>(OrchConductorAudioProcessor::CombiPreset::manualSections));
+        processor.setSectionPresetId(OrchConductorAudioProcessor::Section::percussion, 20);
+        processor.requestSendPreset();
+
+        const auto captured = captureMidi(processor);
+
+        for (int cc = 43; cc <= 48; ++cc)
+            ok = expectCcValue(captured, cc, 127, "Full Percussion mallets/timpani on") && ok;
+
+        for (int cc = 56; cc <= 62; ++cc)
+            ok = expectCcValue(captured, cc, 127, "Full Percussion unpitched on") && ok;
+    }
+
     return ok;
 }
 
@@ -243,7 +310,7 @@ bool verifyCombiOverridesSectionPresets()
 
     // Solo English Horn Lament:
     // CC25 = 127, CC52 = 127, CC53 = 127, CC54 = 64, all other non-reserved CCs zero.
-    for (int cc = 20; cc <= 55; ++cc)
+    for (int cc = 20; cc <= 62; ++cc)
     {
         if (cc == 25)
             ok = expectCcValue(captured, cc, 127, "solo English Horn Lament english horn") && ok;
@@ -303,6 +370,9 @@ bool verifyUserCombiHarpPianoOverride()
         ok = expectCcValue(captured, cc, 0, "user combi harp/piano override (all off elsewhere)") && ok;
 
     for (int cc = 50; cc <= 54; ++cc)
+        ok = expectCcValue(captured, cc, 0, "user combi harp/piano override (all off elsewhere)") && ok;
+
+    for (int cc = 56; cc <= 62; ++cc)
         ok = expectCcValue(captured, cc, 0, "user combi harp/piano override (all off elsewhere)") && ok;
 
     // A combi that doesn't set harpValue/pianoValue at all (an "unset" -1,
@@ -526,6 +596,9 @@ bool verifyNarrativeScanDrivesCombiSend()
     for (int cc = 50; cc <= 54; ++cc)
         ok = expectCcValue(atEnd, cc, 127, "narrative scan end full strings") && ok;
 
+    for (int cc = 56; cc <= 62; ++cc)
+        ok = expectCcValue(atEnd, cc, 0, "narrative scan end unpitched percussion (not in this factory combi)") && ok;
+
     ok = expectCcValue(atEnd, 105, 0, "narrative scan end field select (#0)") && ok;
     ok = checkEquals(processor.getLastSentFieldSelectIndex(), 0, "narrative scan end field index") && ok;
 
@@ -708,6 +781,7 @@ int main()
     ok = verifyAllOffSend() && ok;
     ok = verifyManualSectionLowStringsSend() && ok;
     ok = verifyManualSectionWoodwindsAndBrassSend() && ok;
+    ok = verifyManualUnpitchedPercussionPresets() && ok;
     ok = verifyCombiOverridesSectionPresets() && ok;
     ok = verifyUserCombiHarpPianoOverride() && ok;
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS

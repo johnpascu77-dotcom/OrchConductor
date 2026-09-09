@@ -309,7 +309,12 @@ private:
     // Phase 1H expanded section dropdown limits.
     static constexpr int maxWoodwindsPresetId = 19;
     static constexpr int maxBrassPresetId = 16;
-    static constexpr int maxPercussionPresetId = 8;
+    // Was 8 - stale, undercounted presets 9-11 ("High/Middle Orchestra
+    // Percussion", "Shimmer Percussion") already present in the value
+    // switches but unreachable via this parameter's own range. Fixed here
+    // while extending for the 7 new unpitched percussion instruments'
+    // presets (12-20) - see getPercussionPresetValueForIndex.
+    static constexpr int maxPercussionPresetId = 20;
 
     static constexpr int minStringsPresetId = 0;
     static constexpr int maxStringsPresetId = 13;
