@@ -1,4 +1,5 @@
 #include "OrchConductorEditor.h"
+#include "OrchConductorBuildInfo.h"
 
 #include <cmath>
 
@@ -126,7 +127,11 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     subtitleLabel.setFont (juce::FontOptions (15.0f));
     addAndMakeVisible (subtitleLabel);
 
-    buildLabel.setText ("Build: Phase 10F", juce::dontSendNotification);
+    // orchConductorBuildTimestamp is regenerated on every single build (see
+    // cmake/GenerateOrchConductorBuildInfo.cmake) - a hand-maintained phase
+    // tag here can't answer "is this actually the build I just installed",
+    // a fresh timestamp always can.
+    buildLabel.setText (juce::String ("Build: ") + orchConductorBuildTimestamp, juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
     buildLabel.setFont (juce::FontOptions (12.0f));

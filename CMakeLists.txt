@@ -34,6 +34,21 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Build-timestamp label (see cmake/GenerateOrchConductorBuildInfo.cmake): a
+# plain custom target with no OUTPUT/DEPENDS tracking, so it reruns and
+# rewrites the header on every single build, not just every configure or
+# only when a source file happens to change.
+set(OrchConductorGeneratedDir "${CMAKE_BINARY_DIR}/generated")
+file(MAKE_DIRECTORY "${OrchConductorGeneratedDir}")
+
+add_custom_target(OrchConductorGenerateBuildInfo ALL
+    COMMAND ${CMAKE_COMMAND}
+        "-DOUTPUT_FILE=${OrchConductorGeneratedDir}/OrchConductorBuildInfo.h"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/GenerateOrchConductorBuildInfo.cmake"
+    BYPRODUCTS "${OrchConductorGeneratedDir}/OrchConductorBuildInfo.h"
+    COMMENT "Stamping OrchConductor build timestamp"
+)
+
 # Path to your JUCE folder.
 add_subdirectory("C:/JUCE/JUCE" JUCE)
 
@@ -91,6 +106,9 @@ target_sources(OrchConductor
         Source/OrchConductorNarrativeScanResolver.cpp
         Source/OrchConductorNarrativeScanResolver.h
 )
+
+add_dependencies(OrchConductor OrchConductorGenerateBuildInfo)
+target_include_directories(OrchConductor PRIVATE ${OrchConductorGeneratedDir})
 
 target_compile_definitions(OrchConductor
     PUBLIC
@@ -254,9 +272,12 @@ target_link_libraries(OrchConductorProcessorJsonProbeCheck
         juce::juce_recommended_warning_flags
 )
 
+add_dependencies(OrchConductorProcessorJsonProbeCheck OrchConductorGenerateBuildInfo)
+
 target_include_directories(OrchConductorProcessorJsonProbeCheck
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Tools
+        ${OrchConductorGeneratedDir}
 )
 
 target_compile_definitions(OrchConductorProcessorJsonProbeCheck
@@ -300,9 +321,12 @@ target_link_libraries(OrchConductorProcessorMidiRegressionCheck
         juce::juce_recommended_warning_flags
 )
 
+add_dependencies(OrchConductorProcessorMidiRegressionCheck OrchConductorGenerateBuildInfo)
+
 target_include_directories(OrchConductorProcessorMidiRegressionCheck
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Tools
+        ${OrchConductorGeneratedDir}
 )
 
 if (MSVC)

@@ -3517,9 +3517,15 @@ int OrchConductorAudioProcessor::getCombiPresetValueForCc (int presetId, int ccN
             return 0;
 
         case CombiPreset::utilityFullOrchestra:
-            return ((ccNumber >= 20 && ccNumber <= 48) || (ccNumber >= 50 && ccNumber <= 54)) ? 127 : 0;
+            // Was missing the 7 unpitched-percussion CCs (56-62) entirely -
+            // every factory combi predates that instrument family. Live-rig
+            // bug 2026-09-10: "Full Orchestra" was silently sending zero
+            // percussion for that whole family regardless of intent.
+            return ((ccNumber >= 20 && ccNumber <= 48) || (ccNumber >= 50 && ccNumber <= 54)
+                 || (ccNumber >= 56 && ccNumber <= 62)) ? 127 : 0;
 
         case CombiPreset::utilityFullOrchestraNoPercussion:
+            // Deliberately excludes 43-48 and 56-62 both - the name says so.
             return ((ccNumber >= 20 && ccNumber <= 42) || (ccNumber >= 50 && ccNumber <= 54)) ? 127 : 0;
 
         case CombiPreset::utilityChamberOrchestra:
@@ -3539,21 +3545,29 @@ int OrchConductorAudioProcessor::getCombiPresetValueForCc (int presetId, int ccN
             return (ccNumber >= 20 && ccNumber <= 42) ? 127 : 0;
 
         case CombiPreset::utilityHighOrchestra:
+            // Unpitched additions by register (2026-09-10, see
+            // utilityFullOrchestra's note): Cymbals/Piatti/Triangle are the
+            // high-register voices of the family.
             return (ccNumber == 20 || ccNumber == 21 || ccNumber == 22 || ccNumber == 23 || ccNumber == 24
                  || ccNumber == 36 || ccNumber == 37 || ccNumber == 38
                  || ccNumber == 44 || ccNumber == 45 || ccNumber == 47 || ccNumber == 48
-                 || ccNumber == 50 || ccNumber == 51) ? 127 : 0;
+                 || ccNumber == 50 || ccNumber == 51
+                 || ccNumber == 58 || ccNumber == 59 || ccNumber == 62) ? 127 : 0;
 
         case CombiPreset::utilityLowOrchestra:
+            // Bass Drum/Tam-Tam are the low-register voices of the family.
             return (ccNumber == 28 || ccNumber == 29 || ccNumber == 30 || ccNumber == 31
                  || ccNumber == 39 || ccNumber == 40 || ccNumber == 41 || ccNumber == 42
-                 || ccNumber == 43 || ccNumber == 52 || ccNumber == 53 || ccNumber == 54) ? 127 : 0;
+                 || ccNumber == 43 || ccNumber == 52 || ccNumber == 53 || ccNumber == 54
+                 || ccNumber == 56 || ccNumber == 60) ? 127 : 0;
 
         case CombiPreset::utilityMiddleOrchestra:
+            // Snare Drum/Tambourine are the middle-register voices of the family.
             return (ccNumber == 25 || ccNumber == 26 || ccNumber == 27
                  || ccNumber == 32 || ccNumber == 33 || ccNumber == 34 || ccNumber == 35
                  || ccNumber == 46 || ccNumber == 47
-                 || ccNumber == 51 || ccNumber == 52 || ccNumber == 53) ? 127 : 0;
+                 || ccNumber == 51 || ccNumber == 52 || ccNumber == 53
+                 || ccNumber == 57 || ccNumber == 61) ? 127 : 0;
 
         case CombiPreset::romanticWarmStringsHorns:
             return ((ccNumber >= 32 && ccNumber <= 35) || (ccNumber >= 50 && ccNumber <= 54)) ? 127 : 0;
@@ -3571,20 +3585,28 @@ int OrchConductorAudioProcessor::getCombiPresetValueForCc (int presetId, int ccN
             return ((ccNumber >= 32 && ccNumber <= 35) || (ccNumber >= 50 && ccNumber <= 54)) ? 127 : 0;
 
         case CombiPreset::cinematicHeroicBrassStrings:
-            return ((ccNumber >= 32 && ccNumber <= 42) || (ccNumber >= 50 && ccNumber <= 54) || ccNumber == 43) ? 127 : 0;
+            // Heroic hits: Bass Drum + Cymbals/Piatti crashes + Tam-Tam weight.
+            return ((ccNumber >= 32 && ccNumber <= 42) || (ccNumber >= 50 && ccNumber <= 54) || ccNumber == 43
+                 || ccNumber == 56 || ccNumber == 58 || ccNumber == 59 || ccNumber == 60) ? 127 : 0;
 
         case CombiPreset::cinematicDarkTrailerBed:
+            // Classic trailer-bed boom: Bass Drum + Tam-Tam.
             return (ccNumber == 28 || ccNumber == 31 || ccNumber == 41 || ccNumber == 42
-                 || ccNumber == 43 || ccNumber == 53 || ccNumber == 54) ? 127 : 0;
+                 || ccNumber == 43 || ccNumber == 53 || ccNumber == 54
+                 || ccNumber == 56 || ccNumber == 60) ? 127 : 0;
 
         case CombiPreset::cinematicHighWindsShimmer:
+            // Shimmer/swell voices: Cymbals + Triangle.
             return (ccNumber == 20 || ccNumber == 21 || ccNumber == 22
                  || ccNumber == 44 || ccNumber == 47 || ccNumber == 48
-                 || ccNumber == 50 || ccNumber == 51) ? 127 : 0;
+                 || ccNumber == 50 || ccNumber == 51
+                 || ccNumber == 58 || ccNumber == 62) ? 127 : 0;
 
         case CombiPreset::cinematicEpicLowPulse:
+            // Epic low pulse: Bass Drum + Tam-Tam.
             return (ccNumber == 28 || ccNumber == 31 || ccNumber == 39 || ccNumber == 40 || ccNumber == 41 || ccNumber == 42
-                 || ccNumber == 43 || ccNumber == 53 || ccNumber == 54) ? 127 : 0;
+                 || ccNumber == 43 || ccNumber == 53 || ccNumber == 54
+                 || ccNumber == 56 || ccNumber == 60) ? 127 : 0;
 
         case CombiPreset::herrmannLowReeds:
             return (ccNumber == 28 || ccNumber == 29 || ccNumber == 30 || ccNumber == 31 || ccNumber == 53 || ccNumber == 54) ? 127 : 0;
@@ -3602,12 +3624,17 @@ int OrchConductorAudioProcessor::getCombiPresetValueForCc (int presetId, int ccN
             return (ccNumber == 20 || ccNumber == 23 || ccNumber == 26 || ccNumber == 29) ? 127 : 0;
 
         case CombiPreset::modernistSparseExtremes:
-            return (ccNumber == 20 || ccNumber == 31 || ccNumber == 36 || ccNumber == 41 || ccNumber == 45 || ccNumber == 50 || ccNumber == 54) ? 127 : 0;
+            // "Extremes" already spans top-to-bottom register-wise - Triangle
+            // (highest) and Tam-Tam (lowest, most extreme) fit the concept.
+            return (ccNumber == 20 || ccNumber == 31 || ccNumber == 36 || ccNumber == 41 || ccNumber == 45 || ccNumber == 50 || ccNumber == 54
+                 || ccNumber == 60 || ccNumber == 62) ? 127 : 0;
 
         case CombiPreset::shimmerSilverShimmer:
+            // Shimmer voices: Cymbals + Triangle, matching cinematicHighWindsShimmer.
             return (ccNumber == 20 || ccNumber == 21 || ccNumber == 22
                  || ccNumber == 44 || ccNumber == 47 || ccNumber == 48
-                 || ccNumber == 50 || ccNumber == 51) ? 127 : 0;
+                 || ccNumber == 50 || ccNumber == 51
+                 || ccNumber == 58 || ccNumber == 62) ? 127 : 0;
 
         case CombiPreset::soloEnglishHornLament:
             if (ccNumber == 25) return 127;
