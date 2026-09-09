@@ -1592,7 +1592,7 @@ void OrchConductorAudioProcessor::getStateInformation (juce::MemoryBlock& destDa
 {
     juce::MemoryOutputStream stream (destData, true);
 
-    stream.writeInt (4);
+    stream.writeInt (5);
     stream.writeInt (combiPresetId);
     stream.writeInt (woodwindsPresetId);
     stream.writeInt (brassPresetId);
@@ -1612,6 +1612,14 @@ void OrchConductorAudioProcessor::getStateInformation (juce::MemoryBlock& destDa
         stream.writeInt (preset.stringsPresetId);
         stream.writeInt (preset.harpValue);
         stream.writeInt (preset.pianoValue);
+
+        stream.writeInt (static_cast<int> (preset.explicitCcValues.size()));
+
+        for (const auto& explicitValue : preset.explicitCcValues)
+        {
+            stream.writeInt (explicitValue.ccNumber);
+            stream.writeInt (explicitValue.value);
+        }
     }
 
     // v3: narrative-scan authority state.
@@ -1638,7 +1646,7 @@ void OrchConductorAudioProcessor::setStateInformation (const void* data, int siz
         return;
     }
 
-    if (firstInt == 1 || firstInt == 2 || firstInt == 3 || firstInt == 4)
+    if (firstInt == 1 || firstInt == 2 || firstInt == 3 || firstInt == 4 || firstInt == 5)
     {
         const auto version = firstInt;
         const auto combi = stream.readInt();
@@ -1672,6 +1680,21 @@ void OrchConductorAudioProcessor::setStateInformation (const void* data, int siz
                 {
                     preset.harpValue = stream.readInt();
                     preset.pianoValue = stream.readInt();
+                }
+
+                if (version >= 5 && ! stream.isExhausted())
+                {
+                    const auto explicitCount = stream.readInt();
+
+                    for (int v = 0; v < explicitCount && ! stream.isExhausted(); ++v)
+                    {
+                        orchconductor::PresetValue explicitValue;
+                        explicitValue.ccNumber = stream.readInt();
+                        explicitValue.value = stream.readInt();
+
+                        if (explicitValue.isValid())
+                            preset.explicitCcValues.push_back (explicitValue);
+                    }
                 }
 
                 if (id >= firstUserCombiPresetId && id <= maxCombiPresetParameterId)
@@ -2375,6 +2398,32 @@ bool OrchConductorAudioProcessor::importUserCombiPresetsFromJson (const juce::St
         preset.pianoValue = obj->hasProperty ("pianoValue")
                                 ? static_cast<int> (obj->getProperty ("pianoValue")) : -1;
 
+        // Arbitrary explicit CC overrides - same {cc, value} shape as the
+        // factory library schema's combiPreset.values, so this vocabulary
+        // is consistent across both JSON formats in this repo.
+        auto explicitValuesVar = obj->getProperty ("values");
+
+        if (explicitValuesVar.isArray())
+        {
+            for (const auto& valueItem : *explicitValuesVar.getArray())
+            {
+                if (! valueItem.isObject())
+                    continue;
+
+                auto* valueObj = valueItem.getDynamicObject();
+
+                if (valueObj == nullptr || ! valueObj->hasProperty ("cc") || ! valueObj->hasProperty ("value"))
+                    continue;
+
+                orchconductor::PresetValue explicitValue;
+                explicitValue.ccNumber = static_cast<int> (valueObj->getProperty ("cc"));
+                explicitValue.value = static_cast<int> (valueObj->getProperty ("value"));
+
+                if (explicitValue.isValid())
+                    preset.explicitCcValues.push_back (explicitValue);
+            }
+        }
+
         readUserCombiNarrativeMetadata (*obj, preset.metadata);
 
         auto localId = static_cast<int> (obj->getProperty ("localId"));
@@ -2443,6 +2492,21 @@ juce::String OrchConductorAudioProcessor::exportUserCombiPresetsToJson() const
         // tell "unset" apart from an explicit 0.
         presetObject->setProperty ("harpValue", preset.harpValue);
         presetObject->setProperty ("pianoValue", preset.pianoValue);
+
+        if (! preset.explicitCcValues.empty())
+        {
+            juce::Array<juce::var> values;
+
+            for (const auto& explicitValue : preset.explicitCcValues)
+            {
+                juce::DynamicObject::Ptr valueObject = new juce::DynamicObject();
+                valueObject->setProperty ("cc", explicitValue.ccNumber);
+                valueObject->setProperty ("value", explicitValue.value);
+                values.add (juce::var (valueObject.get()));
+            }
+
+            presetObject->setProperty ("values", values);
+        }
 
         presetObject->setProperty (
             "metadata",
@@ -3389,6 +3453,16 @@ int OrchConductorAudioProcessor::getCombiPresetValueForCc (int presetId, int ccN
             return 0;
 
         const auto& preset = it->second;
+
+        // Arbitrary explicit CC overrides take precedence over everything
+        // else, including Harp/Piano and the section composition below -
+        // this is what lets a combi express something finer than "pick a
+        // whole named section preset per family" (e.g. one string entering
+        // at 40 rather than full value, for a graduated
+        // accumulation/transition/fade-out).
+        for (const auto& explicitValue : preset.explicitCcValues)
+            if (explicitValue.ccNumber == ccNumber)
+                return explicitValue.value;
 
         // Harp/Piano don't belong to any of the 4 section families composed
         // below, so they're resolved as an explicit per-combi override first.

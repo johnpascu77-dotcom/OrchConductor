@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include <map>
+#include <vector>
 #include "OrchConductorRuntimePresetCatalog.h"
 
 class OrchConductorAudioProcessor  : public juce::AudioProcessor
@@ -294,6 +295,16 @@ private:
         // exported UserCombiPresets.json and re-importing it.
         int harpValue = -1;
         int pianoValue = -1;
+
+        // Arbitrary per-CC overrides - any CC, any value, freely authored.
+        // Takes precedence over everything else below (including
+        // harpValue/pianoValue and the 4 section-preset ids) for whichever
+        // CCs it lists; every CC it doesn't mention still resolves via the
+        // section-preset composition as usual. This is what makes a combi
+        // able to express something finer than "pick a whole named section
+        // preset per family" - e.g. one string entering at 40 rather than
+        // full value, for a graduated accumulation/transition/fade-out.
+        std::vector<orchconductor::PresetValue> explicitCcValues;
 
         orchconductor::NarrativeMetadata metadata;
 };

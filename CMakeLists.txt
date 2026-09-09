@@ -1,6 +1,15 @@
 ﻿cmake_minimum_required(VERSION 3.22)
 
 project(OrchConductor VERSION 0.1.0)
+
+# Force synchronous PDB writes under parallel (/MP-style) compilation - without
+# this, building a target with many translation units (JUCE's amalgamated
+# module .cpp files included) intermittently fails with C1041 "cannot open
+# program database" when two CL.EXE instances write the same .pdb at once.
+if (MSVC)
+    add_compile_options(/FS)
+endif()
+
 option(ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS "Enable experimental runtime JSON-backed preset infrastructure" OFF)
 option(ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL "Enable internal non-default runtime catalog authority trial path" OFF)
 
@@ -55,6 +64,15 @@ juce_add_binary_data(OrchConductorFactoryJsonData
     SOURCES
         Examples/orchconductor_library_v1.example.json
 )
+
+# /FS (see top of file) hasn't reliably prevented this small target's
+# generated BinaryData*.cpp from colliding with other targets' concurrent
+# writes to a shared .pdb. /Z7 embeds debug info directly in each .obj
+# instead, sidestepping the shared-PDB contention for this target entirely -
+# it's just a data blob, there's nothing meaningful to step through anyway.
+if (MSVC)
+    target_compile_options(OrchConductorFactoryJsonData PRIVATE /Z7)
+endif()
 
 target_sources(OrchConductor
     PRIVATE
@@ -286,6 +304,15 @@ target_include_directories(OrchConductorProcessorMidiRegressionCheck
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Tools
 )
+
+if (MSVC)
+    # /FS alone hasn't reliably prevented C1041 (concurrent PDB writes) for
+    # this target in this environment; force serial compilation as a
+    # guaranteed fix (slower, but this is a developer-only check tool, not a
+    # hot rebuild loop). /MP1 appended last overrides the multi-process
+    # compilation this target otherwise inherits.
+    target_compile_options(OrchConductorProcessorMidiRegressionCheck PRIVATE /FS /MP1)
+endif()
 
 target_compile_definitions(OrchConductorProcessorMidiRegressionCheck
     PRIVATE

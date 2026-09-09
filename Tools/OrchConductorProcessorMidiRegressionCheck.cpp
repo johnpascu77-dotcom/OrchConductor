@@ -406,6 +406,59 @@ bool verifyUserCombiHarpPianoOverride()
     return ok;
 }
 
+bool verifyUserCombiExplicitCcValues()
+{
+    OrchConductorAudioProcessor processor;
+
+    // Every section is "All Off", but two explicit CC overrides are set:
+    // CC46 (Marimba - not otherwise touched by any section here) at an
+    // arbitrary intermediate value, and CC49 (Harp) at a value that
+    // deliberately differs from harpValue, to confirm explicitCcValues
+    // wins over both the section composition AND the harpValue/pianoValue
+    // special case.
+    const juce::String importJson = R"JSON(
+    {
+        "schema": "orch_conductor_user_combi_presets",
+        "version": 1,
+        "combiPresets": [
+            {
+                "name": "Test Explicit CC Values",
+                "sections": { "woodwinds": 0, "brass": 0, "percussion": 0, "strings": 0 },
+                "harpValue": 50,
+                "values": [
+                    { "cc": 46, "value": 90 },
+                    { "cc": 49, "value": 77 }
+                ]
+            }
+        ]
+    }
+    )JSON";
+
+    bool ok = checkPass(processor.importUserCombiPresetsFromJson(importJson),
+                         "user combi explicit CC values JSON imported");
+
+    const int importedCombiId = processor.getMaxCombiPresetId();
+
+    processor.setCombiPresetId(importedCombiId);
+    processor.requestSendPreset();
+
+    const auto captured = captureMidi(processor);
+
+    ok = verifyStandardSendShape(captured, "user combi explicit CC values send") && ok;
+
+    ok = expectCcValue(captured, 46, 90, "user combi explicit CC value (Marimba)") && ok;
+    ok = expectCcValue(captured, 49, 77, "user combi explicit CC value overrides harpValue") && ok;
+
+    for (int cc = 20; cc <= 48; ++cc)
+        if (cc != 46)
+            ok = expectCcValue(captured, cc, 0, "user combi explicit CC values (all off elsewhere)") && ok;
+
+    for (int cc = 50; cc <= 62; ++cc)
+        ok = expectCcValue(captured, cc, 0, "user combi explicit CC values (all off elsewhere)") && ok;
+
+    return ok;
+}
+
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
 CapturedMidi captureMidiWithInput (OrchConductorAudioProcessor& processor,
                                    int inputCc,
@@ -784,6 +837,7 @@ int main()
     ok = verifyManualUnpitchedPercussionPresets() && ok;
     ok = verifyCombiOverridesSectionPresets() && ok;
     ok = verifyUserCombiHarpPianoOverride() && ok;
+    ok = verifyUserCombiExplicitCcValues() && ok;
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     ok = verifyNarrativeScanDrivesCombiSend() && ok;
     ok = verifyNarrativeControlCcInput() && ok;
