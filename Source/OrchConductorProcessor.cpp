@@ -1428,6 +1428,22 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     if (authorityMode == AuthorityMode::narrativeScan)
         updateNarrativeScanResolution();
 
+    // See wasHostPlaying's declaration: a stopped-transport "Send Preset"
+    // can queue the CC dump without the percussion Arbiter chain ever
+    // actually seeing it. Force one guaranteed-fresh full resend on the
+    // stopped->playing transition, when the engine is unquestionably
+    // pumping every track.
+    bool hostIsPlaying = false;
+
+    if (auto* transport = getPlayHead())
+        if (const auto position = transport->getPosition())
+            hostIsPlaying = position->getIsPlaying();
+
+    if (hostIsPlaying && ! wasHostPlaying)
+        requestSendPreset();
+
+    wasHostPlaying = hostIsPlaying;
+
     const bool shouldSendAllOff = consumeSendAllOffRequest();
     const bool shouldSendPreset = consumeSendPresetRequest();
     const bool explicitSend = explicitSendPresetRequested;

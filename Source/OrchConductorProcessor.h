@@ -361,6 +361,20 @@ private:
     bool explicitSendPresetRequested { false }; // set only by requestSendPreset(), not by narrative resolve
     bool sendAllOffRequested { false };
     bool sendOnPresetChange { false };
+
+    // Live-rig bug (2026-09-09): a "Send Preset" click made while the
+    // transport is stopped can queue the CC dump but the new percussion
+    // pipeline (OrchConductor -> OrchPercMapper Arbiter -> per-instrument
+    // OrchGate) sometimes never actually receives it - Bitwig appears to
+    // defer running that chain's processBlock until the engine is truly
+    // live, which only playback guarantees. The older direct sections
+    // (woodwinds/brass/strings/harp/piano) have one fewer hop and didn't
+    // show the symptom. Rather than depend on exact host timing, force one
+    // authoritative full resend the moment playback actually starts, same
+    // spirit as requestSendPreset() - so every downstream plugin, however
+    // late it woke up, gets a guaranteed-fresh state within the same block
+    // that's certainly being processed.
+    bool wasHostPlaying { false };
     InputPassthroughMode inputPassthroughMode { InputPassthroughMode::controlCcs };
     static constexpr int controlCcPassthroughFloor = 105;
 
