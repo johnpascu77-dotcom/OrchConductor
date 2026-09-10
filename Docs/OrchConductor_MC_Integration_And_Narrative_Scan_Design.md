@@ -382,3 +382,29 @@ combi's `explicitCcValues` (which already override every section preset and the 
   Output** (snapshot whatever OrchConductor is emitting right now), **Clear**.
 - `InstrumentGridComponent` is a full-area opaque child of the editor, shown/hidden by the view
   switch; no `TabbedComponent` refactor of the existing layout.
+- Combi Grid also has a **Randomize** button - `generateRandomGridCombi(style, seed)`, an
+  orchestration-aware starting point (Balanced / Feature a section / Sparse / Tutti): strings
+  backbone, WW pairs / horn units / low-brass move together, one register favoured + opposite
+  wiped, 40-127 value spread, never silent.
+
+## 18. Narrative Lane Maker - DONE (`<this branch>`, 2026-09-10)
+
+A third editor view: build a narrative lane as an ordered list of combi "stops" along the 0..1
+`Narrative Position` timeline, and save it straight into the lane library (§14).
+
+- Row = `# | position | combi dropdown | up / down / remove`. "Stops" 2-16 (even auto-spread,
+  positions editable), Load-lane dropdown, Save to Lane Library, Delete Lane.
+- **Propose** an arc: `generateNarrativeLane(shape, pointCount, restlessness, seed)`. Ten arc
+  shapes, each with its own energy + tension curve sampled at every stop; the combi whose
+  approximate character (a hardcoded factoryId -> {energy,tension,brightness} table; user combis
+  estimated from their CC payload) best matches is chosen from a weighted shortlist.
+  - Shapes: Organic Build, Arch (Rise & Fall), Long Fade / Dissolution, Terraced Blocks, Surging
+    Waves, Heroic Journey (statement -> dark struggle -> triumph), Suspense -> Release, Mosaic /
+    Episodic, Catastrophe / Collapse, Pastoral Plateau.
+  - **Restlessness** 0..1: low = the generator holds the previous combi or reprises an earlier
+    stop more often ("coherence / intention emulation"); high = always moves on.
+  - Also sprinkles a descending harmonic-field walk and harp/piano at the peak stops.
+- Processor: `getNarrativeLanePoint{Count,Position,CombiId,FieldIndex,HarpValueAt,PianoValueAt}`,
+  `saveNarrativeLane` / `deleteNarrativeLane` (edit the user's NarrativeLibrary.json - or the
+  built-in template if none - and re-import live; points sorted + de-collided),
+  `getNarrativeArcShapeNames`, `generateNarrativeLane`.

@@ -20,11 +20,14 @@ private:
     juce::Label subtitleLabel;
     juce::Label buildLabel;
 
-    // View switch: the main Conductor controls vs. the full-area Combi Grid.
+    // View switch: Conductor controls / Combi Grid / Narrative Lane Maker.
+    enum class View { conductor = 0, grid, lane };
     juce::TextButton conductorViewButton { "Conductor" };
     juce::TextButton gridViewButton { "Combi Grid" };
-    std::unique_ptr<juce::Component> instrumentGridView;   // an InstrumentGridComponent (private to the .cpp)
-    void showGridView (bool show);
+    juce::TextButton laneViewButton { "Narrative Lane" };
+    std::unique_ptr<juce::Component> instrumentGridView;   // an InstrumentGridComponent (.cpp-private)
+    std::unique_ptr<juce::Component> laneMakerView;        // a LaneMakerComponent (.cpp-private)
+    void showView (View view);
 
     // The Conductor controls live in a scroll viewport so the window can be
     // resized well below the content height. The view-switch buttons, the

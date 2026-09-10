@@ -795,6 +795,97 @@ bool verifyNarrativeLibraryImportRoundTrip(OrchConductorAudioProcessor& processo
     return true;
 #endif
 }
+
+bool verifyNarrativeLaneMaker(OrchConductorAudioProcessor& processor)
+{
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+    bool ok = true;
+
+    ok = checkEquals(OrchConductorAudioProcessor::getNarrativeArcShapeNames().size(), 10, "arc shape count") && ok;
+
+    using Shape = OrchConductorAudioProcessor::NarrativeArcShape;
+
+    for (const auto shape : { Shape::organicBuild, Shape::archRiseFall, Shape::longFade,
+                              Shape::heroicJourney, Shape::suspenseRelease, Shape::pastoralPlateau })
+    {
+        const auto a = processor.generateNarrativeLane(shape, 8, 0.4f, 4242);
+        const auto b = processor.generateNarrativeLane(shape, 8, 0.4f, 4242);
+
+        ok = checkEquals(static_cast<int>(a.size()), 8, "generated lane length") && ok;
+
+        bool deterministic = (a.size() == b.size()), ascending = true, validCombis = true;
+        double last = -1.0;
+        for (size_t i = 0; i < a.size(); ++i)
+        {
+            if (i < b.size() && (a[i].combiId != b[i].combiId || a[i].position != b[i].position)) deterministic = false;
+            if (a[i].position < last - 1e-9) ascending = false;
+            last = a[i].position;
+            if (a[i].combiId < 1 || a[i].combiId > processor.getMaxCombiPresetId()) validCombis = false;
+        }
+        ok = checkPass(deterministic, "generated lane is deterministic for a seed") && ok;
+        ok = checkPass(ascending, "generated lane positions are ascending") && ok;
+        ok = checkPass(validCombis, "generated lane combi ids are valid") && ok;
+        ok = checkPass(std::abs(a.front().position) < 1e-6 && std::abs(a.back().position - 1.0) < 1e-6,
+                       "generated lane spans 0..1") && ok;
+    }
+
+    // Low restlessness -> more repeated adjacent combis than high restlessness.
+    auto repeats = [] (const std::vector<OrchConductorAudioProcessor::NarrativeLanePointEdit>& v)
+    {
+        int r = 0;
+        for (size_t i = 1; i < v.size(); ++i) if (v[i].combiId == v[i - 1].combiId) ++r;
+        return r;
+    };
+    int lowTotal = 0, highTotal = 0;
+    for (juce::int64 s = 1; s <= 20; ++s)
+    {
+        lowTotal  += repeats(processor.generateNarrativeLane(Shape::organicBuild, 10, 0.05f, s));
+        highTotal += repeats(processor.generateNarrativeLane(Shape::organicBuild, 10, 0.95f, s));
+    }
+    ok = checkPass(lowTotal > highTotal, "low restlessness repeats combis more than high restlessness") && ok;
+
+    // Save / load / delete round-trip against the real library file (restored after).
+    const auto libFile = processor.getNarrativeLibraryFile();
+    const bool hadLib = libFile.existsAsFile();
+    const juce::String libBackup = hadLib ? libFile.loadFileAsString() : juce::String{};
+
+    const auto lane = processor.generateNarrativeLane(Shape::archRiseFall, 5, 0.4f, 77);
+
+    ok = checkPass(processor.saveNarrativeLane("qa_test_lane", "QA Test Lane", "", lane),
+                   "saveNarrativeLane succeeds") && ok;
+    const int countWithLane = processor.getNarrativeLaneCount();
+
+    // Find it and check the stops match.
+    int idx = -1;
+    for (int i = 0; i < countWithLane; ++i)
+        if (processor.getNarrativeLaneId(i) == "qa_test_lane") idx = i;
+    ok = checkPass(idx >= 0, "saved lane is present") && ok;
+
+    if (idx >= 0)
+    {
+        ok = checkEquals(processor.getNarrativeLanePointCount(idx), 5, "saved lane stop count") && ok;
+        bool combisMatch = true;
+        for (int i = 0; i < 5; ++i)
+            if (processor.getNarrativeLanePointCombiId(idx, i) != lane[(size_t) i].combiId) combisMatch = false;
+        ok = checkPass(combisMatch, "saved lane combi ids round-trip") && ok;
+    }
+
+    ok = checkPass(processor.deleteNarrativeLane("qa_test_lane"), "deleteNarrativeLane succeeds") && ok;
+    ok = checkEquals(processor.getNarrativeLaneCount(), countWithLane - 1, "lane count drops by one after delete") && ok;
+    bool stillThere = false;
+    for (int i = 0; i < processor.getNarrativeLaneCount(); ++i)
+        if (processor.getNarrativeLaneId(i) == "qa_test_lane") stillThere = true;
+    ok = checkPass(! stillThere, "deleted lane is gone") && ok;
+
+    if (hadLib) libFile.replaceWithText(libBackup);
+    else        libFile.deleteFile();
+
+    return ok;
+#else
+    juce::ignoreUnused(processor);
+    return true;
+#endif
+}
 } // namespace
 
 int main()
@@ -848,6 +939,7 @@ int main()
     ok = verifyAutomationTriggeredSendRequestBehavior() && ok;
     ok = verifySectionAutomationTriggeredSendRequestBehavior() && ok;
     ok = verifyNarrativeLibraryImportRoundTrip(processor) && ok;
+    ok = verifyNarrativeLaneMaker(processor) && ok;
 
     if (! ok)
         return fail("Processor-side runtime catalog authority probe verification failed.");

@@ -524,6 +524,462 @@ namespace
         juce::OwnedArray<juce::Label> sectionHeaders;
         juce::Array<int> sectionHeaderBeforeSlot;
     };
+
+    // The "Narrative Lane" tab: a lane is a sequence of combi "stops" along a
+    // 0..1 timeline. Edit stops directly, or "Propose" a whole arc.
+    class LaneMakerComponent final : public juce::Component
+    {
+    public:
+        std::function<void()> onBack;
+        std::function<void()> onSaved;
+
+        explicit LaneMakerComponent (OrchConductorAudioProcessor& proc)
+            : processor (proc)
+        {
+            setOpaque (true);
+
+            auto styleButton = [] (juce::TextButton& b, juce::Colour c)
+            {
+                b.setColour (juce::TextButton::buttonColourId, c);
+                b.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
+            };
+            auto styleBox = [] (juce::ComboBox& b)
+            {
+                b.setColour (juce::ComboBox::backgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+                b.setColour (juce::ComboBox::textColourId, juce::Colours::white);
+                b.setColour (juce::ComboBox::outlineColourId, juce::Colour::fromRGB (70, 85, 95));
+            };
+            auto styleEditor = [] (juce::TextEditor& e)
+            {
+                e.setColour (juce::TextEditor::backgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+                e.setColour (juce::TextEditor::textColourId, juce::Colours::white);
+                e.setColour (juce::TextEditor::outlineColourId, juce::Colour::fromRGB (70, 85, 95));
+            };
+
+            titleLabel.setText ("Narrative Lane Maker", juce::dontSendNotification);
+            titleLabel.setColour (juce::Label::textColourId, juce::Colours::white);
+            titleLabel.setFont (juce::FontOptions (18.0f, juce::Font::bold));
+            addAndMakeVisible (titleLabel);
+
+            hintLabel.setText ("A lane = combi 'stops' along the 0->1 Narrative Position timeline. Saved to the lane library.",
+                               juce::dontSendNotification);
+            hintLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
+            hintLabel.setFont (juce::FontOptions (12.0f));
+            addAndMakeVisible (hintLabel);
+
+            styleButton (backButton, juce::Colour::fromRGB (55, 60, 70));
+            backButton.setButtonText ("< Back to Conductor");
+            backButton.onClick = [this] { if (onBack) onBack(); };
+            addAndMakeVisible (backButton);
+
+            nameEditor.setText ("My Lane", juce::dontSendNotification);
+            nameEditor.setSelectAllWhenFocused (true);
+            styleEditor (nameEditor);
+            addAndMakeVisible (nameEditor);
+
+            styleButton (saveButton, juce::Colour::fromRGB (45, 75, 95));
+            saveButton.setButtonText ("Save to Lane Library");
+            saveButton.onClick = [this] { save(); };
+            addAndMakeVisible (saveButton);
+
+            styleButton (deleteButton, juce::Colour::fromRGB (95, 45, 45));
+            deleteButton.setButtonText ("Delete Lane");
+            deleteButton.onClick = [this] { removeLane(); };
+            addAndMakeVisible (deleteButton);
+
+            loadLabel.setText ("Load lane:", juce::dontSendNotification);
+            loadLabel.setColour (juce::Label::textColourId, juce::Colours::white);
+            loadLabel.setFont (juce::FontOptions (13.0f));
+            addAndMakeVisible (loadLabel);
+
+            styleBox (loadBox);
+            loadBox.onChange = [this] { loadSelected(); };
+            addAndMakeVisible (loadBox);
+
+            arcLabel.setText ("Propose arc:", juce::dontSendNotification);
+            arcLabel.setColour (juce::Label::textColourId, juce::Colours::white);
+            arcLabel.setFont (juce::FontOptions (13.0f));
+            addAndMakeVisible (arcLabel);
+
+            styleBox (arcBox);
+            arcBox.addItemList (OrchConductorAudioProcessor::getNarrativeArcShapeNames(), 1);
+            arcBox.setSelectedId (1, juce::dontSendNotification);
+            addAndMakeVisible (arcBox);
+
+            stopsLabel.setText ("Stops:", juce::dontSendNotification);
+            stopsLabel.setColour (juce::Label::textColourId, juce::Colours::white);
+            stopsLabel.setFont (juce::FontOptions (13.0f));
+            addAndMakeVisible (stopsLabel);
+
+            stopsSlider.setSliderStyle (juce::Slider::IncDecButtons);
+            stopsSlider.setRange (2.0, 16.0, 1.0);
+            stopsSlider.setValue (6.0, juce::dontSendNotification);
+            stopsSlider.setTextBoxStyle (juce::Slider::TextBoxLeft, false, 44, 22);
+            stopsSlider.setColour (juce::Slider::textBoxTextColourId, juce::Colours::white);
+            stopsSlider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+            stopsSlider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colour::fromRGB (70, 85, 95));
+            stopsSlider.onValueChange = [this] { resizeModelTo (juce::roundToInt (stopsSlider.getValue())); };
+            addAndMakeVisible (stopsSlider);
+
+            restlessLabel.setText ("Restlessness:", juce::dontSendNotification);
+            restlessLabel.setColour (juce::Label::textColourId, juce::Colours::white);
+            restlessLabel.setFont (juce::FontOptions (13.0f));
+            addAndMakeVisible (restlessLabel);
+
+            restlessSlider.setSliderStyle (juce::Slider::LinearHorizontal);
+            restlessSlider.setRange (0.0, 1.0, 0.01);
+            restlessSlider.setValue (0.4, juce::dontSendNotification);
+            restlessSlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 44, 22);
+            restlessSlider.setColour (juce::Slider::trackColourId, juce::Colour::fromRGB (95, 200, 245));
+            restlessSlider.setColour (juce::Slider::thumbColourId, juce::Colours::white);
+            restlessSlider.setColour (juce::Slider::backgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+            restlessSlider.setColour (juce::Slider::textBoxTextColourId, juce::Colours::white);
+            restlessSlider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+            restlessSlider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colour::fromRGB (70, 85, 95));
+            addAndMakeVisible (restlessSlider);
+
+            styleButton (proposeButton, juce::Colour::fromRGB (70, 55, 85));
+            proposeButton.setButtonText ("Propose");
+            proposeButton.onClick = [this] { propose(); };
+            addAndMakeVisible (proposeButton);
+
+            statusLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (245, 195, 90));
+            statusLabel.setFont (juce::FontOptions (12.0f));
+            addAndMakeVisible (statusLabel);
+
+            headerRowLabel.setText (" #   Position   Combi", juce::dontSendNotification);
+            headerRowLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (120, 210, 250));
+            headerRowLabel.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 12.0f, juce::Font::bold));
+            addAndMakeVisible (headerRowLabel);
+
+            viewport.setViewedComponent (&content, false);
+            viewport.setScrollBarsShown (true, false);
+            addAndMakeVisible (viewport);
+
+            resizeModelTo (6);
+            refreshLoadBox();
+        }
+
+        void visibilityChanged() override
+        {
+            if (isVisible())
+            {
+                refreshLoadBox();
+                rebuildCombiChoices();
+                rebuildRows();
+            }
+        }
+
+        void paint (juce::Graphics& g) override { g.fillAll (juce::Colour::fromRGB (22, 30, 38)); }
+
+        void resized() override
+        {
+            auto r = getLocalBounds().reduced (18, 12);
+
+            auto headerRow = r.removeFromTop (30);
+            backButton.setBounds (headerRow.removeFromLeft (170));
+            headerRow.removeFromLeft (16);
+            titleLabel.setBounds (headerRow);
+
+            hintLabel.setBounds (r.removeFromTop (18));
+            r.removeFromTop (8);
+
+            auto nameRow = r.removeFromTop (30);
+            nameEditor.setBounds (nameRow.removeFromLeft (220).reduced (0, 2));
+            nameRow.removeFromLeft (8);
+            saveButton.setBounds (nameRow.removeFromLeft (180).reduced (0, 2));
+            nameRow.removeFromLeft (8);
+            deleteButton.setBounds (nameRow.removeFromLeft (130).reduced (0, 2));
+            nameRow.removeFromLeft (16);
+            loadLabel.setBounds (nameRow.removeFromLeft (74));
+            loadBox.setBounds (nameRow.removeFromLeft (240).reduced (0, 2));
+
+            r.removeFromTop (8);
+
+            auto genRow = r.removeFromTop (30);
+            arcLabel.setBounds (genRow.removeFromLeft (86));
+            arcBox.setBounds (genRow.removeFromLeft (220).reduced (0, 2));
+            genRow.removeFromLeft (14);
+            stopsLabel.setBounds (genRow.removeFromLeft (48));
+            stopsSlider.setBounds (genRow.removeFromLeft (110).reduced (0, 2));
+            genRow.removeFromLeft (14);
+            restlessLabel.setBounds (genRow.removeFromLeft (86));
+            restlessSlider.setBounds (genRow.removeFromLeft (200).reduced (0, 2));
+            genRow.removeFromLeft (10);
+            proposeButton.setBounds (genRow.removeFromLeft (100).reduced (0, 2));
+
+            r.removeFromTop (6);
+            statusLabel.setBounds (r.removeFromTop (18));
+            r.removeFromTop (4);
+            headerRowLabel.setBounds (r.removeFromTop (18));
+            r.removeFromTop (2);
+
+            viewport.setBounds (r);
+            layoutRows();
+        }
+
+        void layoutRows()
+        {
+            const int rowH = 30;
+            const int width = juce::jmax (560, viewport.getWidth() - 16);
+
+            for (int i = 0; i < rowIndexLabels.size(); ++i)
+            {
+                const int y = i * rowH;
+                auto row = juce::Rectangle<int> (0, y, width, rowH).reduced (2, 3);
+                rowIndexLabels[i]->setBounds (row.removeFromLeft (34));
+                rowPositionEditors[i]->setBounds (row.removeFromLeft (66).reduced (0, 1));
+                row.removeFromLeft (8);
+                rowUpButtons[i]->setBounds (row.removeFromRight (28));
+                rowDownButtons[i]->setBounds (row.removeFromRight (28));
+                rowRemoveButtons[i]->setBounds (row.removeFromRight (28));
+                row.removeFromRight (6);
+                rowCombiBoxes[i]->setBounds (row.reduced (0, 1));
+            }
+
+            content.setSize (width, juce::jmax (viewport.getHeight(), rowIndexLabels.size() * rowH + 6));
+        }
+
+    private:
+        static juce::String laneIdFromName (const juce::String& name)
+        {
+            auto id = name.toLowerCase().retainCharacters ("abcdefghijklmnopqrstuvwxyz0123456789 -_")
+                          .replaceCharacters (" -", "__").trim();
+            while (id.contains ("__")) id = id.replace ("__", "_");
+            return id.isNotEmpty() ? id : "custom_lane";
+        }
+
+        void rebuildCombiChoices()
+        {
+            combiChoiceIds.clearQuick();
+            combiChoiceLabels.clearQuick();
+
+            for (int id = 1; id <= processor.getMaxCombiPresetId(); ++id)
+            {
+                const auto label = processor.getCombiPresetLabel (id);
+                if (label == "Unknown Combi") continue;
+                combiChoiceIds.add (id);
+                combiChoiceLabels.add ((processor.isUserCombiPresetId (id) ? juce::String ("[User] ") : juce::String()) + label);
+            }
+        }
+
+        void refreshLoadBox()
+        {
+            loadBox.clear (juce::dontSendNotification);
+            loadBox.addItem ("(new lane)", 1);
+
+            for (int i = 0; i < processor.getNarrativeLaneCount(); ++i)
+                loadBox.addItem (processor.getNarrativeLaneLabel (i), i + 2);
+
+            loadBox.setSelectedId (1, juce::dontSendNotification);
+        }
+
+        void resizeModelTo (int count)
+        {
+            count = juce::jlimit (2, 16, count);
+
+            if ((int) model.size() > count)
+                model.resize ((size_t) count);
+            else
+                while ((int) model.size() < count)
+                {
+                    OrchConductorAudioProcessor::NarrativeLanePointEdit p;
+                    p.combiId = model.empty() ? 4 /*chamber*/ : model.back().combiId;
+                    model.push_back (p);
+                }
+
+            respreadPositions();
+            rebuildRows();
+        }
+
+        void respreadPositions()
+        {
+            const int n = (int) model.size();
+            for (int i = 0; i < n; ++i)
+                model[(size_t) i].position = n > 1 ? (double) i / (double) (n - 1) : 0.0;
+        }
+
+        void propose()
+        {
+            const auto shape = static_cast<OrchConductorAudioProcessor::NarrativeArcShape> (arcBox.getSelectedId() - 1);
+            model = processor.generateNarrativeLane (shape,
+                                                     juce::roundToInt (stopsSlider.getValue()),
+                                                     (float) restlessSlider.getValue(),
+                                                     juce::Random::getSystemRandom().nextInt64());
+            rebuildRows();
+            statusLabel.setText ("Proposed a " + arcBox.getText() + " arc - edit any stop, then Save to Lane Library.",
+                                 juce::dontSendNotification);
+        }
+
+        void loadSelected()
+        {
+            const int sel = loadBox.getSelectedId();
+            if (sel <= 1) return;
+
+            const int laneIndex = sel - 2;
+            const int count = processor.getNarrativeLanePointCount (laneIndex);
+            if (count <= 0) return;
+
+            model.clear();
+
+            for (int i = 0; i < count; ++i)
+            {
+                OrchConductorAudioProcessor::NarrativeLanePointEdit p;
+                p.position = processor.getNarrativeLanePointPosition (laneIndex, i);
+                p.combiId = processor.getNarrativeLanePointCombiId (laneIndex, i);
+                p.pitchFieldIndex = processor.getNarrativeLanePointFieldIndex (laneIndex, i);
+                p.harpValue = processor.getNarrativeLanePointHarpValueAt (laneIndex, i);
+                p.pianoValue = processor.getNarrativeLanePointPianoValueAt (laneIndex, i);
+                model.push_back (p);
+            }
+
+            nameEditor.setText (processor.getNarrativeLaneLabel (laneIndex), juce::dontSendNotification);
+            stopsSlider.setValue ((double) model.size(), juce::dontSendNotification);
+            rebuildRows();
+            statusLabel.setText ("Loaded lane '" + processor.getNarrativeLaneId (laneIndex) + "' - edit and Save.",
+                                 juce::dontSendNotification);
+        }
+
+        void save()
+        {
+            const auto name = nameEditor.getText().trim();
+            const auto id = laneIdFromName (name);
+
+            if (processor.saveNarrativeLane (id, name, {}, model))
+            {
+                refreshLoadBox();
+                if (onSaved) onSaved();
+                statusLabel.setText ("Saved lane '" + id + "' (" + juce::String (model.size()) + " stops) to the library.",
+                                     juce::dontSendNotification);
+            }
+            else
+            {
+                statusLabel.setText ("Save failed - the lane library needs runtime JSON presets enabled and a valid combi at each stop.",
+                                     juce::dontSendNotification);
+            }
+        }
+
+        void removeLane()
+        {
+            const auto id = laneIdFromName (nameEditor.getText().trim());
+
+            if (processor.deleteNarrativeLane (id))
+            {
+                refreshLoadBox();
+                if (onSaved) onSaved();
+                statusLabel.setText ("Deleted lane '" + id + "'.", juce::dontSendNotification);
+            }
+            else
+            {
+                statusLabel.setText ("No lane '" + id + "' in the library to delete.", juce::dontSendNotification);
+            }
+        }
+
+        void rebuildRows()
+        {
+            rowIndexLabels.clear();
+            rowPositionEditors.clear();
+            rowCombiBoxes.clear();
+            rowUpButtons.clear();
+            rowDownButtons.clear();
+            rowRemoveButtons.clear();
+
+            if (combiChoiceIds.isEmpty())
+                rebuildCombiChoices();
+
+            for (int i = 0; i < (int) model.size(); ++i)
+            {
+                auto* idx = new juce::Label();
+                idx->setText (juce::String (i + 1), juce::dontSendNotification);
+                idx->setColour (juce::Label::textColourId, juce::Colours::white);
+                idx->setFont (juce::FontOptions (13.0f));
+                content.addAndMakeVisible (idx);
+                rowIndexLabels.add (idx);
+
+                auto* pos = new juce::TextEditor();
+                pos->setText (juce::String (model[(size_t) i].position, 3), juce::dontSendNotification);
+                pos->setColour (juce::TextEditor::backgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+                pos->setColour (juce::TextEditor::textColourId, juce::Colours::white);
+                pos->setColour (juce::TextEditor::outlineColourId, juce::Colour::fromRGB (70, 85, 95));
+                pos->onFocusLost = [this, i] { commitPosition (i); };
+                pos->onReturnKey = [this, i] { commitPosition (i); };
+                content.addAndMakeVisible (pos);
+                rowPositionEditors.add (pos);
+
+                auto* box = new juce::ComboBox();
+                box->setColour (juce::ComboBox::backgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+                box->setColour (juce::ComboBox::textColourId, juce::Colours::white);
+                box->setColour (juce::ComboBox::outlineColourId, juce::Colour::fromRGB (70, 85, 95));
+                for (int c = 0; c < combiChoiceIds.size(); ++c)
+                    box->addItem (combiChoiceLabels[c], combiChoiceIds[c] + 1);
+                box->setSelectedId (model[(size_t) i].combiId + 1, juce::dontSendNotification);
+                box->onChange = [this, i, box] { model[(size_t) i].combiId = box->getSelectedId() - 1; };
+                content.addAndMakeVisible (box);
+                rowCombiBoxes.add (box);
+
+                auto* up = new juce::TextButton ("^");
+                up->onClick = [this, i] { moveRow (i, -1); };
+                content.addAndMakeVisible (up);
+                rowUpButtons.add (up);
+
+                auto* down = new juce::TextButton ("v");
+                down->onClick = [this, i] { moveRow (i, +1); };
+                content.addAndMakeVisible (down);
+                rowDownButtons.add (down);
+
+                auto* rm = new juce::TextButton ("X");
+                rm->onClick = [this, i] { removeRow (i); };
+                content.addAndMakeVisible (rm);
+                rowRemoveButtons.add (rm);
+            }
+
+            resized();
+        }
+
+        void commitPosition (int i)
+        {
+            if (i < 0 || i >= (int) model.size()) return;
+            model[(size_t) i].position = juce::jlimit (0.0, 1.0, rowPositionEditors[i]->getText().getDoubleValue());
+        }
+
+        void moveRow (int i, int dir)
+        {
+            const int j = i + dir;
+            if (i < 0 || j < 0 || i >= (int) model.size() || j >= (int) model.size()) return;
+            std::swap (model[(size_t) i].combiId, model[(size_t) j].combiId);
+            std::swap (model[(size_t) i].pitchFieldIndex, model[(size_t) j].pitchFieldIndex);
+            std::swap (model[(size_t) i].harpValue, model[(size_t) j].harpValue);
+            std::swap (model[(size_t) i].pianoValue, model[(size_t) j].pianoValue);
+            rebuildRows();
+        }
+
+        void removeRow (int i)
+        {
+            if ((int) model.size() <= 2 || i < 0 || i >= (int) model.size()) return;
+            model.erase (model.begin() + i);
+            respreadPositions();
+            stopsSlider.setValue ((double) model.size(), juce::dontSendNotification);
+            rebuildRows();
+        }
+
+        OrchConductorAudioProcessor& processor;
+        std::vector<OrchConductorAudioProcessor::NarrativeLanePointEdit> model;
+
+        juce::Label titleLabel, hintLabel, loadLabel, arcLabel, stopsLabel, restlessLabel, statusLabel, headerRowLabel;
+        juce::TextButton backButton, saveButton, deleteButton, proposeButton;
+        juce::TextEditor nameEditor;
+        juce::ComboBox loadBox, arcBox;
+        juce::Slider stopsSlider, restlessSlider;
+
+        juce::Viewport viewport;
+        juce::Component content;
+        juce::OwnedArray<juce::Label> rowIndexLabels;
+        juce::OwnedArray<juce::TextEditor> rowPositionEditors;
+        juce::OwnedArray<juce::ComboBox> rowCombiBoxes;
+        juce::OwnedArray<juce::TextButton> rowUpButtons, rowDownButtons, rowRemoveButtons;
+        juce::Array<int> combiChoiceIds;
+        juce::StringArray combiChoiceLabels;
+    };
 }
 
 OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConductorAudioProcessor& p)
@@ -1183,19 +1639,20 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     statusLabel.setFont (juce::FontOptions (14.0f, juce::Font::bold));
     addAndMakeVisible (statusLabel);
 
-    // View switch + the Combi Grid tab.
-    for (auto* b : { &conductorViewButton, &gridViewButton })
+    // View switch + the Combi Grid / Narrative Lane tabs.
+    for (auto* b : { &conductorViewButton, &gridViewButton, &laneViewButton })
     {
         b->setColour (juce::TextButton::buttonColourId, juce::Colour::fromRGB (40, 52, 64));
         b->setColour (juce::TextButton::textColourOffId, juce::Colours::white);
         addAndMakeVisible (*b);
     }
-    conductorViewButton.onClick = [this] { showGridView (false); };
-    gridViewButton.onClick = [this] { showGridView (true); };
+    conductorViewButton.onClick = [this] { showView (View::conductor); };
+    gridViewButton.onClick      = [this] { showView (View::grid); };
+    laneViewButton.onClick      = [this] { showView (View::lane); };
 
     {
         auto grid = std::make_unique<InstrumentGridComponent> (audioProcessor);
-        grid->onBack = [this] { showGridView (false); };
+        grid->onBack = [this] { showView (View::conductor); };
         grid->onSaved = [this]
         {
             addCombiPresetItems (combiPresetBox, audioProcessor);
@@ -1205,15 +1662,29 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         instrumentGridView = std::move (grid);
     }
 
+    {
+        auto lm = std::make_unique<LaneMakerComponent> (audioProcessor);
+        lm->onBack = [this] { showView (View::conductor); };
+        lm->onSaved = [this]
+        {
+            rebuildNarrativeLaneItems();
+            narrativeLaneBox.setSelectedId (audioProcessor.getNarrativeLaneIndex() + 1, juce::dontSendNotification);
+            updateNarrativeScanControls();
+            updateStatus();
+        };
+        addChildComponent (*lm);
+        laneMakerView = std::move (lm);
+    }
+
     // Move every Conductor control into a scroll viewport so the window can be
     // made shorter than the content. Pinned outside it: the view-switch
-    // buttons, the grid, and the two footer status lines.
+    // buttons, the grid / lane tabs, and the two footer status lines.
     {
         conductorContent = std::make_unique<WheelForwardingComponent>();
 
-        juce::Array<juce::Component*> pinned { &conductorViewButton, &gridViewButton,
+        juce::Array<juce::Component*> pinned { &conductorViewButton, &gridViewButton, &laneViewButton,
                                               &statusLabel, &ccMapLabel,
-                                              instrumentGridView.get() };
+                                              instrumentGridView.get(), laneMakerView.get() };
 
         const juce::Array<juce::Component*> currentChildren (getChildren());
 
@@ -1238,31 +1709,39 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     updateNarrativeMetadataDisplay();
     updateNarrativeScanControls();
     updateStatus();
-    showGridView (false);
-    resized(); // lay out the grid child now that it exists
+    showView (View::conductor);
+    resized(); // lay out the tab children now that they exist
 
     // Phase 2A: keep UI synced when host restores plugin state after editor creation.
     startTimerHz (10);
 }
 
-void OrchConductorAudioProcessorEditor::showGridView (bool show)
+void OrchConductorAudioProcessorEditor::showView (View view)
 {
-    conductorViewport.setVisible (! show);
-    statusLabel.setVisible (! show);
-    ccMapLabel.setVisible (! show);
+    const bool conductor = view == View::conductor;
+
+    conductorViewport.setVisible (conductor);
+    statusLabel.setVisible (conductor);
+    ccMapLabel.setVisible (conductor);
 
     if (instrumentGridView != nullptr)
     {
-        instrumentGridView->setVisible (show);
-
-        if (show)
-            instrumentGridView->toFront (false);
+        instrumentGridView->setVisible (view == View::grid);
+        if (view == View::grid) instrumentGridView->toFront (false);
     }
 
-    conductorViewButton.setEnabled (show);
-    gridViewButton.setEnabled (! show);
-    conductorViewButton.toFront (false);
-    gridViewButton.toFront (false);
+    if (laneMakerView != nullptr)
+    {
+        laneMakerView->setVisible (view == View::lane);
+        if (view == View::lane) laneMakerView->toFront (false);
+    }
+
+    conductorViewButton.setEnabled (! conductor);
+    gridViewButton.setEnabled (view != View::grid);
+    laneViewButton.setEnabled (view != View::lane);
+
+    for (auto* b : { &conductorViewButton, &gridViewButton, &laneViewButton })
+        b->toFront (false);
 }
 
 OrchConductorAudioProcessorEditor::~OrchConductorAudioProcessorEditor()
@@ -1282,10 +1761,12 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
 void OrchConductorAudioProcessorEditor::resized()
 {
     {
-        auto strip = getLocalBounds().reduced (48, 0).removeFromTop (30).withTrimmedTop (5);
+        auto strip = getLocalBounds().reduced (18, 0).removeFromTop (30).withTrimmedTop (5);
         conductorViewButton.setBounds (strip.removeFromLeft (130));
         strip.removeFromLeft (6);
         gridViewButton.setBounds (strip.removeFromLeft (130));
+        strip.removeFromLeft (6);
+        laneViewButton.setBounds (strip.removeFromLeft (150));
     }
 
     // Footer, pinned to the window bottom (not scrolled).
@@ -1298,6 +1779,9 @@ void OrchConductorAudioProcessorEditor::resized()
 
     if (instrumentGridView != nullptr)
         instrumentGridView->setBounds (getLocalBounds().withTrimmedTop (32));
+
+    if (laneMakerView != nullptr)
+        laneMakerView->setBounds (getLocalBounds().withTrimmedTop (32));
 
     conductorViewport.setBounds (getLocalBounds().withTrimmedTop (32).withTrimmedBottom (footerHeight));
 

@@ -2357,6 +2357,466 @@ juce::String OrchConductorAudioProcessor::getNarrativeLanePointLabel (int laneIn
     return runtimePresetCatalog.getNarrativeLanePointLabel (laneIndex, pointIndex);
 }
 
+juce::String OrchConductorAudioProcessor::getNarrativeLaneId (int laneIndex) const
+{
+    return runtimePresetCatalog.getNarrativeLaneId (laneIndex);
+}
+
+juce::String OrchConductorAudioProcessor::getNarrativeLaneDescription (int laneIndex) const
+{
+    return runtimePresetCatalog.getNarrativeLaneDescription (laneIndex);
+}
+
+int OrchConductorAudioProcessor::getNarrativeLanePointCount (int laneIndex) const
+{
+    return runtimePresetCatalog.getNarrativeLanePointCount (laneIndex);
+}
+
+double OrchConductorAudioProcessor::getNarrativeLanePointPosition (int laneIndex, int pointIndex) const
+{
+    return runtimePresetCatalog.getNarrativeLanePointPosition (laneIndex, pointIndex);
+}
+
+int OrchConductorAudioProcessor::getNarrativeLanePointCombiId (int laneIndex, int pointIndex) const
+{
+    return runtimePresetCatalog.getNarrativeLanePointCombiId (laneIndex, pointIndex);
+}
+
+int OrchConductorAudioProcessor::getNarrativeLanePointFieldIndex (int laneIndex, int pointIndex) const
+{
+    return runtimePresetCatalog.getNarrativeLanePointPitchFieldIndex (laneIndex, pointIndex);
+}
+
+int OrchConductorAudioProcessor::getNarrativeLanePointHarpValueAt (int laneIndex, int pointIndex) const
+{
+    return runtimePresetCatalog.getNarrativeLanePointHarpValue (laneIndex, pointIndex);
+}
+
+int OrchConductorAudioProcessor::getNarrativeLanePointPianoValueAt (int laneIndex, int pointIndex) const
+{
+    return runtimePresetCatalog.getNarrativeLanePointPianoValue (laneIndex, pointIndex);
+}
+
+namespace
+{
+    juce::String currentNarrativeLibraryJsonText (const juce::File& userFile)
+    {
+        if (userFile.existsAsFile())
+            return userFile.loadFileAsString();   // File I/O strips a BOM for us
+
+        const auto embedded = orchconductor::getEmbeddedFactoryJson();
+
+        if (! embedded.isValid())
+            return {};
+
+        auto text = juce::String::fromUTF8 (embedded.data, embedded.size);
+
+        if (text.startsWithChar (static_cast<juce::juce_wchar> (0xfeff)))
+            text = text.substring (1);            // strip the UTF-8 BOM - juce::JSON::parse chokes on it
+
+        return text;
+    }
+}
+
+bool OrchConductorAudioProcessor::saveNarrativeLane (const juce::String& laneId,
+                                                    const juce::String& name,
+                                                    const juce::String& description,
+                                                    const std::vector<NarrativeLanePointEdit>& pointsIn)
+{
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+    const auto libFile = getNarrativeLibraryFile();
+
+    auto parsed = juce::JSON::parse (currentNarrativeLibraryJsonText (libFile));
+    auto* root = parsed.getDynamicObject();
+
+    if (root == nullptr)
+        return false;
+
+    if (! root->hasProperty ("narrativeLanes") || ! root->getProperty ("narrativeLanes").isArray())
+        root->setProperty ("narrativeLanes", juce::Array<juce::var> {});
+
+    auto* lanes = root->getProperty ("narrativeLanes").getArray();
+
+    if (lanes == nullptr)
+        return false;
+
+    // Sort by position, drop points that would collide (must be strictly
+    // ascending for the lane to validate).
+    auto points = pointsIn;
+    std::sort (points.begin(), points.end(),
+               [] (const auto& a, const auto& b) { return a.position < b.position; });
+
+    juce::Array<juce::var> pointArray;
+    double lastPos = -1.0;
+
+    for (auto p : points)
+    {
+        p.position = juce::jlimit (0.0, 1.0, p.position);
+
+        if (p.position <= lastPos)
+            p.position = juce::jmin (1.0, lastPos + 0.001);
+
+        lastPos = p.position;
+
+        juce::DynamicObject::Ptr o = new juce::DynamicObject();
+        o->setProperty ("position", p.position);
+        o->setProperty ("combiId", p.combiId);
+
+        if (p.pitchFieldIndex >= 0) o->setProperty ("pitchFieldIndex", p.pitchFieldIndex);
+        if (p.harpValue >= 0)       o->setProperty ("harpValue", p.harpValue);
+        if (p.pianoValue >= 0)      o->setProperty ("pianoValue", p.pianoValue);
+
+        pointArray.add (juce::var (o.get()));
+    }
+
+    juce::DynamicObject::Ptr lane = new juce::DynamicObject();
+    lane->setProperty ("id", laneId);
+    lane->setProperty ("name", name.isNotEmpty() ? name : laneId);
+    lane->setProperty ("description", description);
+    lane->setProperty ("points", pointArray);
+
+    bool replaced = false;
+
+    for (int i = 0; i < lanes->size(); ++i)
+        if (auto* lo = (*lanes)[i].getDynamicObject();
+            lo != nullptr && lo->getProperty ("id").toString() == laneId)
+        {
+            lanes->set (i, juce::var (lane.get()));
+            replaced = true;
+            break;
+        }
+
+    if (! replaced)
+        lanes->add (juce::var (lane.get()));
+
+    libFile.getParentDirectory().createDirectory();
+
+    if (! libFile.replaceWithText (juce::JSON::toString (parsed, true)))
+        return false;
+
+    return importNarrativeLibraryFromFile (libFile);
+#else
+    juce::ignoreUnused (laneId, name, description, pointsIn);
+    return false;
+#endif
+}
+
+bool OrchConductorAudioProcessor::deleteNarrativeLane (const juce::String& laneId)
+{
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+    const auto libFile = getNarrativeLibraryFile();
+
+    auto parsed = juce::JSON::parse (currentNarrativeLibraryJsonText (libFile));
+    auto* root = parsed.getDynamicObject();
+
+    if (root == nullptr || ! root->getProperty ("narrativeLanes").isArray())
+        return false;
+
+    auto* lanes = root->getProperty ("narrativeLanes").getArray();
+
+    if (lanes == nullptr)
+        return false;
+
+    bool removed = false;
+
+    for (int i = lanes->size(); --i >= 0;)
+        if (auto* lo = (*lanes)[i].getDynamicObject();
+            lo != nullptr && lo->getProperty ("id").toString() == laneId)
+        {
+            lanes->remove (i);
+            removed = true;
+        }
+
+    if (! removed)
+        return false;
+
+    libFile.getParentDirectory().createDirectory();
+
+    if (! libFile.replaceWithText (juce::JSON::toString (parsed, true)))
+        return false;
+
+    return importNarrativeLibraryFromFile (libFile);
+#else
+    juce::ignoreUnused (laneId);
+    return false;
+#endif
+}
+
+juce::StringArray OrchConductorAudioProcessor::getNarrativeArcShapeNames()
+{
+    return { "Organic Build", "Arch (Rise & Fall)", "Long Fade / Dissolution",
+             "Terraced Blocks", "Surging Waves", "Heroic Journey",
+             "Suspense -> Release", "Mosaic / Episodic",
+             "Catastrophe / Collapse", "Pastoral Plateau" };
+}
+
+namespace
+{
+    struct ArcSample { float energy; float tension; };
+
+    ArcSample sampleArc (OrchConductorAudioProcessor::NarrativeArcShape shape, float t)
+    {
+        using Shape = OrchConductorAudioProcessor::NarrativeArcShape;
+        const float pi = juce::MathConstants<float>::pi;
+        auto clamp01 = [] (float x) { return juce::jlimit (0.0f, 1.0f, x); };
+
+        switch (shape)
+        {
+            case Shape::organicBuild:
+                return { clamp01 (std::pow (t, 1.6f)), clamp01 (0.25f + 0.3f * t) };
+
+            case Shape::archRiseFall:
+                return { clamp01 (std::sin (t * pi)), clamp01 (0.3f + 0.25f * std::sin (t * pi)) };
+
+            case Shape::longFade:
+                return { clamp01 (std::pow (1.0f - t, 1.3f)), clamp01 (0.4f * (1.0f - t) + 0.15f) };
+
+            case Shape::terracedBlocks:
+            {
+                const int step = juce::jlimit (0, 3, (int) (t * 3.999f));
+                const float levels[] = { 0.2f, 0.5f, 0.35f, 0.9f };
+                return { levels[step], 0.35f + 0.1f * step };
+            }
+
+            case Shape::surgingWaves:
+            {
+                const float base = 0.12f + 0.5f * t;
+                const float swell = 0.32f * (0.5f - 0.5f * std::cos (t * 6.0f * pi));
+                return { clamp01 (base + swell), clamp01 (0.3f + 0.2f * swell) };
+            }
+
+            case Shape::heroicJourney:
+            {
+                float e, tn;
+                if (t < 0.28f)        { e = 0.42f + 0.06f * std::sin (t * 12.0f); tn = 0.35f; }
+                else if (t < 0.52f)   { const float u = (t - 0.28f) / 0.24f; e = 0.4f - 0.24f * u; tn = 0.55f + 0.35f * u; }
+                else                  { const float u = (t - 0.52f) / 0.48f; e = 0.18f + 0.82f * std::pow (u, 1.2f); tn = 0.6f - 0.35f * u; }
+                return { clamp01 (e), clamp01 (tn) };
+            }
+
+            case Shape::suspenseRelease:
+            {
+                float e, tn;
+                if (t < 0.72f)        { e = 0.16f + 0.14f * t; tn = 0.82f; }
+                else if (t < 0.84f)   { const float u = (t - 0.72f) / 0.12f; e = 0.24f + 0.7f * u; tn = 0.82f - 0.5f * u; }
+                else                  { const float u = (t - 0.84f) / 0.16f; e = 0.94f - 0.5f * u; tn = 0.32f; }
+                return { clamp01 (e), clamp01 (tn) };
+            }
+
+            case Shape::mosaicEpisodic:
+                return { clamp01 (0.5f + 0.42f * std::sin (t * 7.3f + 1.1f)),
+                         clamp01 (0.5f + 0.4f * std::sin (t * 5.1f + 3.7f)) };
+
+            case Shape::catastropheCollapse:
+            {
+                float e, tn;
+                if (t < 0.56f)        { e = 0.82f * std::pow (t / 0.56f, 1.3f); tn = 0.4f + 0.4f * (t / 0.56f); }
+                else if (t < 0.63f)   { const float u = (t - 0.56f) / 0.07f; e = 0.82f - 0.74f * u; tn = 0.95f - 0.3f * u; }
+                else                  { const float u = (t - 0.63f) / 0.37f; e = 0.08f + 0.4f * u; tn = 0.5f - 0.2f * u; }
+                return { clamp01 (e), clamp01 (tn) };
+            }
+
+            case Shape::pastoralPlateau:
+            {
+                float e;
+                if (t < 0.22f)        e = (t / 0.22f) * 0.5f;
+                else if (t < 0.85f)   e = 0.5f + 0.06f * std::sin (t * 8.0f * pi);
+                else                  e = 0.5f + ((t - 0.85f) / 0.15f) * 0.22f;
+                return { clamp01 (e), 0.2f };
+            }
+        }
+
+        return { clamp01 (t), 0.35f };
+    }
+
+    // Approximate character of each factory combi (factoryId 0..28). User
+    // combis fall back to an energy estimate from their explicit CC payload.
+    struct CombiCharacter { float energy; float tension; float brightness; };
+
+    CombiCharacter factoryCombiCharacter (int factoryId)
+    {
+        static const CombiCharacter table[] =
+        {
+            { 0.00f, 0.10f, 0.50f }, // 0  manual.sections (unused as a stop)
+            { 0.00f, 0.10f, 0.50f }, // 1  all_off
+            { 1.00f, 0.50f, 0.60f }, // 2  full_orchestra
+            { 0.85f, 0.40f, 0.60f }, // 3  full_orchestra_no_percussion
+            { 0.35f, 0.30f, 0.55f }, // 4  chamber_orchestra
+            { 0.55f, 0.35f, 0.50f }, // 5  full_strings
+            { 0.50f, 0.30f, 0.72f }, // 6  full_woodwinds
+            { 0.80f, 0.55f, 0.55f }, // 7  full_brass
+            { 0.70f, 0.40f, 0.62f }, // 8  full_winds
+            { 0.65f, 0.35f, 0.85f }, // 9  high_orchestra
+            { 0.62f, 0.50f, 0.20f }, // 10 low_orchestra
+            { 0.55f, 0.35f, 0.50f }, // 11 middle_orchestra
+            { 0.50f, 0.28f, 0.52f }, // 12 romantic.warm_strings_horns
+            { 0.35f, 0.30f, 0.55f }, // 13 romantic.oboe_strings
+            { 0.35f, 0.25f, 0.80f }, // 14 romantic.flute_violins
+            { 0.42f, 0.35f, 0.22f }, // 15 romantic.bassoon_celli
+            { 0.55f, 0.30f, 0.45f }, // 16 romantic.horn_choir_strings
+            { 0.95f, 0.55f, 0.55f }, // 17 cinematic.heroic_brass_strings
+            { 0.55f, 0.80f, 0.15f }, // 18 cinematic.dark_trailer_bed
+            { 0.42f, 0.35f, 0.90f }, // 19 cinematic.high_winds_shimmer
+            { 0.62f, 0.78f, 0.15f }, // 20 cinematic.epic_low_pulse
+            { 0.35f, 0.70f, 0.22f }, // 21 herrmann.low_reeds
+            { 0.60f, 0.85f, 0.40f }, // 22 herrmann.horn_knives
+            { 0.55f, 0.95f, 0.40f }, // 23 herrmann.psycho_strings
+            { 0.30f, 0.80f, 0.45f }, // 24 herrmann.suspense_winds
+            { 0.32f, 0.62f, 0.60f }, // 25 modernist.pointillist_winds
+            { 0.32f, 0.72f, 0.50f }, // 26 modernist.sparse_extremes
+            { 0.35f, 0.25f, 0.95f }, // 27 shimmer.silver_shimmer
+            { 0.20f, 0.40f, 0.40f }, // 28 solo.english_horn_lament
+        };
+
+        if (factoryId >= 0 && factoryId < (int) std::size (table))
+            return table[factoryId];
+
+        return { 0.5f, 0.4f, 0.5f };
+    }
+}
+
+std::vector<OrchConductorAudioProcessor::NarrativeLanePointEdit>
+    OrchConductorAudioProcessor::generateNarrativeLane (NarrativeArcShape shape,
+                                                        int pointCount,
+                                                        float restlessness,
+                                                        juce::int64 seed) const
+{
+    juce::Random rng (seed);
+    const int n = juce::jlimit (2, 16, pointCount);
+    restlessness = juce::jlimit (0.0f, 1.0f, restlessness);
+
+    // Candidate combis: every factory combi except manual.sections (0), plus
+    // every user combi. Each carries an approximate character.
+    struct Candidate { int combiId; CombiCharacter ch; };
+    std::vector<Candidate> pool;
+
+    for (int id = 1; id <= getMaxCombiPresetId(); ++id)
+    {
+        if (getCombiPresetLabel (id) == "Unknown Combi")
+            continue;
+
+        CombiCharacter ch;
+
+        if (isUserCombiPresetId (id))
+        {
+            // Estimate energy from the combi's resolved CC payload.
+            int total = 0, count = 0;
+
+            for (int cc = 20; cc <= 62; ++cc)
+            {
+                if (cc == 49 || cc == 55) continue;
+                total += getCombiResolvedCcValue (id, cc);
+                ++count;
+            }
+
+            const float e = count > 0 ? juce::jlimit (0.0f, 1.0f, (float) total / (float) (count * 127)) * 1.4f : 0.4f;
+            ch = { juce::jlimit (0.0f, 1.0f, e), 0.4f, 0.5f };
+        }
+        else
+        {
+            ch = factoryCombiCharacter (id);
+        }
+
+        pool.push_back ({ id, ch });
+    }
+
+    if (pool.empty())
+        return {};
+
+    auto pickForTarget = [&] (float e, float tn, float br, int avoidCombiId) -> int
+    {
+        std::vector<std::pair<float, int>> scored;   // (cost, combiId)
+
+        for (const auto& c : pool)
+        {
+            if (c.combiId == avoidCombiId)
+                continue;
+
+            const float cost = 1.7f * std::abs (c.ch.energy - e)
+                             + 1.1f * std::abs (c.ch.tension - tn)
+                             + 0.6f * std::abs (c.ch.brightness - br);
+            scored.push_back ({ cost, c.combiId });
+        }
+
+        if (scored.empty())
+            return pool.front().combiId;
+
+        std::sort (scored.begin(), scored.end(),
+                   [] (const auto& a, const auto& b) { return a.first < b.first; });
+
+        // Weighted pick from the top few - closer = more likely, but not always.
+        const int shortlist = juce::jmin (4, (int) scored.size());
+        const float roll = rng.nextFloat();
+        const int idx = roll < 0.55f ? 0 : roll < 0.8f ? juce::jmin (1, shortlist - 1)
+                       : roll < 0.93f ? juce::jmin (2, shortlist - 1)
+                                      : juce::jmin (3, shortlist - 1);
+
+        return scored[(size_t) idx].second;
+    };
+
+    std::vector<NarrativeLanePointEdit> lane;
+    lane.reserve ((size_t) n);
+
+    for (int i = 0; i < n; ++i)
+    {
+        const float t = n > 1 ? (float) i / (float) (n - 1) : 0.0f;
+        const auto s = sampleArc (shape, t);
+        const float brightnessTarget = juce::jlimit (0.0f, 1.0f, 0.3f + 0.45f * t + 0.15f * s.energy);
+
+        NarrativeLanePointEdit pt;
+        pt.position = t;
+
+        const int prevCombi = lane.empty() ? -1 : lane.back().combiId;
+
+        // Coherence: hold or reprise rather than always moving on.
+        const float holdProb    = (1.0f - restlessness) * 0.45f;
+        const float repriseProb = (1.0f - restlessness) * 0.22f;
+        const float roll = rng.nextFloat();
+
+        if (i > 0 && i < n - 1 && prevCombi >= 0 && roll < holdProb)
+        {
+            pt.combiId = prevCombi;                       // held gesture
+        }
+        else if (i > 3 && i < n - 1 && roll < holdProb + repriseProb)
+        {
+            // reprise an earlier stop whose energy is near this target
+            std::vector<int> candidates;
+
+            for (int j = 0; j < (int) lane.size() - 1; ++j)
+            {
+                const auto lc = factoryCombiCharacter (lane[(size_t) j].combiId);
+                if (std::abs (lc.energy - s.energy) < 0.22f)
+                    candidates.push_back (lane[(size_t) j].combiId);
+            }
+
+            pt.combiId = candidates.empty()
+                ? pickForTarget (s.energy, s.tension, brightnessTarget, prevCombi)
+                : candidates[(size_t) rng.nextInt ((int) candidates.size())];
+        }
+        else
+        {
+            pt.combiId = pickForTarget (s.energy, s.tension, brightnessTarget,
+                                        i == 0 ? -1 : prevCombi);
+        }
+
+        // A descending harmonic-field walk: complex early, simpler toward the
+        // climax (mirrors the built-in organic_build lane's spirit).
+        pt.pitchFieldIndex = juce::jlimit (0, maxPitchFieldIndex,
+                                           juce::roundToInt ((1.0f - s.energy) * 10.0f));
+
+        // Sprinkle harp/piano at the high points.
+        if (s.energy > 0.72f && rng.nextFloat() < 0.45f)
+            pt.harpValue = juce::jlimit (60, 127, juce::roundToInt (s.energy * 127.0f));
+
+        if (s.energy > 0.85f && rng.nextFloat() < 0.35f)
+            pt.pianoValue = juce::jlimit (70, 127, juce::roundToInt (s.energy * 127.0f));
+
+        lane.push_back (pt);
+    }
+
+    return lane;
+}
+
 juce::String OrchConductorAudioProcessor::getCombiPresetName() const
 {
     return getCombiPresetLabel (combiPresetId);

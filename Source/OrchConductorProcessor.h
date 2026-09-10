@@ -230,6 +230,62 @@ public:
     juce::String getNarrativeLaneLabel (int laneIndex) const;
     juce::String getNarrativeLanePointLabel (int laneIndex, int pointIndex) const;
 
+    // --- Narrative Lane Maker (the third editor tab) ---
+    juce::String getNarrativeLaneId (int laneIndex) const;
+    juce::String getNarrativeLaneDescription (int laneIndex) const;
+    int getNarrativeLanePointCount (int laneIndex) const;
+    double getNarrativeLanePointPosition (int laneIndex, int pointIndex) const;
+    int getNarrativeLanePointCombiId (int laneIndex, int pointIndex) const;
+    int getNarrativeLanePointFieldIndex (int laneIndex, int pointIndex) const;
+    int getNarrativeLanePointHarpValueAt (int laneIndex, int pointIndex) const;
+    int getNarrativeLanePointPianoValueAt (int laneIndex, int pointIndex) const;
+
+    struct NarrativeLanePointEdit
+    {
+        double position = 0.0;
+        int combiId = 0;
+        int pitchFieldIndex = -1;   // -1 = leave the field alone
+        int harpValue = -1;         // -1 = Off
+        int pianoValue = -1;        // -1 = Off
+    };
+
+    // Write a lane into the narrative-lane library (the user's editable
+    // NarrativeLibrary.json, or the built-in template if none exists yet) and
+    // adopt it live. Replaces any existing lane with the same id, else appends.
+    // Points are sorted by position and de-duplicated before saving.
+    bool saveNarrativeLane (const juce::String& laneId,
+                            const juce::String& name,
+                            const juce::String& description,
+                            const std::vector<NarrativeLanePointEdit>& points);
+    bool deleteNarrativeLane (const juce::String& laneId);
+
+    // The dramaturgical arc shapes the lane generator can follow.
+    enum class NarrativeArcShape
+    {
+        organicBuild,       // steady rise to a full climax
+        archRiseFall,       // rise to a mid-point peak, return to rest
+        longFade,           // start near full, dissolve to nothing
+        terracedBlocks,     // stepped block dynamics, no crescendo
+        surgingWaves,       // 2-3 swells, each bigger than the last
+        heroicJourney,      // statement -> dark struggle -> triumph
+        suspenseRelease,    // long-held low tension, sharp break, settle
+        mosaicEpisodic,     // contrasting panels, no overall direction
+        catastropheCollapse,// build to a false peak, sudden collapse, slow crawl back
+        pastoralPlateau     // gentle rise to a comfortable plateau, small lift at the end
+    };
+    static juce::StringArray getNarrativeArcShapeNames();
+
+    // Propose a lane of `pointCount` stops following an arc shape: an energy /
+    // tension curve is sampled at each stop and the combi whose character best
+    // matches is chosen (from a weighted shortlist, so it varies). restlessness
+    // 0..1 controls how often a stop repeats the previous combi or reprises an
+    // earlier one - low restlessness = more held / returning gestures
+    // ("coherence"). Deterministic for a given seed.
+    std::vector<NarrativeLanePointEdit> generateNarrativeLane (NarrativeArcShape shape,
+                                                              int pointCount,
+                                                              float restlessness,
+                                                              juce::int64 seed) const;
+
     static int getNumOutputRows();
     OutputRow getOutputRow (int index) const;
     int getTotalActivePlayers() const;
