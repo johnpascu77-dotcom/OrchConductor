@@ -675,6 +675,60 @@ bool verifyNarrativeScanDrivesCombiSend()
 }
 #endif
 
+bool verifyInstrumentGridUserCombi()
+{
+    OrchConductorAudioProcessor processor;
+    bool ok = true;
+
+    const int slotCount = OrchConductorAudioProcessor::getInstrumentSlotCount();
+    ok = checkEquals(slotCount, 43, "instrument grid slot count") && ok;
+
+    // Every slot gets a distinct value: slot i -> (i * 3) % 128.
+    std::vector<orchconductor::PresetValue> values;
+    for (int i = 0; i < slotCount; ++i)
+    {
+        orchconductor::PresetValue v;
+        v.ccNumber = processor.getInstrumentSlotCc(i);
+        v.value = (i * 3) % 128;
+        values.push_back(v);
+    }
+
+    const int id = processor.saveInstrumentGridAsUserCombi("Grid Test", values, -1);
+    ok = checkPass(id >= 0, "saveInstrumentGridAsUserCombi returns a combi id") && ok;
+
+    // Round-trips through getUserCombiExplicitCcValues.
+    const auto stored = processor.getUserCombiExplicitCcValues(id);
+    ok = checkEquals(static_cast<int>(stored.size()), slotCount, "stored explicit CC count") && ok;
+
+    // Selecting the combi -> its output is exactly the grid.
+    processor.setCombiPresetId(id);
+    processor.requestSendPreset();
+    const auto captured = captureMidi(processor);
+
+    bool allMatch = true;
+    for (int i = 0; i < slotCount; ++i)
+    {
+        const int cc = processor.getInstrumentSlotCc(i);
+        const int expected = (i * 3) % 128;
+        if (captured.ccValues.count(cc) == 0 || captured.ccValues.at(cc) != expected)
+            allMatch = false;
+    }
+    ok = checkPass(allMatch, "grid combi output matches every slider value (incl. CC49/CC55)") && ok;
+
+    // Update in place: same id, new values (all 100).
+    for (auto& v : values) v.value = 100;
+    const int updatedId = processor.saveInstrumentGridAsUserCombi("Grid Test", values, id);
+    ok = checkEquals(updatedId, id, "update reuses the same combi id") && ok;
+
+    processor.requestSendPreset();
+    const auto captured2 = captureMidi(processor);
+    ok = expectCcValue(captured2, 20, 100, "updated grid combi CC20") && ok;
+    ok = expectCcValue(captured2, 49, 100, "updated grid combi CC49 (Harp)") && ok;
+    ok = expectCcValue(captured2, 62, 100, "updated grid combi CC62 (Triangle)") && ok;
+
+    return ok;
+}
+
 bool verifyManualHarpPianoSliders()
 {
     OrchConductorAudioProcessor processor;
@@ -902,6 +956,7 @@ int main()
     ok = verifyCombiOverridesSectionPresets() && ok;
     ok = verifyUserCombiHarpPianoOverride() && ok;
     ok = verifyManualHarpPianoSliders() && ok;
+    ok = verifyInstrumentGridUserCombi() && ok;
     ok = verifyUserCombiExplicitCcValues() && ok;
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     ok = verifyNarrativeScanDrivesCombiSend() && ok;

@@ -1220,6 +1220,125 @@ int OrchConductorAudioProcessor::getPianoCcValue() const
 
     return manualPianoValue >= 0 ? manualPianoValue : 0;
 }
+
+int OrchConductorAudioProcessor::getInstrumentSlotCount()
+{
+    return numWoodwindsRows + numBrassRows + numPercussionRows + numRows + 2;
+}
+
+juce::String OrchConductorAudioProcessor::getInstrumentSlotName (int slot) const
+{
+    if (slot < 0) return {};
+    if (slot < numWoodwindsRows) return woodwindsInstrumentNames[slot];
+    slot -= numWoodwindsRows;
+    if (slot < numBrassRows) return brassInstrumentNames[slot];
+    slot -= numBrassRows;
+    if (slot < numPercussionRows) return percussionInstrumentNames[slot];
+    slot -= numPercussionRows;
+    if (slot < numRows) return instrumentNames[slot];
+    slot -= numRows;
+    if (slot == 0) return "Harp";
+    if (slot == 1) return "Piano";
+    return {};
+}
+
+int OrchConductorAudioProcessor::getInstrumentSlotCc (int slot) const
+{
+    if (slot < 0) return -1;
+    if (slot < numWoodwindsRows) return woodwindsCcNumbers[slot];
+    slot -= numWoodwindsRows;
+    if (slot < numBrassRows) return brassCcNumbers[slot];
+    slot -= numBrassRows;
+    if (slot < numPercussionRows) return percussionCcNumbers[slot];
+    slot -= numPercussionRows;
+    if (slot < numRows) return ccNumbers[slot];
+    slot -= numRows;
+    if (slot == 0) return reservedHarpCcNumber;
+    if (slot == 1) return pianoCcNumber;
+    return -1;
+}
+
+juce::String OrchConductorAudioProcessor::getInstrumentSlotSectionName (int slot) const
+{
+    if (slot < 0) return {};
+    if (slot < numWoodwindsRows) return "Woodwinds";
+    slot -= numWoodwindsRows;
+    if (slot < numBrassRows) return "Brass";
+    slot -= numBrassRows;
+    if (slot < numPercussionRows) return "Percussion";
+    slot -= numPercussionRows;
+    if (slot < numRows) return "Strings";
+    slot -= numRows;
+    if (slot == 0) return "Harp";
+    if (slot == 1) return "Piano";
+    return {};
+}
+
+int OrchConductorAudioProcessor::getInstrumentSlotCurrentValue (int slot) const
+{
+    if (slot < 0) return 0;
+    if (slot < numWoodwindsRows) return getWoodwindsOutputRow (slot).value;
+    slot -= numWoodwindsRows;
+    if (slot < numBrassRows) return getBrassOutputRow (slot).value;
+    slot -= numBrassRows;
+    if (slot < numPercussionRows) return getPercussionOutputRow (slot).value;
+    slot -= numPercussionRows;
+    if (slot < numRows) return getOutputRow (slot).value;
+    slot -= numRows;
+    if (slot == 0) return getHarpCcValue();
+    if (slot == 1) return getPianoCcValue();
+    return 0;
+}
+
+int OrchConductorAudioProcessor::getCombiResolvedCcValue (int presetId, int ccNumber) const
+{
+    int value = getCombiPresetValueForCc (presetId, ccNumber);
+    tryGetRuntimeCombiPresetValueForCc (presetId, ccNumber, value); // no-op unless runtime authority is active
+    return value;
+}
+
+std::vector<orchconductor::PresetValue>
+    OrchConductorAudioProcessor::getUserCombiExplicitCcValues (int presetId) const
+{
+    if (isUserCombiPresetId (presetId))
+        if (const auto it = userCombiPresets.find (presetId); it != userCombiPresets.end())
+            return it->second.explicitCcValues;
+
+    return {};
+}
+
+int OrchConductorAudioProcessor::saveInstrumentGridAsUserCombi (
+    const juce::String& name,
+    const std::vector<orchconductor::PresetValue>& explicitValues,
+    int existingUserCombiId)
+{
+    const bool updating = isUserCombiPresetId (existingUserCombiId)
+                          && userCombiPresets.count (existingUserCombiId) != 0;
+
+    const int presetId = updating ? existingUserCombiId : getNextAvailableUserCombiPresetId();
+
+    if (presetId < 0)
+        return -1;
+
+    UserCombiPreset preset = updating ? userCombiPresets[existingUserCombiId] : UserCombiPreset {};
+
+    if (name.isNotEmpty())
+        preset.name = name;
+    else if (preset.name.isEmpty())
+        preset.name = "Grid Combi " + juce::String (presetId);
+
+    preset.explicitCcValues.clear();
+
+    for (const auto& value : explicitValues)
+        if (value.isValid())
+            preset.explicitCcValues.push_back (value);
+
+    userCombiPresets[presetId] = preset;
+
+    saveUserCombiPresetsToUserLibrary();
+
+    return presetId;
+}
 void OrchConductorAudioProcessor::prepareToPlay (double, int)
 {
     lastResolvedNarrativePointIndex = -1;

@@ -106,14 +106,363 @@ namespace
 
     private:
         juce::TextEditor textEditor;
-    };}
+    };
+
+    // The "Combi Grid" tab: every instrument's exact CC value in one scrollable
+    // grid, saved as a user combi's explicitCcValues (which override every
+    // section preset). Covers the whole editor area when shown.
+    class InstrumentGridComponent final : public juce::Component
+    {
+    public:
+        std::function<void()> onBack;
+        std::function<void()> onSaved;
+
+        explicit InstrumentGridComponent (OrchConductorAudioProcessor& proc)
+            : processor (proc)
+        {
+            setOpaque (true);
+
+            auto styleButton = [] (juce::TextButton& b, juce::Colour c)
+            {
+                b.setColour (juce::TextButton::buttonColourId, c);
+                b.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
+            };
+
+            titleLabel.setText ("Instrument Combi Grid", juce::dontSendNotification);
+            titleLabel.setColour (juce::Label::textColourId, juce::Colours::white);
+            titleLabel.setFont (juce::FontOptions (18.0f, juce::Font::bold));
+            addAndMakeVisible (titleLabel);
+
+            hintLabel.setText ("Every instrument's exact CC value. Save as a User Combi - it overrides all section presets.",
+                               juce::dontSendNotification);
+            hintLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
+            hintLabel.setFont (juce::FontOptions (12.0f));
+            addAndMakeVisible (hintLabel);
+
+            styleButton (backButton, juce::Colour::fromRGB (55, 60, 70));
+            backButton.setButtonText ("< Back to Conductor");
+            backButton.onClick = [this] { if (onBack) onBack(); };
+            addAndMakeVisible (backButton);
+
+            nameEditor.setText ("Grid Combi", juce::dontSendNotification);
+            nameEditor.setSelectAllWhenFocused (true);
+            nameEditor.setColour (juce::TextEditor::backgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+            nameEditor.setColour (juce::TextEditor::textColourId, juce::Colours::white);
+            nameEditor.setColour (juce::TextEditor::outlineColourId, juce::Colour::fromRGB (70, 85, 95));
+            addAndMakeVisible (nameEditor);
+
+            styleButton (saveNewButton, juce::Colour::fromRGB (45, 75, 95));
+            saveNewButton.setButtonText ("Save as New Combi");
+            saveNewButton.onClick = [this] { saveAs (-1); };
+            addAndMakeVisible (saveNewButton);
+
+            styleButton (updateButton, juce::Colour::fromRGB (55, 70, 55));
+            updateButton.setButtonText ("Update Selected Combi");
+            updateButton.setEnabled (false);
+            updateButton.onClick = [this] { saveAs (editingId); };
+            addAndMakeVisible (updateButton);
+
+            loadLabel.setText ("Load / seed:", juce::dontSendNotification);
+            loadLabel.setColour (juce::Label::textColourId, juce::Colours::white);
+            loadLabel.setFont (juce::FontOptions (13.0f));
+            addAndMakeVisible (loadLabel);
+
+            loadBox.setColour (juce::ComboBox::backgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+            loadBox.setColour (juce::ComboBox::textColourId, juce::Colours::white);
+            loadBox.setColour (juce::ComboBox::outlineColourId, juce::Colour::fromRGB (70, 85, 95));
+            loadBox.onChange = [this] { loadSelected(); };
+            addAndMakeVisible (loadBox);
+
+            styleButton (seedButton, juce::Colour::fromRGB (45, 60, 80));
+            seedButton.setButtonText ("Seed from Current Output");
+            seedButton.onClick = [this] { seedFromCurrent(); };
+            addAndMakeVisible (seedButton);
+
+            styleButton (clearButton, juce::Colour::fromRGB (70, 55, 55));
+            clearButton.setButtonText ("Clear");
+            clearButton.onClick = [this]
+            {
+                for (auto* s : sliders) s->setValue (0.0, juce::dontSendNotification);
+                markManualEdit();
+            };
+            addAndMakeVisible (clearButton);
+
+            statusLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (245, 195, 90));
+            statusLabel.setFont (juce::FontOptions (12.0f));
+            addAndMakeVisible (statusLabel);
+
+            const int count = OrchConductorAudioProcessor::getInstrumentSlotCount();
+            juce::String lastSection;
+
+            for (int i = 0; i < count; ++i)
+            {
+                const auto section = processor.getInstrumentSlotSectionName (i);
+
+                if (section != lastSection)
+                {
+                    auto* h = new juce::Label();
+                    h->setText (section, juce::dontSendNotification);
+                    h->setColour (juce::Label::textColourId, juce::Colour::fromRGB (120, 210, 250));
+                    h->setFont (juce::FontOptions (13.0f, juce::Font::bold));
+                    content.addAndMakeVisible (h);
+                    sectionHeaders.add (h);
+                    sectionHeaderBeforeSlot.add (i);
+                    lastSection = section;
+                }
+
+                auto* nameL = new juce::Label();
+                nameL->setText (processor.getInstrumentSlotName (i)
+                                + "  (CC" + juce::String (processor.getInstrumentSlotCc (i)) + ")",
+                                juce::dontSendNotification);
+                nameL->setColour (juce::Label::textColourId, juce::Colours::white);
+                nameL->setFont (juce::FontOptions (13.0f));
+                content.addAndMakeVisible (nameL);
+                rowLabels.add (nameL);
+
+                auto* s = new juce::Slider();
+                s->setSliderStyle (juce::Slider::LinearHorizontal);
+                s->setTextBoxStyle (juce::Slider::TextBoxRight, false, 48, 20);
+                s->setRange (0.0, 127.0, 1.0);
+                s->setValue (processor.getInstrumentSlotCurrentValue (i), juce::dontSendNotification);
+                s->setColour (juce::Slider::backgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+                s->setColour (juce::Slider::trackColourId, juce::Colour::fromRGB (95, 200, 245));
+                s->setColour (juce::Slider::thumbColourId, juce::Colours::white);
+                s->setColour (juce::Slider::textBoxTextColourId, juce::Colours::white);
+                s->setColour (juce::Slider::textBoxBackgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+                s->setColour (juce::Slider::textBoxOutlineColourId, juce::Colour::fromRGB (70, 85, 95));
+                s->onValueChange = [this] { markManualEdit(); };
+                content.addAndMakeVisible (s);
+                sliders.add (s);
+            }
+
+            viewport.setViewedComponent (&content, false);
+            viewport.setScrollBarsShown (true, false);
+            addAndMakeVisible (viewport);
+
+            refreshLoadBox();
+        }
+
+        void refreshLoadBox()
+        {
+            const int keep = loadBox.getSelectedId();
+            loadBox.clear (juce::dontSendNotification);
+            loadBox.addItem ("(pick a combi)", 1);
+
+            const int maxId = processor.getMaxCombiPresetId();
+
+            for (int id = 0; id <= maxId; ++id)
+            {
+                const auto label = processor.getCombiPresetLabel (id);
+
+                if (label == "Unknown Combi")
+                    continue;
+
+                loadBox.addItem ((processor.isUserCombiPresetId (id) ? juce::String ("[User] ") : juce::String())
+                                     + label,
+                                 id + 2);
+            }
+
+            loadBox.setSelectedId (keep > 0 ? keep : 1, juce::dontSendNotification);
+        }
+
+        void paint (juce::Graphics& g) override
+        {
+            g.fillAll (juce::Colour::fromRGB (22, 30, 38));
+        }
+
+        void visibilityChanged() override
+        {
+            if (isVisible())
+                refreshLoadBox();
+        }
+
+        void resized() override
+        {
+            auto r = getLocalBounds().reduced (18, 12);
+
+            auto headerRow = r.removeFromTop (30);
+            backButton.setBounds (headerRow.removeFromLeft (170));
+            headerRow.removeFromLeft (16);
+            titleLabel.setBounds (headerRow);
+
+            hintLabel.setBounds (r.removeFromTop (18));
+            r.removeFromTop (8);
+
+            auto actionRow = r.removeFromTop (30);
+            nameEditor.setBounds (actionRow.removeFromLeft (200).reduced (0, 2));
+            actionRow.removeFromLeft (8);
+            saveNewButton.setBounds (actionRow.removeFromLeft (170).reduced (0, 2));
+            actionRow.removeFromLeft (8);
+            updateButton.setBounds (actionRow.removeFromLeft (190).reduced (0, 2));
+
+            r.removeFromTop (6);
+
+            auto loadRow = r.removeFromTop (30);
+            loadLabel.setBounds (loadRow.removeFromLeft (90));
+            loadBox.setBounds (loadRow.removeFromLeft (320).reduced (0, 2));
+            loadRow.removeFromLeft (12);
+            seedButton.setBounds (loadRow.removeFromLeft (210).reduced (0, 2));
+            loadRow.removeFromLeft (8);
+            clearButton.setBounds (loadRow.removeFromLeft (90).reduced (0, 2));
+
+            r.removeFromTop (6);
+            statusLabel.setBounds (r.removeFromTop (18));
+            r.removeFromTop (6);
+
+            viewport.setBounds (r);
+            layoutContent();
+        }
+
+        void layoutContent()
+        {
+            const int rowH = 26;
+            const int headerH = 24;
+            const int width = juce::jmax (320, viewport.getWidth() - 16);
+
+            int y = 0;
+            int headerIdx = 0;
+
+            for (int i = 0; i < sliders.size(); ++i)
+            {
+                if (headerIdx < sectionHeaderBeforeSlot.size() && sectionHeaderBeforeSlot[headerIdx] == i)
+                {
+                    sectionHeaders[headerIdx]->setBounds (4, y + 4, width - 8, headerH - 4);
+                    y += headerH;
+                    ++headerIdx;
+                }
+
+                rowLabels[i]->setBounds (8, y, 210, rowH);
+                sliders[i]->setBounds (224, y + 2, width - 232, rowH - 4);
+                y += rowH;
+            }
+
+            content.setSize (width, y + 8);
+        }
+
+    private:
+        void markManualEdit()
+        {
+            if (editingId < 0)
+                statusLabel.setText ("Unsaved grid - Save as New Combi.", juce::dontSendNotification);
+            else
+                statusLabel.setText ("Editing " + processor.getCombiPresetLabel (editingId)
+                                         + " - Update, or Save as New.",
+                                     juce::dontSendNotification);
+        }
+
+        void setAllSliders (const std::function<int (int slot)>& source)
+        {
+            for (int i = 0; i < sliders.size(); ++i)
+                sliders[i]->setValue (juce::jlimit (0, 127, source (i)), juce::dontSendNotification);
+        }
+
+        void seedFromCurrent()
+        {
+            setAllSliders ([this] (int i) { return processor.getInstrumentSlotCurrentValue (i); });
+            editingId = -1;
+            updateButton.setEnabled (false);
+            loadBox.setSelectedId (1, juce::dontSendNotification);
+            statusLabel.setText ("Seeded from the current OrchConductor output. Save as New Combi.",
+                                 juce::dontSendNotification);
+        }
+
+        void loadSelected()
+        {
+            const int itemId = loadBox.getSelectedId();
+
+            if (itemId <= 1)
+                return;
+
+            const int presetId = itemId - 2;
+            const auto explicitValues = processor.getUserCombiExplicitCcValues (presetId);
+
+            setAllSliders ([&] (int i)
+            {
+                const int cc = processor.getInstrumentSlotCc (i);
+
+                for (const auto& ev : explicitValues)
+                    if (ev.ccNumber == cc)
+                        return ev.value;
+
+                return processor.getCombiResolvedCcValue (presetId, cc);
+            });
+
+            if (processor.isUserCombiPresetId (presetId))
+            {
+                editingId = presetId;
+                updateButton.setEnabled (true);
+                nameEditor.setText (processor.getCombiPresetLabel (presetId), juce::dontSendNotification);
+                statusLabel.setText ("Loaded [User] " + processor.getCombiPresetLabel (presetId)
+                                         + " - edit and Update, or Save as New.",
+                                     juce::dontSendNotification);
+            }
+            else
+            {
+                editingId = -1;
+                updateButton.setEnabled (false);
+                statusLabel.setText ("Seeded from " + processor.getCombiPresetLabel (presetId)
+                                         + " (factory - Save as New).",
+                                     juce::dontSendNotification);
+            }
+        }
+
+        void saveAs (int existingId)
+        {
+            std::vector<orchconductor::PresetValue> values;
+            values.reserve (static_cast<size_t> (sliders.size()));
+
+            for (int i = 0; i < sliders.size(); ++i)
+            {
+                orchconductor::PresetValue v;
+                v.ccNumber = processor.getInstrumentSlotCc (i);
+                v.value = juce::roundToInt (sliders[i]->getValue());
+                values.push_back (v);
+            }
+
+            const int id = processor.saveInstrumentGridAsUserCombi (nameEditor.getText().trim(), values, existingId);
+
+            if (id < 0)
+            {
+                statusLabel.setText ("Save failed - no free user-combi slot.", juce::dontSendNotification);
+                return;
+            }
+
+            editingId = id;
+            updateButton.setEnabled (true);
+            statusLabel.setText ((existingId >= 0 ? juce::String ("Updated ") : juce::String ("Saved new combi: "))
+                                     + processor.getCombiPresetLabel (id),
+                                 juce::dontSendNotification);
+
+            refreshLoadBox();
+            loadBox.setSelectedId (id + 2, juce::dontSendNotification);
+
+            if (onSaved)
+                onSaved();
+        }
+
+        OrchConductorAudioProcessor& processor;
+        int editingId { -1 };
+
+        juce::Label titleLabel, hintLabel, loadLabel, statusLabel;
+        juce::TextButton backButton, saveNewButton, updateButton, seedButton, clearButton;
+        juce::TextEditor nameEditor;
+        juce::ComboBox loadBox;
+
+        juce::Viewport viewport;
+        juce::Component content;
+        juce::OwnedArray<juce::Slider> sliders;
+        juce::OwnedArray<juce::Label> rowLabels;
+        juce::OwnedArray<juce::Label> sectionHeaders;
+        juce::Array<int> sectionHeaderBeforeSlot;
+    };
+}
 
 OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConductorAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
     setResizable (true, true);
-    setResizeLimits (900, 710, 1400, 1210);
-    setSize (980, 904);
+    setResizeLimits (900, 740, 1400, 1240);
+    setSize (980, 936);
 
     titleLabel.setText ("OrchConductor", juce::dontSendNotification);
     titleLabel.setJustificationType (juce::Justification::centred);
@@ -765,6 +1114,28 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     statusLabel.setFont (juce::FontOptions (14.0f, juce::Font::bold));
     addAndMakeVisible (statusLabel);
 
+    // View switch + the Combi Grid tab.
+    for (auto* b : { &conductorViewButton, &gridViewButton })
+    {
+        b->setColour (juce::TextButton::buttonColourId, juce::Colour::fromRGB (40, 52, 64));
+        b->setColour (juce::TextButton::textColourOffId, juce::Colours::white);
+        addAndMakeVisible (*b);
+    }
+    conductorViewButton.onClick = [this] { showGridView (false); };
+    gridViewButton.onClick = [this] { showGridView (true); };
+
+    {
+        auto grid = std::make_unique<InstrumentGridComponent> (audioProcessor);
+        grid->onBack = [this] { showGridView (false); };
+        grid->onSaved = [this]
+        {
+            addCombiPresetItems (combiPresetBox, audioProcessor);
+            updateStatus();
+        };
+        addChildComponent (*grid);
+        instrumentGridView = std::move (grid);
+    }
+
     updateOutputTable();
     updateWoodwindsOutputTable();
     updateBrassOutputTable();
@@ -772,9 +1143,27 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     updateNarrativeMetadataDisplay();
     updateNarrativeScanControls();
     updateStatus();
+    showGridView (false);
+    resized(); // lay out the grid child now that it exists
 
     // Phase 2A: keep UI synced when host restores plugin state after editor creation.
     startTimerHz (10);
+}
+
+void OrchConductorAudioProcessorEditor::showGridView (bool show)
+{
+    if (instrumentGridView != nullptr)
+    {
+        instrumentGridView->setVisible (show);
+
+        if (show)
+            instrumentGridView->toFront (false);
+    }
+
+    conductorViewButton.setEnabled (show);
+    gridViewButton.setEnabled (! show);
+    conductorViewButton.toFront (false);
+    gridViewButton.toFront (false);
 }
 
 OrchConductorAudioProcessorEditor::~OrchConductorAudioProcessorEditor()
@@ -793,7 +1182,18 @@ void OrchConductorAudioProcessorEditor::paint (juce::Graphics& g)
 
 void OrchConductorAudioProcessorEditor::resized()
 {
+    {
+        auto strip = getLocalBounds().reduced (48, 0).removeFromTop (30).withTrimmedTop (5);
+        conductorViewButton.setBounds (strip.removeFromLeft (130));
+        strip.removeFromLeft (6);
+        gridViewButton.setBounds (strip.removeFromLeft (130));
+    }
+
+    if (instrumentGridView != nullptr)
+        instrumentGridView->setBounds (getLocalBounds().withTrimmedTop (32));
+
     auto area = getLocalBounds().reduced (48, 28);
+    area.removeFromTop (30);
 
     titleLabel.setBounds (area.removeFromTop (38));
     subtitleLabel.setBounds (area.removeFromTop (22));

@@ -245,11 +245,34 @@ public:
     int getDefaultMaxPlayersForCc (int ccNumber) const;
     int getActivePlayersForValue (int value, int maxPlayers) const;
 
-    // CC49 (Harp) and CC55 (Piano): only reachable via a user combi's
-    // harpValue/pianoValue override (see UserCombiPreset). 0 outside combi
-    // mode or when the active combi doesn't override them.
+    // CC49 (Harp) and CC55 (Piano): reachable via the manual sliders (Manual
+    // Sections mode), a narrative lane point, or a user combi's
+    // harpValue/pianoValue override.
     int getHarpCcValue() const;
     int getPianoCcValue() const;
+
+    // --- Instrument Combi Grid (the "Combi Grid" editor tab) ---
+    // Every CC OrchConductor emits, in send order: woodwinds (CC20-31), brass
+    // (CC32-42), percussion (CC43-48 then CC56-62), strings (CC50-54), Harp
+    // (CC49), Piano (CC55) - 43 slots.
+    static int getInstrumentSlotCount();
+    juce::String getInstrumentSlotName (int slotIndex) const;
+    int getInstrumentSlotCc (int slotIndex) const;
+    juce::String getInstrumentSlotSectionName (int slotIndex) const;
+    // What OrchConductor is currently emitting for this slot's CC - the seed
+    // for "Seed from Current Output".
+    int getInstrumentSlotCurrentValue (int slotIndex) const;
+    // The value a combi resolves for a CC (for loading a combi into the grid).
+    int getCombiResolvedCcValue (int presetId, int ccNumber) const;
+    // The explicit {cc,value} list stored on a user combi (empty otherwise).
+    std::vector<orchconductor::PresetValue> getUserCombiExplicitCcValues (int presetId) const;
+    // Save the grid's explicit {cc,value} pairs as a user combi. If
+    // existingUserCombiId is an existing user combi it is replaced in place
+    // (name/section-ids/metadata kept); otherwise a new combi is created.
+    // Returns the combi id, or -1 on failure.
+    int saveInstrumentGridAsUserCombi (const juce::String& name,
+                                       const std::vector<orchconductor::PresetValue>& explicitValues,
+                                       int existingUserCombiId = -1);
 
     bool wasRuntimeJsonPresetProbeLoaded() const;
     bool doesRuntimeJsonPresetProbeRequireFallback() const;

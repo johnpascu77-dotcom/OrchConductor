@@ -361,6 +361,24 @@ harp/piano against a manual texture) without going through a combi.
 - **"Save Current Sections as Combi"** now captures the manual Harp/Piano values into the new user
   combi's `harpValue`/`pianoValue` - so "dial a texture with the 4 section dropdowns + Harp/Piano,
   hear it, save it" produces a combi that reproduces exactly that.
-- Still not reachable this way: two instruments from the same family with no named section preset
-  (e.g. "Flute 1 + Oboe 2") - that needs the full per-instrument grid editor (a separate,
-  larger piece; a dedicated tab is the likely home).
+- Two instruments from the same family with no named section preset (e.g. "Flute 1 + Oboe 2") are
+  reachable via the Combi Grid - see §17.
+
+## 17. Instrument Combi Grid - DONE (`<this branch>`, 2026-09-10)
+
+A second view in the editor ("Conductor" / "Combi Grid" buttons at the top): every one of the 43
+instruments OrchConductor emits as a labelled 0-127 slider in one scrollable grid, saved as a user
+combi's `explicitCcValues` (which already override every section preset and the harp/piano fields).
+
+- Processor: `getInstrumentSlotCount()` (43) + `getInstrumentSlot{Name,Cc,SectionName,CurrentValue}(i)`
+  in send order (woodwinds, brass, percussion, strings, Harp, Piano); `getCombiResolvedCcValue`
+  (per-CC resolve for loading a combi into the grid); `getUserCombiExplicitCcValues`;
+  `saveInstrumentGridAsUserCombi (name, values, existingUserCombiId = -1)` - new combi or update in
+  place (keeps name/section-ids/metadata).
+- The grid stores all 43 values explicitly, so a grid combi's output is exactly what the sliders
+  show - section composition never leaks in.
+- Grid actions: **Save as New Combi**, **Update Selected Combi**, **Load / seed** (any factory or
+  user combi - factory seeds read-only, user combis load for editing), **Seed from Current
+  Output** (snapshot whatever OrchConductor is emitting right now), **Clear**.
+- `InstrumentGridComponent` is a full-area opaque child of the editor, shown/hidden by the view
+  switch; no `TabbedComponent` refactor of the existing layout.

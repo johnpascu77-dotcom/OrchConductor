@@ -20,6 +20,12 @@ private:
     juce::Label subtitleLabel;
     juce::Label buildLabel;
 
+    // View switch: the main Conductor controls vs. the full-area Combi Grid.
+    juce::TextButton conductorViewButton { "Conductor" };
+    juce::TextButton gridViewButton { "Combi Grid" };
+    std::unique_ptr<juce::Component> instrumentGridView;   // an InstrumentGridComponent (private to the .cpp)
+    void showGridView (bool show);
+
     juce::Label combiPresetLabel;
     juce::Label authorityModeLabel;
     juce::Label narrativeScanLabel;
