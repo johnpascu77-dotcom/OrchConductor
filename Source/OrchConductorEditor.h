@@ -67,10 +67,10 @@ private:
     juce::Label userCombiNameLabel;
     juce::TextEditor userCombiNameEditor;
 
-    // Harp (CC49) / Piano (CC55) values folded into the next "Save Current
-    // Sections as Combi". -1 = Off (the combi leaves them at 0). These two
-    // have no manual-section dropdown, so this row is the only UI path to put
-    // them into a user combi.
+    // Harp (CC49) / Piano (CC55): a live Manual Sections control surface
+    // (they have no section-preset dropdown), also captured by "Save Current
+    // Sections as Combi". -1 = Off. Named userCombi* for historical reasons;
+    // they drive audioProcessor.setManual{Harp,Piano}Value.
     juce::Label userCombiHarpLabel;
     juce::Slider userCombiHarpSlider;
     juce::Label userCombiPianoLabel;

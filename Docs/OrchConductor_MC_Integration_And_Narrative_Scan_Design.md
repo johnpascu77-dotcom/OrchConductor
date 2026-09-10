@@ -344,3 +344,23 @@ never bring the Harp or Piano in.
 - The embedded `organic_build` lane now demos it: harp swells 50 -> 80 -> 110 -> 127 across its
   second half, piano enters at 127 on the final tutti point - the same arc shape as the user's
   "Accum" combi sequence, now reachable from a single `Narrative Position` automation lane.
+
+## 16. Harp / Piano as a Manual Sections control - DONE (`<this branch>`, 2026-09-10)
+
+Harp/Piano still have no section-preset table (they aren't part of any of the 4 families' CC
+lists), but they now have a live manual control so you can audition a harp or piano solo (or
+harp/piano against a manual texture) without going through a combi.
+
+- `manualHarpValue` / `manualPianoValue` (-1 = Off, 0-127), driven by the editor's **Harp** /
+  **Piano** sliders (their own row under the section-preset dropdowns). Persisted in plugin state
+  (v5 -> v6, backward compatible). `setManual{Harp,Piano}Value` requests a send when
+  Send-on-Preset-Change is on, same as a section preset change.
+- Precedence in the CC49/CC55 send: **manual sliders** (Manual Sections mode only) >
+  **narrative lane point** (Narrative Scan) > **user combi** `harpValue`/`pianoValue` (Combi). In
+  Combi / Narrative Scan mode the manual sliders are inert for output (like the section dropdowns).
+- **"Save Current Sections as Combi"** now captures the manual Harp/Piano values into the new user
+  combi's `harpValue`/`pianoValue` - so "dial a texture with the 4 section dropdowns + Harp/Piano,
+  hear it, save it" produces a combi that reproduces exactly that.
+- Still not reachable this way: two instruments from the same family with no named section preset
+  (e.g. "Flute 1 + Oboe 2") - that needs the full per-instrument grid editor (a separate,
+  larger piece; a dedicated tab is the likely home).

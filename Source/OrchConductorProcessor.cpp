@@ -1201,12 +1201,24 @@ int OrchConductorAudioProcessor::getTotalActivePlayers() const
 
 int OrchConductorAudioProcessor::getHarpCcValue() const
 {
-    return isCombiModeActive() ? getCombiPresetValueForCc (reservedHarpCcNumber) : 0;
+    if (isCombiModeActive())
+        return getCombiPresetValueForCc (reservedHarpCcNumber);
+
+    if (isNarrativeScanDriving())
+        return lastResolvedNarrativeHarpValue >= 0 ? lastResolvedNarrativeHarpValue : 0;
+
+    return manualHarpValue >= 0 ? manualHarpValue : 0;
 }
 
 int OrchConductorAudioProcessor::getPianoCcValue() const
 {
-    return isCombiModeActive() ? getCombiPresetValueForCc (pianoCcNumber) : 0;
+    if (isCombiModeActive())
+        return getCombiPresetValueForCc (pianoCcNumber);
+
+    if (isNarrativeScanDriving())
+        return lastResolvedNarrativePianoValue >= 0 ? lastResolvedNarrativePianoValue : 0;
+
+    return manualPianoValue >= 0 ? manualPianoValue : 0;
 }
 void OrchConductorAudioProcessor::prepareToPlay (double, int)
 {
@@ -1698,10 +1710,11 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
         midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, cc, value), 0);
     }
 
-    // Harp (CC49) and Piano (CC55) have no manual/section control surface -
-    // they only carry a value when a combi's harpValue/pianoValue override is
-    // set (a user combi's, or - while Narrative Scan drives - the resolved
-    // lane point's). Every factory combi still resolves both to 0.
+    // Harp (CC49) and Piano (CC55) carry a value from, in precedence order:
+    // the manual Harp/Piano sliders (Manual Sections mode only), the resolved
+    // narrative lane point (Narrative Scan mode), or a user combi's
+    // harpValue/pianoValue (Combi mode). Every factory combi still resolves
+    // both to 0.
     int harpValue = (! shouldSendAllOff && useCombi)
                         ? getCombiPresetValueForCc (getEffectiveCombiPresetId(), reservedHarpCcNumber)
                         : 0;
@@ -1711,6 +1724,9 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
 
     if (! shouldSendAllOff && isNarrativeScanDriving() && lastResolvedNarrativeHarpValue >= 0)
         harpValue = lastResolvedNarrativeHarpValue;
+
+    if (! shouldSendAllOff && ! useCombi && manualHarpValue >= 0)
+        harpValue = manualHarpValue;
 
     midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, reservedHarpCcNumber, harpValue), 0);
 
@@ -1723,6 +1739,9 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
 
     if (! shouldSendAllOff && isNarrativeScanDriving() && lastResolvedNarrativePianoValue >= 0)
         pianoValue = lastResolvedNarrativePianoValue;
+
+    if (! shouldSendAllOff && ! useCombi && manualPianoValue >= 0)
+        pianoValue = manualPianoValue;
 
     midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, pianoCcNumber, pianoValue), 0);
 
@@ -1761,7 +1780,7 @@ void OrchConductorAudioProcessor::getStateInformation (juce::MemoryBlock& destDa
 {
     juce::MemoryOutputStream stream (destData, true);
 
-    stream.writeInt (5);
+    stream.writeInt (6);
     stream.writeInt (combiPresetId);
     stream.writeInt (woodwindsPresetId);
     stream.writeInt (brassPresetId);
@@ -1800,6 +1819,10 @@ void OrchConductorAudioProcessor::getStateInformation (juce::MemoryBlock& destDa
     // build reads something sane) followed by the real 3-way mode int.
     stream.writeBool (inputPassthroughMode != InputPassthroughMode::off);
     stream.writeInt (static_cast<int> (inputPassthroughMode));
+
+    // v6: manual Harp (CC49) / Piano (CC55) values (-1 = Off).
+    stream.writeInt (manualHarpValue);
+    stream.writeInt (manualPianoValue);
 }
 
 void OrchConductorAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
@@ -1815,7 +1838,7 @@ void OrchConductorAudioProcessor::setStateInformation (const void* data, int siz
         return;
     }
 
-    if (firstInt == 1 || firstInt == 2 || firstInt == 3 || firstInt == 4 || firstInt == 5)
+    if (firstInt >= 1 && firstInt <= 6)
     {
         const auto version = firstInt;
         const auto combi = stream.readInt();
@@ -1915,6 +1938,20 @@ void OrchConductorAudioProcessor::setStateInformation (const void* data, int siz
                 // Older save: only the legacy bool was written.
                 setInputPassthroughMode (legacyPass ? InputPassthroughMode::all
                                                     : InputPassthroughMode::off);
+            }
+        }
+
+        if (version >= 6 && ! stream.isExhausted())
+        {
+            // Set the members directly (not via the setters) so restoring a
+            // project doesn't queue a send request.
+            const int restoredHarp = stream.readInt();
+            manualHarpValue = (restoredHarp >= 0 && restoredHarp <= 127) ? restoredHarp : -1;
+
+            if (! stream.isExhausted())
+            {
+                const int restoredPiano = stream.readInt();
+                manualPianoValue = (restoredPiano >= 0 && restoredPiano <= 127) ? restoredPiano : -1;
             }
         }
 
@@ -2452,9 +2489,7 @@ juce::String OrchConductorAudioProcessor::createUserCombiNameFromCurrentSections
 
     return parts.joinIntoString ("+");
 }
-int OrchConductorAudioProcessor::createUserCombiPresetFromCurrentSections (const juce::String& name,
-                                                                          int harpValue,
-                                                                          int pianoValue)
+int OrchConductorAudioProcessor::createUserCombiPresetFromCurrentSections (const juce::String& name)
 {
     const auto presetId = getNextAvailableUserCombiPresetId();
 
@@ -2467,8 +2502,8 @@ int OrchConductorAudioProcessor::createUserCombiPresetFromCurrentSections (const
     preset.brassPresetId = getSectionPresetId (Section::brass);
     preset.percussionPresetId = getSectionPresetId (Section::percussion);
     preset.stringsPresetId = getSectionPresetId (Section::strings);
-    preset.harpValue = (harpValue >= 0 && harpValue <= 127) ? harpValue : -1;
-    preset.pianoValue = (pianoValue >= 0 && pianoValue <= 127) ? pianoValue : -1;
+    preset.harpValue = manualHarpValue;
+    preset.pianoValue = manualPianoValue;
 
     userCombiPresets[presetId] = preset;
 
@@ -2815,6 +2850,42 @@ void OrchConductorAudioProcessor::setSectionPresetIdFromUI (Section section, int
     }
 
     setSectionPresetId (section, presetId);
+}
+
+void OrchConductorAudioProcessor::setManualHarpValue (int value)
+{
+    const int clamped = (value >= 0 && value <= 127) ? value : -1;
+
+    if (clamped == manualHarpValue)
+        return;
+
+    manualHarpValue = clamped;
+
+    if (sendOnPresetChange)
+        requestSendPreset();
+}
+
+void OrchConductorAudioProcessor::setManualPianoValue (int value)
+{
+    const int clamped = (value >= 0 && value <= 127) ? value : -1;
+
+    if (clamped == manualPianoValue)
+        return;
+
+    manualPianoValue = clamped;
+
+    if (sendOnPresetChange)
+        requestSendPreset();
+}
+
+int OrchConductorAudioProcessor::getManualHarpValue() const
+{
+    return manualHarpValue;
+}
+
+int OrchConductorAudioProcessor::getManualPianoValue() const
+{
+    return manualPianoValue;
 }
 
 void OrchConductorAudioProcessor::setSendOnPresetChangeFromUI (bool shouldSend)

@@ -675,6 +675,54 @@ bool verifyNarrativeScanDrivesCombiSend()
 }
 #endif
 
+bool verifyManualHarpPianoSliders()
+{
+    OrchConductorAudioProcessor processor;
+    bool ok = true;
+
+    // Manual Sections mode: the manual Harp/Piano values drive CC49/CC55.
+    processor.setManualHarpValue(90);
+    processor.setManualPianoValue(70);
+    processor.requestSendPreset();
+
+    const auto manual = captureMidi(processor);
+    ok = checkEquals(manual.eventCount, expectedSendCcCount, "manual harp/piano send event count") && ok;
+    ok = expectCcValue(manual, 49, 90, "manual sections harp slider drives CC49") && ok;
+    ok = expectCcValue(manual, 55, 70, "manual sections piano slider drives CC55") && ok;
+
+    // "Off" (-1) sends 0.
+    processor.setManualHarpValue(-1);
+    processor.requestSendPreset();
+    const auto harpOff = captureMidi(processor);
+    ok = expectCcValue(harpOff, 49, 0, "manual sections harp Off sends CC49 = 0") && ok;
+    ok = expectCcValue(harpOff, 55, 70, "manual sections piano unchanged at 70") && ok;
+
+    // Combi mode: a factory combi's own harp/piano (0) wins - the manual
+    // sliders are inert for output.
+    processor.setManualHarpValue(100);
+    processor.setManualPianoValue(100);
+    processor.setCombiPresetId(static_cast<int>(OrchConductorAudioProcessor::CombiPreset::utilityFullOrchestra));
+    processor.requestSendPreset();
+    const auto inCombi = captureMidi(processor);
+    ok = expectCcValue(inCombi, 49, 0, "combi mode ignores manual harp slider") && ok;
+    ok = expectCcValue(inCombi, 55, 0, "combi mode ignores manual piano slider") && ok;
+
+    // State round-trip (v6) preserves the manual values.
+    processor.setCombiPresetId(static_cast<int>(OrchConductorAudioProcessor::CombiPreset::manualSections));
+    processor.setManualHarpValue(42);
+    processor.setManualPianoValue(24);
+
+    juce::MemoryBlock state;
+    processor.getStateInformation(state);
+
+    OrchConductorAudioProcessor restored;
+    restored.setStateInformation(state.getData(), static_cast<int>(state.getSize()));
+    ok = checkEquals(restored.getManualHarpValue(), 42, "manual harp value survives state round-trip") && ok;
+    ok = checkEquals(restored.getManualPianoValue(), 24, "manual piano value survives state round-trip") && ok;
+
+    return ok;
+}
+
 bool verifySendRequestConsumed()
 {
     OrchConductorAudioProcessor processor;
@@ -853,6 +901,7 @@ int main()
     ok = verifyManualUnpitchedPercussionPresets() && ok;
     ok = verifyCombiOverridesSectionPresets() && ok;
     ok = verifyUserCombiHarpPianoOverride() && ok;
+    ok = verifyManualHarpPianoSliders() && ok;
     ok = verifyUserCombiExplicitCcValues() && ok;
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     ok = verifyNarrativeScanDrivesCombiSend() && ok;

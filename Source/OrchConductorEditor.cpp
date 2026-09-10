@@ -112,8 +112,8 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
     setResizable (true, true);
-    setResizeLimits (900, 700, 1400, 1200);
-    setSize (980, 894);
+    setResizeLimits (900, 710, 1400, 1210);
+    setSize (980, 904);
 
     titleLabel.setText ("OrchConductor", juce::dontSendNotification);
     titleLabel.setJustificationType (juce::Justification::centred);
@@ -485,16 +485,17 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     userCombiNameEditor.setColour (juce::TextEditor::highlightColourId, juce::Colour::fromRGB (45, 75, 95));
     addAndMakeVisible (userCombiNameEditor);
 
-    auto setupCombiCcSlider = [this] (juce::Slider& slider, juce::Label& label, const juce::String& text)
+    auto setupManualCcSlider = [this] (juce::Slider& slider, juce::Label& label,
+                                       const juce::String& text, int initialValue)
     {
         label.setText (text, juce::dontSendNotification);
-        styleLabel (label, juce::Colour::fromRGB (205, 220, 230), 12.0f, juce::Font::plain);
+        styleLabel (label, juce::Colours::white, 14.0f, juce::Font::bold);
         addAndMakeVisible (label);
 
         slider.setSliderStyle (juce::Slider::LinearHorizontal);
         slider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 54, 22);
         slider.setRange (-1.0, 127.0, 1.0);
-        slider.setValue (-1.0, juce::dontSendNotification);
+        slider.setValue ((double) initialValue, juce::dontSendNotification);
         slider.textFromValueFunction = [] (double v)
         {
             return v < 0.0 ? juce::String ("Off") : juce::String (juce::roundToInt (v));
@@ -512,8 +513,24 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         addAndMakeVisible (slider);
     };
 
-    setupCombiCcSlider (userCombiHarpSlider, userCombiHarpLabel, "Harp (CC49)");
-    setupCombiCcSlider (userCombiPianoSlider, userCombiPianoLabel, "Piano (CC55)");
+    setupManualCcSlider (userCombiHarpSlider, userCombiHarpLabel, "Harp",
+                         audioProcessor.getManualHarpValue());
+    setupManualCcSlider (userCombiPianoSlider, userCombiPianoLabel, "Piano",
+                         audioProcessor.getManualPianoValue());
+
+    userCombiHarpSlider.onValueChange = [this]
+    {
+        audioProcessor.setManualHarpValue (juce::roundToInt (userCombiHarpSlider.getValue()));
+        updateOutputTable();
+        updateStatus();
+    };
+
+    userCombiPianoSlider.onValueChange = [this]
+    {
+        audioProcessor.setManualPianoValue (juce::roundToInt (userCombiPianoSlider.getValue()));
+        updateOutputTable();
+        updateStatus();
+    };
 
     saveUserCombiButton.setColour (juce::TextButton::buttonColourId, juce::Colour::fromRGB (45, 75, 95));
     saveUserCombiButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
@@ -531,18 +548,15 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
             userCombiNameEditor.setText (name, juce::dontSendNotification);
         }
 
-        const int harpValue = juce::roundToInt (userCombiHarpSlider.getValue());
-        const int pianoValue = juce::roundToInt (userCombiPianoSlider.getValue());
+        const int harpValue = audioProcessor.getManualHarpValue();
+        const int pianoValue = audioProcessor.getManualPianoValue();
 
-        const auto id = audioProcessor.createUserCombiPresetFromCurrentSections (name, harpValue, pianoValue);
+        const auto id = audioProcessor.createUserCombiPresetFromCurrentSections (name);
 
         if (id >= 0)
         {
             addCombiPresetItems (combiPresetBox, audioProcessor);
             combiPresetBox.setSelectedId (id + 1, juce::sendNotificationSync);
-
-            userCombiHarpSlider.setValue (-1.0, juce::dontSendNotification);
-            userCombiPianoSlider.setValue (-1.0, juce::dontSendNotification);
 
             juce::String extras;
             if (harpValue >= 0) extras << " Harp " << harpValue;
@@ -739,7 +753,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     addAndMakeVisible (narrativeMetadataValueLabel);
 
     ccMapLabel.setText (
-        "Phase 10G: user-combi Harp/Piano overrides | CC49 Harp, CC55 Piano (user-combi only)",
+        "CC49 Harp / CC55 Piano: manual sliders (Manual Sections mode), or per-combi / per-lane-point overrides",
         juce::dontSendNotification);
     ccMapLabel.setJustificationType (juce::Justification::centred);
     ccMapLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (160, 175, 190));
@@ -805,16 +819,6 @@ void OrchConductorAudioProcessorEditor::resized()
     userCombiRow.removeFromLeft (10);
     saveUserCombiButton.setBounds (userCombiRow.removeFromLeft (300).reduced (0, 2));
 
-    area.removeFromTop (4);
-
-    auto userCombiCcRow = area.removeFromTop (28);
-    userCombiCcRow.removeFromLeft (150);
-    userCombiHarpLabel.setBounds (userCombiCcRow.removeFromLeft (80));
-    userCombiHarpSlider.setBounds (userCombiCcRow.removeFromLeft (220).reduced (0, 2));
-    userCombiCcRow.removeFromLeft (24);
-    userCombiPianoLabel.setBounds (userCombiCcRow.removeFromLeft (84));
-    userCombiPianoSlider.setBounds (userCombiCcRow.removeFromLeft (220).reduced (0, 2));
-
     area.removeFromTop (6);
 
     auto userCombiActionsRow = area.removeFromTop (32);
@@ -854,6 +858,22 @@ void OrchConductorAudioProcessorEditor::resized()
 
     stringsPresetLabel.setBounds (rightBottom.removeFromLeft (110));
     presetBox.setBounds (rightBottom);
+
+    area.removeFromTop (8);
+
+    // Harp / Piano: a manual control surface in Manual Sections mode, folded
+    // into "Save Current Sections as Combi". Same two-column layout as the
+    // section rows above.
+    auto sectionRow3 = area.removeFromTop (34);
+    auto leftHp = sectionRow3.removeFromLeft (424);
+    sectionRow3.removeFromLeft (36);
+    auto rightHp = sectionRow3.removeFromLeft (424);
+
+    userCombiHarpLabel.setBounds (leftHp.removeFromLeft (110));
+    userCombiHarpSlider.setBounds (leftHp);
+
+    userCombiPianoLabel.setBounds (rightHp.removeFromLeft (110));
+    userCombiPianoSlider.setBounds (rightHp);
 
     area.removeFromTop (14);
 
@@ -938,6 +958,12 @@ void OrchConductorAudioProcessorEditor::timerCallback()
     const int stringsId = audioProcessor.getSectionPresetId (OrchConductorAudioProcessor::Section::strings) + 1;
     if (presetBox.getSelectedId() != stringsId)
         presetBox.setSelectedId (stringsId, juce::dontSendNotification);
+
+    if (juce::roundToInt (userCombiHarpSlider.getValue()) != audioProcessor.getManualHarpValue())
+        userCombiHarpSlider.setValue (audioProcessor.getManualHarpValue(), juce::dontSendNotification);
+
+    if (juce::roundToInt (userCombiPianoSlider.getValue()) != audioProcessor.getManualPianoValue())
+        userCombiPianoSlider.setValue (audioProcessor.getManualPianoValue(), juce::dontSendNotification);
 
     const bool sendOnChange = audioProcessor.getSendOnPresetChange();
     if (sendOnChangeToggle.getToggleState() != sendOnChange)
@@ -1025,7 +1051,8 @@ void OrchConductorAudioProcessorEditor::updateStatus()
 
     ccMapLabel.setText (
         "Phase 10G | " + authorityText + " | " + getUserFacingCatalogStatus (audioProcessor)
-        + " | CC49 Harp / CC55 Piano (user-combi only)",
+        + " | CC49 Harp " + juce::String (audioProcessor.getHarpCcValue())
+        + " / CC55 Piano " + juce::String (audioProcessor.getPianoCcValue()),
         juce::dontSendNotification);
 
     const juce::String autoSendText = audioProcessor.getSendOnPresetChange() ? " | Auto-send: On" : " | Auto-send: Off";
@@ -1046,7 +1073,8 @@ void OrchConductorAudioProcessorEditor::updateStatus()
             + " @ " + juce::String (juce::roundToInt (audioProcessor.getNarrativePosition() * 100.0)) + "%"
             + " -> " + resolvedText
             + activePlayersText
-            + " | Harp/Piano: factory default (0)"
+            + " | Harp " + juce::String (audioProcessor.getHarpCcValue())
+            + " / Piano " + juce::String (audioProcessor.getPianoCcValue())
             + autoSendText
             + sendFeedbackText,
             juce::dontSendNotification);
@@ -1074,7 +1102,8 @@ void OrchConductorAudioProcessorEditor::updateStatus()
     statusLabel.setText (
         "Manual Sections | Strings: " + audioProcessor.getPresetName()
         + activePlayersText
-        + " | Harp/Piano: off (manual mode)"
+        + " | Harp " + juce::String (audioProcessor.getHarpCcValue())
+        + " / Piano " + juce::String (audioProcessor.getPianoCcValue())
         + autoSendText
         + sendFeedbackText,
         juce::dontSendNotification);

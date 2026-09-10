@@ -132,12 +132,17 @@ public:
     int getSectionPresetId (Section section) const;
 
     juce::String createUserCombiNameFromCurrentSections() const;
-    // harpValue / pianoValue: -1 = leave unset (combi sends 0), 0-127 = the
-    // literal CC49 / CC55 value this combi carries. No manual-section surface
-    // exists for these two - the editor's user-combi row is the only UI path.
-    int createUserCombiPresetFromCurrentSections (const juce::String& name,
-                                                  int harpValue = -1,
-                                                  int pianoValue = -1);
+    // Captures the 4 section preset ids + the current manual Harp/Piano values
+    // (getManualHarpValue / getManualPianoValue) into a new user combi.
+    int createUserCombiPresetFromCurrentSections (const juce::String& name);
+
+    // Manual Sections mode Harp (CC49) / Piano (CC55). -1 = Off. Setting one
+    // requests a send when Send-on-Preset-Change is on, same as a section
+    // preset change.
+    void setManualHarpValue (int value);
+    void setManualPianoValue (int value);
+    int getManualHarpValue() const;
+    int getManualPianoValue() const;
     bool deleteUserCombiPreset (int presetId);
 
     juce::File getUserCombiLibraryFile() const;
@@ -362,6 +367,16 @@ private:
     int brassPresetId { 0 };
     int percussionPresetId { 0 };
     int stringsPresetId { static_cast<int> (Preset::allOff) };
+
+    // Manual Sections mode Harp (CC49) / Piano (CC55) values. -1 = Off (send 0).
+    // They have no section-preset table (harp/piano aren't part of any of the
+    // 4 families' CC lists), so they are their own tiny manual control -
+    // driven by the editor's Harp/Piano sliders, sent in Manual Sections mode,
+    // and captured into a user combi's harpValue/pianoValue by "Save Current
+    // Sections as Combi". Inert (output-wise) in Combi / Narrative Scan mode,
+    // where the combi / lane point drives CC49/CC55 instead.
+    int manualHarpValue { -1 };
+    int manualPianoValue { -1 };
 
     AuthorityMode authorityMode { AuthorityMode::manualSections };
     int narrativeLaneIndex { 0 };
