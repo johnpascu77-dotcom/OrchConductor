@@ -327,3 +327,20 @@ rebuild. Now it does not.
   thread can swap it whole on import.
 - The narrative lane parameter already supported 16 lanes; no schema change was needed to grow
   past 6.
+
+## 15. Harp / Piano on a lane point — DONE (`<this branch>`, 2026-09-10)
+
+No factory combi (nor the embedded JSON) touches CC49 (Harp) or CC55 (Piano) - they only carry a
+value from a *user combi's* `harpValue` / `pianoValue` override. So a Narrative Scan run could
+never bring the Harp or Piano in.
+
+- `NarrativeLanePointDefinition` gains optional `harpValue` / `pianoValue` (int, -1 = leave at the
+  combi's own value, which is 0 for every factory combi; 0-127 overrides it). Schema + parser +
+  runtime-catalog accessors (`getNarrativeLanePointHarpValue` / `...PianoValue`).
+- While Narrative Scan drives, the resolved point's `harpValue` / `pianoValue` (when >= 0) replace
+  the harp/piano value in the CC payload send, on top of the resolved combi. Stored as
+  `lastResolvedNarrativeHarpValue` / `...Piano` (runtime state, reset in `prepareToPlay` /
+  `setAuthorityMode`); a change in either forces a resend the same way a combi-id change does.
+- The embedded `organic_build` lane now demos it: harp swells 50 -> 80 -> 110 -> 127 across its
+  second half, piano enters at 127 on the final tutti point - the same arc shape as the user's
+  "Accum" combi sequence, now reachable from a single `Narrative Position` automation lane.

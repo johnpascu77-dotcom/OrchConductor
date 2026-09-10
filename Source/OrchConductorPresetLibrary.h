@@ -110,12 +110,25 @@ struct NarrativeLanePointDefinition
     // resolved lane point changes - see OrchConductorProcessor's field-select CC.
     int pitchFieldIndex = -1;
 
+    // Optional Harp (CC49) and Piano (CC55) values for this lane point. -1 =
+    // leave them at the combi's own value (which, for every factory combi, is
+    // 0). >= 0 overrides that value when this point is the resolved one, the
+    // same way a user combi's harpValue/pianoValue works. This is the only way
+    // a Narrative Scan run can bring the Harp or Piano in, since no factory
+    // combi touches CC49/CC55.
+    int harpValue = -1;
+    int pianoValue = -1;
+
     bool isValid() const noexcept
     {
         return position >= 0.0
             && position <= 1.0
             && combiId >= 0
-            && pitchFieldIndex >= -1;
+            && pitchFieldIndex >= -1
+            && harpValue >= -1
+            && harpValue <= 127
+            && pianoValue >= -1
+            && pianoValue <= 127;
     }
 };
 

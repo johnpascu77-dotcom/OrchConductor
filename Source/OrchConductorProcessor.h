@@ -132,7 +132,12 @@ public:
     int getSectionPresetId (Section section) const;
 
     juce::String createUserCombiNameFromCurrentSections() const;
-    int createUserCombiPresetFromCurrentSections (const juce::String& name);
+    // harpValue / pianoValue: -1 = leave unset (combi sends 0), 0-127 = the
+    // literal CC49 / CC55 value this combi carries. No manual-section surface
+    // exists for these two - the editor's user-combi row is the only UI path.
+    int createUserCombiPresetFromCurrentSections (const juce::String& name,
+                                                  int harpValue = -1,
+                                                  int pianoValue = -1);
     bool deleteUserCombiPreset (int presetId);
 
     juce::File getUserCombiLibraryFile() const;
@@ -363,6 +368,13 @@ private:
     double narrativePosition { 0.0 };
     int lastResolvedNarrativePointIndex { -1 };
     int lastResolvedNarrativeCombiId { -1 };
+
+    // The resolved lane point's Harp (CC49) / Piano (CC55) overrides, -1 when
+    // the point doesn't set them. Applied on top of the resolved combi's own
+    // harp/piano value while Narrative Scan is driving - the only way a lane
+    // can bring the Harp or Piano in (no factory combi touches CC49/CC55).
+    int lastResolvedNarrativeHarpValue { -1 };
+    int lastResolvedNarrativePianoValue { -1 };
 
     // Field-select CC (OrchNoteFilter pitch-class field, see NarrativeLanePointDefinition
     // ::pitchFieldIndex). Staged when the resolved lane point changes, emitted

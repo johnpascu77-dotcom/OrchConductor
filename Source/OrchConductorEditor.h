@@ -66,6 +66,16 @@ private:
 
     juce::Label userCombiNameLabel;
     juce::TextEditor userCombiNameEditor;
+
+    // Harp (CC49) / Piano (CC55) values folded into the next "Save Current
+    // Sections as Combi". -1 = Off (the combi leaves them at 0). These two
+    // have no manual-section dropdown, so this row is the only UI path to put
+    // them into a user combi.
+    juce::Label userCombiHarpLabel;
+    juce::Slider userCombiHarpSlider;
+    juce::Label userCombiPianoLabel;
+    juce::Slider userCombiPianoSlider;
+
     juce::TextButton saveUserCombiButton { "Save Current Sections as Combi" };
     juce::TextButton deleteUserCombiButton { "Delete User Combi" };
     juce::TextButton exportUserCombisButton { "Export User Combis JSON" };

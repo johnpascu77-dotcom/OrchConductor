@@ -51,6 +51,8 @@ public:
     int getNarrativeLanePointCombiId(int laneIndex, int pointIndex) const noexcept;
     juce::String getNarrativeLanePointLabel(int laneIndex, int pointIndex) const;
     int getNarrativeLanePointPitchFieldIndex(int laneIndex, int pointIndex) const noexcept;
+    int getNarrativeLanePointHarpValue(int laneIndex, int pointIndex) const noexcept;
+    int getNarrativeLanePointPianoValue(int laneIndex, int pointIndex) const noexcept;
 
     OrchConductorRuntimePresetValueView getSectionPresetValue(const juce::String& sectionId,
                                                               int presetIndex,

@@ -1212,6 +1212,8 @@ void OrchConductorAudioProcessor::prepareToPlay (double, int)
 {
     lastResolvedNarrativePointIndex = -1;
     lastResolvedNarrativeCombiId = -1;
+    lastResolvedNarrativeHarpValue = -1;
+    lastResolvedNarrativePianoValue = -1;
     pendingFieldSelectIndex = -1;
     lastSentFieldSelectIndex = -1;
     explicitSendPresetRequested = false;
@@ -1322,6 +1324,8 @@ void OrchConductorAudioProcessor::setAuthorityMode (AuthorityMode mode)
         // regardless of which path (UI / automation / CC) changed the mode.
         lastResolvedNarrativePointIndex = -1;
         lastResolvedNarrativeCombiId = -1;
+        lastResolvedNarrativeHarpValue = -1;
+        lastResolvedNarrativePianoValue = -1;
         pendingFieldSelectIndex = -1;
         lastSentFieldSelectIndex = -1;
     }
@@ -1439,6 +1443,18 @@ void OrchConductorAudioProcessor::updateNarrativeScanResolution()
 
         if (fieldIndex >= 0 && fieldIndex != lastSentFieldSelectIndex)
             pendingFieldSelectIndex = fieldIndex;
+
+        const int harpValue =
+            runtimePresetCatalog.getNarrativeLanePointHarpValue (narrativeLaneIndex, selection.pointIndex);
+        const int pianoValue =
+            runtimePresetCatalog.getNarrativeLanePointPianoValue (narrativeLaneIndex, selection.pointIndex);
+
+        if (harpValue != lastResolvedNarrativeHarpValue || pianoValue != lastResolvedNarrativePianoValue)
+        {
+            lastResolvedNarrativeHarpValue = harpValue;
+            lastResolvedNarrativePianoValue = pianoValue;
+            sendPresetRequested = true; // harp/piano ride in the combi payload send
+        }
     }
 
     if (selection.combiId != lastResolvedNarrativeCombiId)
@@ -1683,15 +1699,18 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     }
 
     // Harp (CC49) and Piano (CC55) have no manual/section control surface -
-    // they only carry a value when a user combi's harpValue/pianoValue
-    // override is set (see UserCombiPreset). Every factory combi still
-    // resolves both to 0.
+    // they only carry a value when a combi's harpValue/pianoValue override is
+    // set (a user combi's, or - while Narrative Scan drives - the resolved
+    // lane point's). Every factory combi still resolves both to 0.
     int harpValue = (! shouldSendAllOff && useCombi)
                         ? getCombiPresetValueForCc (getEffectiveCombiPresetId(), reservedHarpCcNumber)
                         : 0;
 
     if (! shouldSendAllOff && useCombi)
         tryGetRuntimeCombiPresetValueForCc (getEffectiveCombiPresetId(), reservedHarpCcNumber, harpValue);
+
+    if (! shouldSendAllOff && isNarrativeScanDriving() && lastResolvedNarrativeHarpValue >= 0)
+        harpValue = lastResolvedNarrativeHarpValue;
 
     midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, reservedHarpCcNumber, harpValue), 0);
 
@@ -1701,6 +1720,9 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
 
     if (! shouldSendAllOff && useCombi)
         tryGetRuntimeCombiPresetValueForCc (getEffectiveCombiPresetId(), pianoCcNumber, pianoValue);
+
+    if (! shouldSendAllOff && isNarrativeScanDriving() && lastResolvedNarrativePianoValue >= 0)
+        pianoValue = lastResolvedNarrativePianoValue;
 
     midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, pianoCcNumber, pianoValue), 0);
 
@@ -2430,7 +2452,9 @@ juce::String OrchConductorAudioProcessor::createUserCombiNameFromCurrentSections
 
     return parts.joinIntoString ("+");
 }
-int OrchConductorAudioProcessor::createUserCombiPresetFromCurrentSections (const juce::String& name)
+int OrchConductorAudioProcessor::createUserCombiPresetFromCurrentSections (const juce::String& name,
+                                                                          int harpValue,
+                                                                          int pianoValue)
 {
     const auto presetId = getNextAvailableUserCombiPresetId();
 
@@ -2443,6 +2467,8 @@ int OrchConductorAudioProcessor::createUserCombiPresetFromCurrentSections (const
     preset.brassPresetId = getSectionPresetId (Section::brass);
     preset.percussionPresetId = getSectionPresetId (Section::percussion);
     preset.stringsPresetId = getSectionPresetId (Section::strings);
+    preset.harpValue = (harpValue >= 0 && harpValue <= 127) ? harpValue : -1;
+    preset.pianoValue = (pianoValue >= 0 && pianoValue <= 127) ? pianoValue : -1;
 
     userCombiPresets[presetId] = preset;
 

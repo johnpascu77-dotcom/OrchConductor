@@ -414,6 +414,28 @@ int OrchConductorRuntimePresetCatalog::getNarrativeLanePointPitchFieldIndex(int 
     return point->pitchFieldIndex;
 }
 
+int OrchConductorRuntimePresetCatalog::getNarrativeLanePointHarpValue(int laneIndex,
+                                                                      int pointIndex) const noexcept
+{
+    const auto* point = findNarrativeLanePoint(library_, laneIndex, pointIndex);
+
+    if (point == nullptr)
+        return -1;
+
+    return point->harpValue;
+}
+
+int OrchConductorRuntimePresetCatalog::getNarrativeLanePointPianoValue(int laneIndex,
+                                                                       int pointIndex) const noexcept
+{
+    const auto* point = findNarrativeLanePoint(library_, laneIndex, pointIndex);
+
+    if (point == nullptr)
+        return -1;
+
+    return point->pianoValue;
+}
+
 OrchConductorRuntimePresetValueView OrchConductorRuntimePresetCatalog::getSectionPresetValue(
     const juce::String& sectionId,
     int presetIndex,

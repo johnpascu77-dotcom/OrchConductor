@@ -644,7 +644,10 @@ bool verifyNarrativeScanDrivesCombiSend()
     for (int cc = 20; cc <= 48; ++cc)
         ok = expectCcValue(atEnd, cc, 127, "narrative scan end full orchestra") && ok;
 
-    ok = expectCcValue(atEnd, 49, 0, "narrative scan end reserved") && ok;
+    // organic_build's final point now sets harpValue = pianoValue = 127 (the
+    // only way a narrative lane brings Harp/Piano in - no factory combi does).
+    ok = expectCcValue(atEnd, 49, 127, "narrative scan end lane-point harp override") && ok;
+    ok = expectCcValue(atEnd, 55, 127, "narrative scan end lane-point piano override") && ok;
 
     for (int cc = 50; cc <= 54; ++cc)
         ok = expectCcValue(atEnd, cc, 127, "narrative scan end full strings") && ok;
@@ -658,6 +661,15 @@ bool verifyNarrativeScanDrivesCombiSend()
 
     ok = expectCcValue(atEnd, 105, 0, "narrative scan end field select (#0)") && ok;
     ok = checkEquals(processor.getLastSentFieldSelectIndex(), 0, "narrative scan end field index") && ok;
+
+    // Back to point 3 (position 0.55): harpValue 80, no pianoValue -> piano
+    // drops back to the combi's own value (0). The harp/piano change alone
+    // triggers the resend even though this is a lane-point move.
+    processor.setNarrativePosition(0.55);
+    const auto atMid = captureMidi(processor);
+    ok = checkPass(atMid.eventCount > 0, "narrative scan mid-point move triggers a resend") && ok;
+    ok = expectCcValue(atMid, 49, 80, "narrative scan mid-point harp override (80)") && ok;
+    ok = expectCcValue(atMid, 55, 0, "narrative scan mid-point piano falls back to 0") && ok;
 
     return ok;
 }

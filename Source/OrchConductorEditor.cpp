@@ -112,8 +112,8 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
     setResizable (true, true);
-    setResizeLimits (900, 680, 1400, 1160);
-    setSize (980, 856);
+    setResizeLimits (900, 700, 1400, 1200);
+    setSize (980, 894);
 
     titleLabel.setText ("OrchConductor", juce::dontSendNotification);
     titleLabel.setJustificationType (juce::Justification::centred);
@@ -485,6 +485,36 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     userCombiNameEditor.setColour (juce::TextEditor::highlightColourId, juce::Colour::fromRGB (45, 75, 95));
     addAndMakeVisible (userCombiNameEditor);
 
+    auto setupCombiCcSlider = [this] (juce::Slider& slider, juce::Label& label, const juce::String& text)
+    {
+        label.setText (text, juce::dontSendNotification);
+        styleLabel (label, juce::Colour::fromRGB (205, 220, 230), 12.0f, juce::Font::plain);
+        addAndMakeVisible (label);
+
+        slider.setSliderStyle (juce::Slider::LinearHorizontal);
+        slider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 54, 22);
+        slider.setRange (-1.0, 127.0, 1.0);
+        slider.setValue (-1.0, juce::dontSendNotification);
+        slider.textFromValueFunction = [] (double v)
+        {
+            return v < 0.0 ? juce::String ("Off") : juce::String (juce::roundToInt (v));
+        };
+        slider.valueFromTextFunction = [] (const juce::String& t)
+        {
+            return t.trim().equalsIgnoreCase ("off") ? -1.0 : (double) t.getIntValue();
+        };
+        slider.setColour (juce::Slider::backgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+        slider.setColour (juce::Slider::trackColourId, juce::Colour::fromRGB (95, 200, 245));
+        slider.setColour (juce::Slider::thumbColourId, juce::Colours::white);
+        slider.setColour (juce::Slider::textBoxTextColourId, juce::Colours::white);
+        slider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+        slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colour::fromRGB (70, 85, 95));
+        addAndMakeVisible (slider);
+    };
+
+    setupCombiCcSlider (userCombiHarpSlider, userCombiHarpLabel, "Harp (CC49)");
+    setupCombiCcSlider (userCombiPianoSlider, userCombiPianoLabel, "Piano (CC55)");
+
     saveUserCombiButton.setColour (juce::TextButton::buttonColourId, juce::Colour::fromRGB (45, 75, 95));
     saveUserCombiButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
     addAndMakeVisible (saveUserCombiButton);
@@ -501,14 +531,24 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
             userCombiNameEditor.setText (name, juce::dontSendNotification);
         }
 
-        const auto id = audioProcessor.createUserCombiPresetFromCurrentSections (name);
+        const int harpValue = juce::roundToInt (userCombiHarpSlider.getValue());
+        const int pianoValue = juce::roundToInt (userCombiPianoSlider.getValue());
+
+        const auto id = audioProcessor.createUserCombiPresetFromCurrentSections (name, harpValue, pianoValue);
 
         if (id >= 0)
         {
             addCombiPresetItems (combiPresetBox, audioProcessor);
             combiPresetBox.setSelectedId (id + 1, juce::sendNotificationSync);
 
-            lastActionText = "Last action: Saved user combi preset: " + name;
+            userCombiHarpSlider.setValue (-1.0, juce::dontSendNotification);
+            userCombiPianoSlider.setValue (-1.0, juce::dontSendNotification);
+
+            juce::String extras;
+            if (harpValue >= 0) extras << " Harp " << harpValue;
+            if (pianoValue >= 0) extras << " Piano " << pianoValue;
+
+            lastActionText = "Last action: Saved user combi preset: " + name + extras;
         }
         else
         {
@@ -764,6 +804,16 @@ void OrchConductorAudioProcessorEditor::resized()
     userCombiNameEditor.setBounds (userCombiRow.removeFromLeft (260).reduced (0, 2));
     userCombiRow.removeFromLeft (10);
     saveUserCombiButton.setBounds (userCombiRow.removeFromLeft (300).reduced (0, 2));
+
+    area.removeFromTop (4);
+
+    auto userCombiCcRow = area.removeFromTop (28);
+    userCombiCcRow.removeFromLeft (150);
+    userCombiHarpLabel.setBounds (userCombiCcRow.removeFromLeft (80));
+    userCombiHarpSlider.setBounds (userCombiCcRow.removeFromLeft (220).reduced (0, 2));
+    userCombiCcRow.removeFromLeft (24);
+    userCombiPianoLabel.setBounds (userCombiCcRow.removeFromLeft (84));
+    userCombiPianoSlider.setBounds (userCombiCcRow.removeFromLeft (220).reduced (0, 2));
 
     area.removeFromTop (6);
 
