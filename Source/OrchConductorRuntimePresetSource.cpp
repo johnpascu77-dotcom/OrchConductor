@@ -55,4 +55,43 @@ RuntimePresetSourceResult RuntimePresetSource::loadEmbeddedFactoryJsonIfEnabled(
 #endif
 }
 
+RuntimePresetSourceResult RuntimePresetSource::loadFromJsonFileIfEnabled(const juce::File& file)
+{
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+    if (! file.existsAsFile())
+    {
+        RuntimePresetSourceResult result;
+        result.diagnosticMessage = "Narrative library file does not exist: " + file.getFullPathName();
+        return result;
+    }
+
+    auto loadResult = PresetLibraryJsonLoader::fromJsonFile(file);
+
+    if (! loadResult.wasOk())
+    {
+        RuntimePresetSourceResult result;
+        result.diagnosticMessage = "Narrative library JSON parse failed: " + loadResult.errorMessage;
+        return result;
+    }
+
+    if (! loadResult.library.isValid())
+    {
+        RuntimePresetSourceResult result;
+        result.diagnosticMessage = "Narrative library JSON failed final isValid() check.";
+        return result;
+    }
+
+    RuntimePresetSourceResult result;
+    result.status = RuntimePresetSourceStatus::loaded;
+    result.library = std::move(loadResult.library);
+    result.diagnosticMessage = "Narrative library JSON loaded from " + file.getFileName();
+    return result;
+#else
+    juce::ignoreUnused(file);
+    RuntimePresetSourceResult result;
+    result.diagnosticMessage = "Runtime JSON presets are disabled by ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS.";
+    return result;
+#endif
+}
+
 } // namespace orchconductor

@@ -112,8 +112,8 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
     setResizable (true, true);
-    setResizeLimits (900, 620, 1400, 1100);
-    setSize (980, 800);
+    setResizeLimits (900, 680, 1400, 1160);
+    setSize (980, 856);
 
     titleLabel.setText ("OrchConductor", juce::dontSendNotification);
     titleLabel.setJustificationType (juce::Justification::centred);
@@ -240,6 +240,84 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     narrativeScanStatusLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (205, 220, 230));
     narrativeScanStatusLabel.setFont (juce::FontOptions (12.0f));
     addAndMakeVisible (narrativeScanStatusLabel);
+
+    exportNarrativeLibraryButton.setColour (juce::TextButton::buttonColourId, juce::Colour::fromRGB (45, 60, 80));
+    exportNarrativeLibraryButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
+    addAndMakeVisible (exportNarrativeLibraryButton);
+
+    exportNarrativeLibraryButton.onClick = [this]
+    {
+        narrativeLibraryExportChooser = std::make_unique<juce::FileChooser> (
+            "Export Lane Library JSON (editable template)",
+            juce::File::getSpecialLocation (juce::File::userDocumentsDirectory).getChildFile ("OrchConductorLibrary.json"),
+            "*.json");
+
+        narrativeLibraryExportChooser->launchAsync (juce::FileBrowserComponent::saveMode
+                                                 | juce::FileBrowserComponent::canSelectFiles
+                                                 | juce::FileBrowserComponent::warnAboutOverwriting,
+            [this] (const juce::FileChooser& chooser)
+            {
+                const auto file = chooser.getResult();
+
+                if (file == juce::File{})
+                    return;
+
+                const auto ok = audioProcessor.exportNarrativeLibraryTemplateToFile (file);
+
+                lastActionText = ok
+                    ? "Last action: Exported lane library template to " + file.getFileName()
+                    : "Last action: Failed to export lane library template";
+
+                updateStatus();
+            });
+    };
+
+    importNarrativeLibraryButton.setColour (juce::TextButton::buttonColourId, juce::Colour::fromRGB (55, 70, 55));
+    importNarrativeLibraryButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
+    addAndMakeVisible (importNarrativeLibraryButton);
+
+    importNarrativeLibraryButton.onClick = [this]
+    {
+        narrativeLibraryImportChooser = std::make_unique<juce::FileChooser> (
+            "Import Lane Library JSON",
+            juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
+            "*.json");
+
+        narrativeLibraryImportChooser->launchAsync (juce::FileBrowserComponent::openMode
+                                                 | juce::FileBrowserComponent::canSelectFiles,
+            [this] (const juce::FileChooser& chooser)
+            {
+                const auto file = chooser.getResult();
+
+                if (file == juce::File{})
+                    return;
+
+                if (! file.existsAsFile())
+                {
+                    lastActionText = "Last action: Lane library import failed - file does not exist";
+                    updateStatus();
+                    return;
+                }
+
+                const auto imported = audioProcessor.importNarrativeLibraryFromFile (file);
+
+                rebuildNarrativeLaneItems();
+                narrativeLaneBox.setSelectedId (audioProcessor.getNarrativeLaneIndex() + 1, juce::dontSendNotification);
+                updateNarrativeScanControls();
+                updateNarrativeMetadataDisplay();
+
+                lastActionText = imported
+                    ? "Last action: Imported lane library from " + file.getFileName()
+                    : "Last action: Lane library import rejected - see the line above";
+
+                updateStatus();
+            });
+    };
+
+    narrativeLibrarySourceLabel.setJustificationType (juce::Justification::centred);
+    narrativeLibrarySourceLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (150, 170, 185));
+    narrativeLibrarySourceLabel.setFont (juce::FontOptions (11.0f));
+    addAndMakeVisible (narrativeLibrarySourceLabel);
 
     sectionPresetsLabel.setText ("Manual Section Presets", juce::dontSendNotification);
     sectionPresetsLabel.setJustificationType (juce::Justification::centred);
@@ -740,6 +818,15 @@ void OrchConductorAudioProcessorEditor::resized()
 
     narrativeScanStatusLabel.setBounds (area.removeFromTop (20));
 
+    area.removeFromTop (6);
+
+    auto narrativeLibraryRow = area.removeFromTop (30);
+    exportNarrativeLibraryButton.setBounds (narrativeLibraryRow.removeFromLeft (220).reduced (0, 2));
+    narrativeLibraryRow.removeFromLeft (12);
+    importNarrativeLibraryButton.setBounds (narrativeLibraryRow.removeFromLeft (220).reduced (0, 2));
+
+    narrativeLibrarySourceLabel.setBounds (area.removeFromTop (18));
+
     area.removeFromTop (12);
 
     narrativeMetadataLabel.setBounds (area.removeFromTop (22));
@@ -968,6 +1055,9 @@ void OrchConductorAudioProcessorEditor::rebuildNarrativeLaneItems()
 
 void OrchConductorAudioProcessorEditor::updateNarrativeScanControls()
 {
+    narrativeLibrarySourceLabel.setText (audioProcessor.getNarrativeLibrarySourceStatus(),
+                                         juce::dontSendNotification);
+
     const bool narrative =
         audioProcessor.getAuthorityMode() == OrchConductorAudioProcessor::AuthorityMode::narrativeScan;
 

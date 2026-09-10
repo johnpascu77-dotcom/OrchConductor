@@ -301,3 +301,29 @@ contract. Revisit only if lane-scanning proves too coarse in real use.
 - One `Narrative Position` automation lane now evolves **orchestration + density + harmonic
   field** together.
 - **Coupling**: OC's `maxPitchFieldIndex = 14` ↔ OrchNoteFilter's 15-entry list. Both append-only.
+
+## 14. Narrative lane library — import from JSON (no rebuild) — DONE (`<this branch>`, 2026-09-10)
+
+The 6 narrative-scan lanes live only in the runtime JSON catalog
+(`Examples/orchconductor_library_v1.example.json`, embedded). Growing that library used to mean a
+rebuild. Now it does not.
+
+- `ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS` is **ON by default** (was OFF), so the embedded
+  library's lanes are always available.
+- The editor gains **`Export Lane Library JSON`** (writes the built-in factory library out as an
+  editable starting template) and **`Import Lane Library JSON`** (loads an edited file, adopts its
+  lanes live, and copies it to `<userAppData>/OrchConductor/NarrativeLibrary.json` so it
+  auto-loads next launch). Same pattern as the user-combi Export/Import, and the same
+  auto-library-file idea as `loadUserCombiPresetsFromUserLibrary()`.
+- **Only the narrative lanes + labels of a loaded file take effect.** CC values stay
+  hardcoded-authoritative — `runRuntimeCatalogProbe()` adopts the catalog for lanes whenever it is
+  a ready, factory-shaped source, but `runtimePresetCatalogAuthorityActive` (values) is still
+  gated on `ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL` (OFF). So an imported file with
+  edited combi values loads its lanes but does not change MIDI output.
+- Rejected imports (missing sections, not a complete `orchconductor_library_v1` document) keep the
+  previously-loaded library and say so in the status line.
+- **Thread safety**: `runtimePresetCatalog` is now guarded by a `juce::SpinLock` - the audio
+  thread reads it in `updateNarrativeScanResolution()` / `tryGetRuntime*()` while the message
+  thread can swap it whole on import.
+- The narrative lane parameter already supported 16 lanes; no schema change was needed to grow
+  past 6.

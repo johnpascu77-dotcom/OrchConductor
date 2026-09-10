@@ -70,11 +70,17 @@ private:
     juce::TextButton deleteUserCombiButton { "Delete User Combi" };
     juce::TextButton exportUserCombisButton { "Export User Combis JSON" };
     juce::TextButton importUserCombisButton { "Import User Combis JSON" };
-    
+
+    juce::TextButton exportNarrativeLibraryButton { "Export Lane Library JSON" };
+    juce::TextButton importNarrativeLibraryButton { "Import Lane Library JSON" };
+    juce::Label narrativeLibrarySourceLabel;
+
     juce::String lastActionText { "Last action: None" };
     int sendRequestCount { 0 };
     std::unique_ptr<juce::FileChooser> userCombiExportChooser;
     std::unique_ptr<juce::FileChooser> userCombiImportChooser;
+    std::unique_ptr<juce::FileChooser> narrativeLibraryExportChooser;
+    std::unique_ptr<juce::FileChooser> narrativeLibraryImportChooser;
     void updateStatus();
     void updateNarrativeMetadataDisplay();
     void updateNarrativeScanControls();

@@ -4,6 +4,7 @@
 #include "OrchConductorRuntimePresetSource.h"
 #include "OrchConductorRuntimePresetCatalog.h"
 #include "OrchConductorNarrativeScanResolver.h"
+#include "OrchConductorEmbeddedFactoryJson.h"
 
 namespace
 {
@@ -716,100 +717,28 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
         "Field Select CC (0 = off)",
         0, 127, 105));
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
-    const auto runtimeJsonPresetProbe = orchconductor::RuntimePresetSource::loadEmbeddedFactoryJsonIfEnabled();
+    runRuntimeCatalogProbe (orchconductor::RuntimePresetSource::loadEmbeddedFactoryJsonIfEnabled());
 
-    runtimeJsonPresetProbeLoaded = runtimeJsonPresetProbe.wasLoaded();
-    runtimeJsonPresetProbeRequiresFallback = runtimeJsonPresetProbe.requiresHardcodedFallback();
-    runtimeJsonPresetProbeDiagnostic = runtimeJsonPresetProbe.diagnosticMessage;
-
-    const auto runtimePresetCatalogAuthorityProbe =
-        OrchConductorRuntimePresetCatalog::createFromRuntimeSource(runtimeJsonPresetProbe);
-
-    runtimePresetCatalogAuthorityProbeReady = runtimePresetCatalogAuthorityProbe.isReady();
-    runtimePresetCatalogAuthorityProbeRequiresFallback = runtimePresetCatalogAuthorityProbe.requiresFallback();
-    runtimePresetCatalogAuthorityProbeHasExpectedFactoryShape = runtimePresetCatalogAuthorityProbe.hasExpectedFactoryShape();
-    runtimePresetCatalogAuthorityProbeDiagnostic = runtimePresetCatalogAuthorityProbe.getDiagnosticMessage();
-
-    if (runtimePresetCatalogAuthorityProbe.isReady()
-        && runtimePresetCatalogAuthorityProbe.hasExpectedFactoryShape()
-        && ! runtimePresetCatalogAuthorityProbe.requiresFallback())
+    // A previously-imported narrative-lane library lives at
+    // getNarrativeLibraryFile(); load it now so its lanes are available with
+    // no per-project setup (same pattern as loadUserCombiPresetsFromUserLibrary).
+    if (const auto narrativeLibrary = getNarrativeLibraryFile(); narrativeLibrary.existsAsFile())
     {
-        runtimeCatalogPayloadEquivalenceProbeRun = true;
-        runtimeCatalogPayloadEquivalenceProbeBlockedByFallback = false;
-        runtimeCatalogPayloadEquivalenceProbePassed =
-            verifyRuntimeCatalogPayloadEquivalenceSentinels(runtimePresetCatalogAuthorityProbe);
+        const auto fileProbe = orchconductor::RuntimePresetSource::loadFromJsonFileIfEnabled (narrativeLibrary);
 
-        runtimeCatalogPayloadEquivalenceProbeDiagnostic =
-            runtimeCatalogPayloadEquivalenceProbePassed
-                ? "Runtime catalog payload equivalence probe passed for broadened sentinel hardcoded presets."
-                : "Runtime catalog payload equivalence probe failed for broadened sentinel hardcoded presets.";
-
-        runtimeCatalogCoverageAuditRun = true;
-        runtimeCatalogCoverageAuditBlockedByFallback = false;
-        runtimeCatalogCoverageAuditPassed =
-            verifyRuntimeCatalogCoverageAudit(runtimePresetCatalogAuthorityProbe);
-
-        runtimeCatalogCoverageAuditDiagnostic =
-            runtimeCatalogCoverageAuditPassed
-                ? "Runtime catalog coverage audit passed for expected factory catalog shape and narrative lanes."
-                : "Runtime catalog coverage audit failed for expected factory catalog shape or narrative lanes.";
-#if ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL
-        runtimeCatalogAuthorityTrialRun = true;
-        runtimeCatalogAuthorityTrialBlocked = false;
-        runtimeCatalogAuthorityTrialPass =
-            verifyRuntimeCatalogAuthorityTrialSentinels(runtimePresetCatalogAuthorityProbe);
-
-        runtimeCatalogAuthorityTrialDiagnostic =
-            runtimeCatalogAuthorityTrialPass
-                ? "Runtime catalog authority trial diagnostic passed."
-                : "Runtime catalog authority trial diagnostic failed: sentinel payloads do not match expected factory authority values.";
-#else
-        runtimeCatalogAuthorityTrialRun = false;
-        runtimeCatalogAuthorityTrialPass = false;
-        runtimeCatalogAuthorityTrialBlocked = true;
-        runtimeCatalogAuthorityTrialDiagnostic =
-            "Runtime catalog authority trial is disabled by ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL.";
-#endif
-
-#if ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL
-        runtimePresetCatalogAuthorityActive =
-            runtimeCatalogPayloadEquivalenceProbePassed
-            && runtimeCatalogCoverageAuditPassed
-            && runtimeCatalogAuthorityTrialPass;
-#else
-        runtimePresetCatalogAuthorityActive =
-            runtimeCatalogPayloadEquivalenceProbePassed
-            && runtimeCatalogCoverageAuditPassed;
-#endif
-
-        runtimePresetCatalogAuthorityStatus =
-            runtimePresetCatalogAuthorityActive
-                ? "Runtime preset catalog authority is active."
-                : "Runtime preset catalog authority remains inactive because one or more runtime catalog validation gates failed.";
-
-        if (runtimePresetCatalogAuthorityActive)
-            runtimePresetCatalog = runtimePresetCatalogAuthorityProbe;
-
-    }
-    else
-    {
-        runtimeCatalogPayloadEquivalenceProbeRun = false;
-        runtimeCatalogPayloadEquivalenceProbePassed = false;
-        runtimeCatalogPayloadEquivalenceProbeBlockedByFallback = true;
-        runtimeCatalogPayloadEquivalenceProbeDiagnostic =
-            "Runtime catalog payload equivalence probe blocked because runtime catalog requires fallback or is not source-backed.";
-
-        runtimeCatalogCoverageAuditRun = false;
-        runtimeCatalogCoverageAuditPassed = false;
-        runtimeCatalogCoverageAuditBlockedByFallback = true;
-        runtimeCatalogCoverageAuditDiagnostic =
-            "Runtime catalog coverage audit blocked because runtime catalog requires fallback or is not source-backed.";
-
-        runtimeCatalogAuthorityTrialRun = false;
-        runtimeCatalogAuthorityTrialPass = false;
-        runtimeCatalogAuthorityTrialBlocked = true;
-        runtimeCatalogAuthorityTrialDiagnostic =
-            "Runtime catalog authority trial diagnostic was blocked because runtime catalog requires fallback or is not source-backed.";
+        if (fileProbe.wasLoaded() && runRuntimeCatalogProbe (fileProbe))
+        {
+            narrativeLibraryExternalFile = narrativeLibrary;
+            narrativeLibrarySourceStatus =
+                "Narrative library: " + juce::String (runtimePresetCatalog.getNarrativeLaneCount())
+                + " lanes from " + narrativeLibrary.getFileName() + " (auto-loaded).";
+        }
+        else
+        {
+            narrativeLibrarySourceStatus =
+                "Narrative library: " + narrativeLibrary.getFileName()
+                + " could not be loaded (" + fileProbe.diagnosticMessage + ") - using built-in.";
+        }
     }
 #else
     runtimeJsonPresetProbeLoaded = false;
@@ -849,6 +778,190 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
 
 OrchConductorAudioProcessor::~OrchConductorAudioProcessor()
 {
+}
+
+bool OrchConductorAudioProcessor::runRuntimeCatalogProbe (const orchconductor::RuntimePresetSourceResult& runtimeJsonPresetProbe)
+{
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+    runtimeJsonPresetProbeLoaded = runtimeJsonPresetProbe.wasLoaded();
+    runtimeJsonPresetProbeRequiresFallback = runtimeJsonPresetProbe.requiresHardcodedFallback();
+    runtimeJsonPresetProbeDiagnostic = runtimeJsonPresetProbe.diagnosticMessage;
+
+    const auto runtimePresetCatalogAuthorityProbe =
+        OrchConductorRuntimePresetCatalog::createFromRuntimeSource (runtimeJsonPresetProbe);
+
+    runtimePresetCatalogAuthorityProbeReady = runtimePresetCatalogAuthorityProbe.isReady();
+    runtimePresetCatalogAuthorityProbeRequiresFallback = runtimePresetCatalogAuthorityProbe.requiresFallback();
+    runtimePresetCatalogAuthorityProbeHasExpectedFactoryShape = runtimePresetCatalogAuthorityProbe.hasExpectedFactoryShape();
+    runtimePresetCatalogAuthorityProbeDiagnostic = runtimePresetCatalogAuthorityProbe.getDiagnosticMessage();
+
+    if (runtimePresetCatalogAuthorityProbe.isReady()
+        && runtimePresetCatalogAuthorityProbe.hasExpectedFactoryShape()
+        && ! runtimePresetCatalogAuthorityProbe.requiresFallback())
+    {
+        runtimeCatalogPayloadEquivalenceProbeRun = true;
+        runtimeCatalogPayloadEquivalenceProbeBlockedByFallback = false;
+        runtimeCatalogPayloadEquivalenceProbePassed =
+            verifyRuntimeCatalogPayloadEquivalenceSentinels (runtimePresetCatalogAuthorityProbe);
+
+        runtimeCatalogPayloadEquivalenceProbeDiagnostic =
+            runtimeCatalogPayloadEquivalenceProbePassed
+                ? "Runtime catalog payload equivalence probe passed for broadened sentinel hardcoded presets."
+                : "Runtime catalog payload equivalence probe failed for broadened sentinel hardcoded presets.";
+
+        runtimeCatalogCoverageAuditRun = true;
+        runtimeCatalogCoverageAuditBlockedByFallback = false;
+        runtimeCatalogCoverageAuditPassed =
+            verifyRuntimeCatalogCoverageAudit (runtimePresetCatalogAuthorityProbe);
+
+        runtimeCatalogCoverageAuditDiagnostic =
+            runtimeCatalogCoverageAuditPassed
+                ? "Runtime catalog coverage audit passed for expected factory catalog shape and narrative lanes."
+                : "Runtime catalog coverage audit failed for expected factory catalog shape or narrative lanes.";
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL
+        runtimeCatalogAuthorityTrialRun = true;
+        runtimeCatalogAuthorityTrialBlocked = false;
+        runtimeCatalogAuthorityTrialPass =
+            verifyRuntimeCatalogAuthorityTrialSentinels (runtimePresetCatalogAuthorityProbe);
+
+        runtimeCatalogAuthorityTrialDiagnostic =
+            runtimeCatalogAuthorityTrialPass
+                ? "Runtime catalog authority trial diagnostic passed."
+                : "Runtime catalog authority trial diagnostic failed: sentinel payloads do not match expected factory authority values.";
+#else
+        runtimeCatalogAuthorityTrialRun = false;
+        runtimeCatalogAuthorityTrialPass = false;
+        runtimeCatalogAuthorityTrialBlocked = true;
+        runtimeCatalogAuthorityTrialDiagnostic =
+            "Runtime catalog authority trial is disabled by ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL.";
+#endif
+
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL
+        runtimePresetCatalogAuthorityActive =
+            runtimeCatalogPayloadEquivalenceProbePassed
+            && runtimeCatalogCoverageAuditPassed
+            && runtimeCatalogAuthorityTrialPass;
+#else
+        runtimePresetCatalogAuthorityActive =
+            runtimeCatalogPayloadEquivalenceProbePassed
+            && runtimeCatalogCoverageAuditPassed;
+#endif
+
+        runtimePresetCatalogAuthorityStatus =
+            runtimePresetCatalogAuthorityActive
+                ? "Runtime preset catalog authority is active."
+                : "Runtime preset catalog authority remains inactive because one or more runtime catalog validation gates failed.";
+
+        // Adopt the catalog for its narrative lanes + labels whenever it is a
+        // ready, factory-shaped source - NOT only when it is authoritative for
+        // CC values. This is what lets an imported lane library take effect
+        // even if its combi/section values diverge from the hardcoded tables
+        // (those stay authoritative unless the separate authority trial is on).
+        {
+            const juce::SpinLock::ScopedLockType lock (runtimeCatalogLock);
+            runtimePresetCatalog = runtimePresetCatalogAuthorityProbe;
+        }
+
+        return true;
+    }
+
+    runtimeCatalogPayloadEquivalenceProbeRun = false;
+    runtimeCatalogPayloadEquivalenceProbePassed = false;
+    runtimeCatalogPayloadEquivalenceProbeBlockedByFallback = true;
+    runtimeCatalogPayloadEquivalenceProbeDiagnostic =
+        "Runtime catalog payload equivalence probe blocked because runtime catalog requires fallback or is not source-backed.";
+
+    runtimeCatalogCoverageAuditRun = false;
+    runtimeCatalogCoverageAuditPassed = false;
+    runtimeCatalogCoverageAuditBlockedByFallback = true;
+    runtimeCatalogCoverageAuditDiagnostic =
+        "Runtime catalog coverage audit blocked because runtime catalog requires fallback or is not source-backed.";
+
+    runtimeCatalogAuthorityTrialRun = false;
+    runtimeCatalogAuthorityTrialPass = false;
+    runtimeCatalogAuthorityTrialBlocked = true;
+    runtimeCatalogAuthorityTrialDiagnostic =
+        "Runtime catalog authority trial diagnostic was blocked because runtime catalog requires fallback or is not source-backed.";
+
+    return false;
+#else
+    juce::ignoreUnused (runtimeJsonPresetProbe);
+    return false;
+#endif
+}
+
+juce::File OrchConductorAudioProcessor::getNarrativeLibraryFile() const
+{
+    return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+        .getChildFile ("OrchConductor")
+        .getChildFile ("NarrativeLibrary.json");
+}
+
+bool OrchConductorAudioProcessor::importNarrativeLibraryFromFile (const juce::File& file)
+{
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+    const auto fileProbe = orchconductor::RuntimePresetSource::loadFromJsonFileIfEnabled (file);
+
+    if (! fileProbe.wasLoaded())
+    {
+        narrativeLibrarySourceStatus = "Narrative library: import failed - " + fileProbe.diagnosticMessage;
+        return false;
+    }
+
+    if (! runRuntimeCatalogProbe (fileProbe))
+    {
+        narrativeLibrarySourceStatus =
+            "Narrative library: import rejected - file is not a complete factory-shaped library. Previous library kept.";
+        return false;
+    }
+
+    // Keep a copy so it auto-loads on the next launch (same as the user-combi
+    // library). A failed copy is non-fatal - the catalog is already live.
+    const auto destination = getNarrativeLibraryFile();
+    destination.getParentDirectory().createDirectory();
+    const bool copied = file == destination ? true : file.copyFileTo (destination);
+
+    narrativeLibraryExternalFile = destination;
+    narrativeLibrarySourceStatus =
+        "Narrative library: " + juce::String (runtimePresetCatalog.getNarrativeLaneCount())
+        + " lanes from " + file.getFileName()
+        + (copied ? juce::String (" (saved to library).") : juce::String (" (loaded; could not save copy)."));
+
+    return true;
+#else
+    juce::ignoreUnused (file);
+    return false;
+#endif
+}
+
+bool OrchConductorAudioProcessor::exportNarrativeLibraryTemplateToFile (const juce::File& file) const
+{
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+    const auto embeddedJson = orchconductor::getEmbeddedFactoryJson();
+
+    if (! embeddedJson.isValid())
+        return false;
+
+    const auto jsonText = juce::String::fromUTF8 (embeddedJson.data, embeddedJson.size);
+
+    if (jsonText.isEmpty())
+        return false;
+
+    return file.replaceWithText (jsonText);
+#else
+    juce::ignoreUnused (file);
+    return false;
+#endif
+}
+
+juce::String OrchConductorAudioProcessor::getNarrativeLibrarySourceStatus() const
+{
+    return narrativeLibrarySourceStatus;
+}
+
+bool OrchConductorAudioProcessor::isNarrativeLibraryExternal() const
+{
+    return narrativeLibraryExternalFile != juce::File{};
 }
 
 const juce::String OrchConductorAudioProcessor::getName() const
@@ -1300,6 +1413,10 @@ void OrchConductorAudioProcessor::applyNarrativeControlCcInput (const juce::Midi
 
 void OrchConductorAudioProcessor::updateNarrativeScanResolution()
 {
+    // runtimePresetCatalog can be replaced whole by importNarrativeLibraryFromFile()
+    // on the message thread - hold the lock across every read of it here.
+    const juce::SpinLock::ScopedLockType lock (runtimeCatalogLock);
+
     // Narrative lanes live only in the loaded runtime catalog. If the catalog
     // is the fallback (no lanes) the resolver returns an invalid selection and
     // nothing is sent.
@@ -1362,6 +1479,8 @@ bool OrchConductorAudioProcessor::tryGetRuntimeSectionPresetValueForCc (Section 
     if (sectionId.isEmpty())
         return false;
 
+    const juce::SpinLock::ScopedLockType lock (runtimeCatalogLock);
+
     const int valueCount = runtimePresetCatalog.getSectionPresetValueCount (sectionId, presetId);
 
     for (int valueIndex = 0; valueIndex < valueCount; ++valueIndex)
@@ -1381,6 +1500,8 @@ bool OrchConductorAudioProcessor::tryGetRuntimeCombiPresetValueForCc (int preset
 {
     if (! runtimePresetCatalogAuthorityActive)
         return false;
+
+    const juce::SpinLock::ScopedLockType lock (runtimeCatalogLock);
 
     const int valueCount = runtimePresetCatalog.getCombiPresetValueCount (presetId);
 
@@ -1467,8 +1588,12 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
             && authorityMode == AuthorityMode::narrativeScan
             && lastResolvedNarrativePointIndex >= 0)
         {
-            const int currentPointField = runtimePresetCatalog.getNarrativeLanePointPitchFieldIndex (
-                narrativeLaneIndex, lastResolvedNarrativePointIndex);
+            const int currentPointField = [this]
+            {
+                const juce::SpinLock::ScopedLockType lock (runtimeCatalogLock);
+                return runtimePresetCatalog.getNarrativeLanePointPitchFieldIndex (
+                    narrativeLaneIndex, lastResolvedNarrativePointIndex);
+            }();
 
             if (currentPointField >= 0)
                 fieldToSend = currentPointField;

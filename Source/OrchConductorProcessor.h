@@ -266,6 +266,22 @@ public:
 
     bool isRuntimePresetCatalogAuthorityActive() const;
     juce::String getRuntimePresetCatalogAuthorityStatus() const;
+
+    // Narrative-lane library JSON import/export (editor "Import/Export Lane
+    // Library JSON" buttons). Import validates the file, adopts its narrative
+    // lanes live (no rebuild), and copies it to getNarrativeLibraryFile() so
+    // it auto-loads next launch. Export writes the current built-in factory
+    // library JSON as an editable starting template. Both are no-ops that
+    // return false when ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS is off.
+    bool importNarrativeLibraryFromFile (const juce::File& file);
+    bool exportNarrativeLibraryTemplateToFile (const juce::File& file) const;
+    juce::String getNarrativeLibrarySourceStatus() const;
+    bool isNarrativeLibraryExternal() const;
+
+    // The auto-loaded / import-target narrative-lane library JSON:
+    // <userAppData>/OrchConductor/NarrativeLibrary.json. Mirrors how
+    // getUserCombiLibraryFile() works for user combis.
+    juce::File getNarrativeLibraryFile() const;
 private:
     static juce::String getRuntimeCatalogSectionId (Section section);
 
@@ -381,6 +397,29 @@ private:
     OrchConductorRuntimePresetCatalog runtimePresetCatalog { OrchConductorRuntimePresetCatalog::createFallbackCatalog() };
     bool runtimePresetCatalogAuthorityActive { false };
     juce::String runtimePresetCatalogAuthorityStatus { "Runtime preset catalog authority is inactive." };
+
+    // Guards runtimePresetCatalog against a torn read: the audio thread reads
+    // it in updateNarrativeScanResolution() / tryGetRuntime*() while the
+    // message thread can replace it whole from importNarrativeLibraryFromFile().
+    // The critical sections are tiny and near-uncontended (import is a rare,
+    // user-initiated action), so a SpinLock is the right tool.
+    mutable juce::SpinLock runtimeCatalogLock;
+
+    // Empty until a narrative-lane library JSON is loaded from disk (either the
+    // auto-loaded copy at getNarrativeLibraryFile() on construction, or an
+    // explicit "Import Lane Library JSON"). Only the narrative lanes + labels
+    // of a loaded file take effect; CC values stay hardcoded-authoritative
+    // unless ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL is also on.
+    juce::File narrativeLibraryExternalFile;
+    juce::String narrativeLibrarySourceStatus { "Narrative library: built-in (embedded factory catalog)." };
+
+    // Runs the runtime-catalog validation gates against a loaded source and,
+    // if it is a ready factory-shaped catalog, swaps it into
+    // runtimePresetCatalog (under runtimeCatalogLock) so its narrative lanes
+    // and labels are used. Sets all the diagnostic members. Returns true when
+    // the catalog was adopted. Also called from the constructor for the
+    // embedded source.
+    bool runRuntimeCatalogProbe (const orchconductor::RuntimePresetSourceResult& source);
 
     bool runtimeJsonPresetProbeLoaded { false };
     bool runtimeJsonPresetProbeRequiresFallback { true };

@@ -709,6 +709,92 @@ bool verifySectionAutomationTriggeredSendRequestBehavior()
 
     return ok;
 }
+
+// Exercises the "Import Lane Library JSON" path end to end: export the built-in
+// library as a template, append a 7th narrative lane to it, import it, and
+// confirm the extra lane is live while hardcoded combi CC values are untouched.
+bool verifyNarrativeLibraryImportRoundTrip(OrchConductorAudioProcessor& processor)
+{
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+    bool ok = true;
+
+    ok = checkEquals(processor.getNarrativeLaneCount(), 6, "built-in narrative lane count") && ok;
+
+    const auto libraryFile = processor.getNarrativeLibraryFile();
+    const bool hadExistingLibrary = libraryFile.existsAsFile();
+    const juce::String existingLibraryBackup = hadExistingLibrary ? libraryFile.loadFileAsString() : juce::String{};
+
+    const auto templateFile = juce::File::createTempFile(".json");
+    ok = checkPass(processor.exportNarrativeLibraryTemplateToFile(templateFile),
+                   "export lane library template to a file") && ok;
+
+    auto parsed = juce::JSON::parse(templateFile.loadFileAsString());
+    auto* root = parsed.getDynamicObject();
+    ok = checkPass(root != nullptr, "exported template parses as a JSON object") && ok;
+
+    if (root != nullptr)
+    {
+        auto lanesVar = root->getProperty("narrativeLanes");
+        auto* lanes = lanesVar.getArray();
+        ok = checkPass(lanes != nullptr && lanes->size() == 6, "exported template has the 6 built-in lanes") && ok;
+
+        if (lanes != nullptr)
+        {
+            juce::DynamicObject::Ptr pointA = new juce::DynamicObject();
+            pointA->setProperty("position", 0.0);
+            pointA->setProperty("combiId", 1);
+            pointA->setProperty("pitchFieldIndex", 0);
+
+            juce::DynamicObject::Ptr pointB = new juce::DynamicObject();
+            pointB->setProperty("position", 1.0);
+            pointB->setProperty("combiId", 2);
+            pointB->setProperty("pitchFieldIndex", 0);
+
+            juce::Array<juce::var> points;
+            points.add(juce::var(pointA.get()));
+            points.add(juce::var(pointB.get()));
+
+            juce::DynamicObject::Ptr newLane = new juce::DynamicObject();
+            newLane->setProperty("id", "test_lane");
+            newLane->setProperty("name", "Test Lane");
+            newLane->setProperty("description", "Round-trip import test lane.");
+            newLane->setProperty("points", points);
+
+            lanes->add(juce::var(newLane.get()));
+        }
+
+        const auto importFile = juce::File::createTempFile(".json");
+        importFile.replaceWithText(juce::JSON::toString(parsed, true));
+
+        const bool imported = processor.importNarrativeLibraryFromFile(importFile);
+        ok = checkPass(imported, "importNarrativeLibraryFromFile accepts the 7-lane library") && ok;
+        ok = checkEquals(processor.getNarrativeLaneCount(), 7, "narrative lane count after import") && ok;
+        ok = checkPass(processor.getNarrativeLaneLabel(6) == "Test Lane", "7th lane label is the imported one") && ok;
+        ok = checkPass(processor.isNarrativeLibraryExternal(), "isNarrativeLibraryExternal() true after import") && ok;
+
+        // Hardcoded combi CC values must be untouched by a lane-library import.
+        processor.setCombiPresetId(static_cast<int>(OrchConductorAudioProcessor::CombiPreset::utilityFullOrchestra));
+        const auto firstWoodwind = processor.getOutputRow(0);
+        ok = checkEquals(firstWoodwind.value, 127,
+                         "Full Orchestra still emits hardcoded 127 after a lane-library import") && ok;
+
+        importFile.deleteFile();
+    }
+
+    templateFile.deleteFile();
+
+    // Restore the user's real library file so the automated test leaves no trace.
+    if (hadExistingLibrary)
+        libraryFile.replaceWithText(existingLibraryBackup);
+    else
+        libraryFile.deleteFile();
+
+    return ok;
+#else
+    juce::ignoreUnused(processor);
+    return true;
+#endif
+}
 } // namespace
 
 int main()
@@ -761,6 +847,7 @@ int main()
     ok = verifyPresetAutomationPersistenceRoundTrip() && ok;
     ok = verifyAutomationTriggeredSendRequestBehavior() && ok;
     ok = verifySectionAutomationTriggeredSendRequestBehavior() && ok;
+    ok = verifyNarrativeLibraryImportRoundTrip(processor) && ok;
 
     if (! ok)
         return fail("Processor-side runtime catalog authority probe verification failed.");
