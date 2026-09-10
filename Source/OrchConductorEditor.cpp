@@ -461,19 +461,19 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
     setResizable (true, true);
-    setResizeLimits (900, 740, 1400, 1240);
-    setSize (980, 936);
+    setResizeLimits (860, 480, 1400, 1300);
+    setSize (980, 760);
 
     titleLabel.setText ("OrchConductor", juce::dontSendNotification);
     titleLabel.setJustificationType (juce::Justification::centred);
     titleLabel.setColour (juce::Label::textColourId, juce::Colours::white);
-    titleLabel.setFont (juce::FontOptions (30.0f, juce::Font::bold));
+    titleLabel.setFont (juce::FontOptions (20.0f, juce::Font::bold));
     addAndMakeVisible (titleLabel);
 
     subtitleLabel.setText ("Orchestration Preset Sender", juce::dontSendNotification);
     subtitleLabel.setJustificationType (juce::Justification::centred);
     subtitleLabel.setColour (juce::Label::textColourId, juce::Colours::white);
-    subtitleLabel.setFont (juce::FontOptions (15.0f));
+    subtitleLabel.setFont (juce::FontOptions (12.0f));
     addAndMakeVisible (subtitleLabel);
 
     // orchConductorBuildTimestamp is regenerated on every single build (see
@@ -483,7 +483,7 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     buildLabel.setText (juce::String ("Build: ") + orchConductorBuildTimestamp, juce::dontSendNotification);
     buildLabel.setJustificationType (juce::Justification::centred);
     buildLabel.setColour (juce::Label::textColourId, juce::Colour::fromRGB (140, 160, 180));
-    buildLabel.setFont (juce::FontOptions (12.0f));
+    buildLabel.setFont (juce::FontOptions (10.5f));
     addAndMakeVisible (buildLabel);
 
     combiPresetLabel.setText ("Combi Preset", juce::dontSendNotification);
@@ -1136,6 +1136,27 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         instrumentGridView = std::move (grid);
     }
 
+    // Move every Conductor control into a scroll viewport so the window can be
+    // made shorter than the content. Pinned outside it: the view-switch
+    // buttons, the grid, and the two footer status lines.
+    {
+        juce::Array<juce::Component*> pinned { &conductorViewButton, &gridViewButton,
+                                              &statusLabel, &ccMapLabel,
+                                              instrumentGridView.get() };
+
+        const juce::Array<juce::Component*> currentChildren (getChildren());
+
+        for (auto* child : currentChildren)
+            if (! pinned.contains (child))
+                conductorContent.addAndMakeVisible (*child);   // reparents
+
+        conductorContent.setInterceptsMouseClicks (false, true);
+        conductorViewport.setViewedComponent (&conductorContent, false);
+        conductorViewport.setScrollBarsShown (true, false);
+        addAndMakeVisible (conductorViewport);
+        conductorViewport.toBack();
+    }
+
     updateOutputTable();
     updateWoodwindsOutputTable();
     updateBrassOutputTable();
@@ -1152,6 +1173,10 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
 
 void OrchConductorAudioProcessorEditor::showGridView (bool show)
 {
+    conductorViewport.setVisible (! show);
+    statusLabel.setVisible (! show);
+    ccMapLabel.setVisible (! show);
+
     if (instrumentGridView != nullptr)
     {
         instrumentGridView->setVisible (show);
@@ -1189,17 +1214,30 @@ void OrchConductorAudioProcessorEditor::resized()
         gridViewButton.setBounds (strip.removeFromLeft (130));
     }
 
+    // Footer, pinned to the window bottom (not scrolled).
+    auto footer = getLocalBounds().reduced (48, 0);
+    footer.removeFromBottom (12);
+    statusLabel.setBounds (footer.removeFromBottom (24));
+    footer.removeFromBottom (3);
+    ccMapLabel.setBounds (footer.removeFromBottom (20));
+    const int footerHeight = 12 + 24 + 3 + 20;
+
     if (instrumentGridView != nullptr)
         instrumentGridView->setBounds (getLocalBounds().withTrimmedTop (32));
 
-    auto area = getLocalBounds().reduced (48, 28);
-    area.removeFromTop (30);
+    conductorViewport.setBounds (getLocalBounds().withTrimmedTop (32).withTrimmedBottom (footerHeight));
 
-    titleLabel.setBounds (area.removeFromTop (38));
-    subtitleLabel.setBounds (area.removeFromTop (22));
-    buildLabel.setBounds (area.removeFromTop (20));
+    // Reserve room for the vertical scrollbar - the Conductor content is always
+    // taller than a comfortable window.
+    const int contentW = juce::jmax (840, conductorViewport.getWidth() - 14);
 
-    area.removeFromTop (12);
+    auto area = juce::Rectangle<int> (0, 0, contentW, 5000).reduced (48, 10);
+
+    titleLabel.setBounds (area.removeFromTop (28));
+    subtitleLabel.setBounds (area.removeFromTop (16));
+    buildLabel.setBounds (area.removeFromTop (14));
+
+    area.removeFromTop (10);
 
     auto combiRow = area.removeFromTop (38);
     combiPresetLabel.setBounds (combiRow.removeFromLeft (150));
@@ -1321,13 +1359,7 @@ void OrchConductorAudioProcessorEditor::resized()
         inputPassthroughBox.setBounds (row.removeFromLeft (260));
     }
 
-    // Footer anchored to the window bottom so shrinking the editor squeezes the
-    // middle, not the status line.
-    auto footer = getLocalBounds().reduced (48, 0);
-    footer.removeFromBottom (16);
-    statusLabel.setBounds (footer.removeFromBottom (26));
-    footer.removeFromBottom (4);
-    ccMapLabel.setBounds (footer.removeFromBottom (22));
+    conductorContent.setSize (contentW, area.getY() + 16);
 }
 
 

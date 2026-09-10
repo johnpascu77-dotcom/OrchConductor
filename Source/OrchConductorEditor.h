@@ -26,6 +26,12 @@ private:
     std::unique_ptr<juce::Component> instrumentGridView;   // an InstrumentGridComponent (private to the .cpp)
     void showGridView (bool show);
 
+    // The Conductor controls live in a scroll viewport so the window can be
+    // resized well below the content height. The view-switch buttons, the
+    // grid, and the footer status lines stay pinned outside it.
+    juce::Viewport conductorViewport;
+    juce::Component conductorContent;
+
     juce::Label combiPresetLabel;
     juce::Label authorityModeLabel;
     juce::Label narrativeScanLabel;
