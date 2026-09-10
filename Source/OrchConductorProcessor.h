@@ -274,6 +274,15 @@ public:
                                        const std::vector<orchconductor::PresetValue>& explicitValues,
                                        int existingUserCombiId = -1);
 
+    // An orchestration-aware random starting point for the Combi Grid, returned
+    // as 43 {cc,value} pairs in slot order. Deterministic for a given seed.
+    // Not "noise": strings are the backbone, woodwind/horn/low-brass groups
+    // move together, one register is favoured, "Feature" boosts a single
+    // section and thins the rest, and it never returns silence.
+    enum class GridRandomStyle { balanced, feature, sparse, tutti };
+    std::vector<orchconductor::PresetValue> generateRandomGridCombi (GridRandomStyle style,
+                                                                     juce::int64 seed) const;
+
     bool wasRuntimeJsonPresetProbeLoaded() const;
     bool doesRuntimeJsonPresetProbeRequireFallback() const;
     juce::String getRuntimeJsonPresetProbeDiagnostic() const;

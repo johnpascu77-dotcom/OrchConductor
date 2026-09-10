@@ -1,4 +1,5 @@
 #include "OrchConductorProcessor.h"
+#include <algorithm>
 #include <cmath>
 #include "OrchConductorEditor.h"
 #include "OrchConductorRuntimePresetSource.h"
@@ -1338,6 +1339,172 @@ int OrchConductorAudioProcessor::saveInstrumentGridAsUserCombi (
     saveUserCombiPresetsToUserLibrary();
 
     return presetId;
+}
+
+std::vector<orchconductor::PresetValue>
+    OrchConductorAudioProcessor::generateRandomGridCombi (GridRandomStyle style, juce::int64 seed) const
+{
+    juce::Random rng (seed);
+    const int n = getInstrumentSlotCount();          // 43
+    std::vector<int> v (static_cast<size_t> (n), 0);
+
+    // Slot ranges (see getInstrumentSlot*): 0-11 WW, 12-22 BR, 23-35 PC,
+    // 36-40 ST, 41 Harp, 42 Piano.
+    auto ww = [] (int i) { return i >= 0  && i < 12; };
+    auto br = [] (int i) { return i >= 12 && i < 23; };
+    auto pc = [] (int i) { return i >= 23 && i < 36; };
+    auto st = [] (int i) { return i >= 36 && i < 41; };
+    constexpr int HARP = 41, PIANO = 42;
+
+    float density  = 0.5f;
+    float loudness = 0.5f;
+
+    switch (style)
+    {
+        case GridRandomStyle::sparse:  density = rng.nextFloat() * 0.2f  + 0.12f; loudness = rng.nextFloat() * 0.3f + 0.2f;  break;
+        case GridRandomStyle::tutti:   density = rng.nextFloat() * 0.15f + 0.82f; loudness = rng.nextFloat() * 0.2f + 0.78f; break;
+        case GridRandomStyle::feature: density = rng.nextFloat() * 0.25f + 0.3f;  loudness = rng.nextFloat() * 0.3f + 0.4f;  break;
+        case GridRandomStyle::balanced:
+        default:                       density = rng.nextFloat() * 0.4f  + 0.35f; loudness = rng.nextFloat() * 0.4f + 0.35f; break;
+    }
+
+    const int reg = rng.nextInt (3) - 1;   // -1 low, 0 mid, +1 high
+
+    auto valueFor = [&] (float role)
+    {
+        const float f = juce::jlimit (0.0f, 1.0f,
+                                      loudness * 0.55f + role * 0.5f + (rng.nextFloat() - 0.5f) * 0.15f);
+        return juce::jlimit (40, 127, juce::roundToInt (55.0f + f * 72.0f));
+    };
+
+    auto on = [&] (float prob) { return rng.nextFloat() < juce::jlimit (0.0f, 1.0f, prob); };
+
+    // Strings - the backbone.
+    {
+        const bool anyStrings = style == GridRandomStyle::sparse ? on (0.6f) : on (0.92f);
+
+        if (anyStrings)
+        {
+            const float upperProb = juce::jlimit (0.2f, 1.0f, (reg <= 0 ? 0.6f : 0.9f) + density * 0.3f);
+            const float lowProb   = juce::jlimit (0.2f, 1.0f, (reg >= 0 ? 0.6f : 0.9f) + density * 0.3f);
+
+            if (on (upperProb))       { v[36] = valueFor (0.8f); v[37] = valueFor (0.7f); }
+            if (on (upperProb * 0.9f))  v[38] = valueFor (0.7f);
+            if (on (lowProb))         { v[39] = valueFor (0.75f); v[40] = valueFor (0.7f); }
+        }
+    }
+
+    // Woodwinds - pairs move together, solo colours are rarer.
+    {
+        const int  pairA[] = { 1, 3, 6, 9 };
+        const int  pairB[] = { 2, 4, 7, 10 };
+        const float bias[] = { 0.6f, 0.1f, -0.1f, -0.6f };   // >0 favours the high register
+
+        for (int p = 0; p < 4; ++p)
+            if (on (density * 0.9f + 0.1f + bias[p] * static_cast<float> (reg) * 0.25f))
+            {
+                v[pairA[p]] = valueFor (0.7f);
+                v[pairB[p]] = valueFor (0.6f);
+            }
+
+        if (reg >= 0 && on (density * 0.35f)) v[0]  = valueFor (0.9f);   // Piccolo
+        if (on (density * 0.3f))              v[5]  = valueFor (0.85f);  // English Horn
+        if (reg <= 0 && on (density * 0.3f))  v[8]  = valueFor (0.75f);  // Bass Clarinet
+        if (reg <  0 && on (density * 0.25f)) v[11] = valueFor (0.7f);   // Contrabassoon
+    }
+
+    // Brass - sectional.
+    {
+        if (on (density * 0.8f + 0.1f))
+        {
+            const int horns = rng.nextBool() ? 4 : 2;
+            for (int i = 0; i < horns; ++i) v[12 + i] = valueFor (i == 0 ? 0.8f : 0.7f);
+        }
+
+        if (reg >= 0 && on (loudness * 0.6f + density * 0.3f))
+        {
+            const int trumpets = 2 + rng.nextInt (2);
+            for (int i = 0; i < trumpets; ++i) v[16 + i] = valueFor (0.8f);
+        }
+
+        if (on ((reg <= 0 ? 0.5f : 0.3f) + loudness * 0.4f))
+        {
+            v[19] = valueFor (0.75f);
+            v[20] = valueFor (0.7f);
+            if (on (0.7f))                 v[21] = valueFor (0.7f);   // Bass Trombone
+            if (reg < 0 || on (0.5f))      v[22] = valueFor (0.7f);   // Tuba
+        }
+    }
+
+    // Percussion - Timpani with weight, one mallet colour, sparse unpitched.
+    {
+        if (on (loudness * 0.7f + density * 0.2f)) v[23] = valueFor (0.7f);
+
+        if (on (density * 0.5f))
+        {
+            const int mallet = reg > 0 ? (rng.nextBool() ? 24 : 25)
+                             : reg < 0 ? 26
+                                       : (rng.nextBool() ? 26 : 27);
+            v[mallet] = valueFor (0.75f);
+        }
+
+        if (loudness > 0.7f && on (0.4f)) v[28] = valueFor (0.6f);    // Tubular Bells
+
+        if (loudness > 0.6f)
+        {
+            if (on (0.5f))                 v[29] = valueFor (0.6f);   // Bass Drum
+            if (on (0.4f))                 v[31] = valueFor (0.7f);   // Cymbals
+            if (on (0.25f))                v[35] = valueFor (0.6f);   // Triangle
+            if (reg < 0 && on (0.3f))      v[33] = valueFor (0.6f);   // Tam-Tam
+        }
+        else if (on (0.15f))
+        {
+            v[35] = valueFor (0.5f);
+        }
+    }
+
+    // Harp / Piano.
+    if (on (reg >= 0 ? 0.45f : 0.3f))                                       v[HARP]  = valueFor (0.7f);
+    if (style == GridRandomStyle::feature ? on (0.35f) : on (0.15f))        v[PIANO] = valueFor (0.7f);
+
+    // Register wipe.
+    if (reg < 0) for (int hi : { 0, 24, 25, 28, 35, 36, HARP }) if (rng.nextFloat() < 0.7f) v[hi] = 0;
+    if (reg > 0) for (int lo : { 8, 11, 21, 22, 26, 29, 33, 40 }) if (rng.nextFloat() < 0.7f) v[lo] = 0;
+
+    // Feature: boost one active section, thin the rest.
+    if (style == GridRandomStyle::feature)
+    {
+        const int feat = rng.nextInt (4);   // 0 WW, 1 BR, 2 ST, 3 PC
+
+        for (int i = 0; i < n; ++i)
+        {
+            const bool inFeat = (feat == 0 && ww (i)) || (feat == 1 && br (i))
+                             || (feat == 2 && st (i)) || (feat == 3 && pc (i));
+
+            if (inFeat && v[i] == 0 && on (0.5f))      v[i] = valueFor (0.85f);
+            else if (inFeat && v[i] > 0)               v[i] = juce::jmin (127, v[i] + 15);
+            else if (! inFeat && v[i] > 0 && on (0.4f)) v[i] = 0;
+        }
+    }
+
+    // Never silence.
+    if (std::none_of (v.begin(), v.end(), [] (int x) { return x > 0; }))
+    {
+        v[36] = 100; v[37] = 100; v[38] = 90; v[39] = 90; v[40] = 80;
+    }
+
+    std::vector<orchconductor::PresetValue> out;
+    out.reserve (static_cast<size_t> (n));
+
+    for (int i = 0; i < n; ++i)
+    {
+        orchconductor::PresetValue pv;
+        pv.ccNumber = getInstrumentSlotCc (i);
+        pv.value = juce::jlimit (0, 127, v[static_cast<size_t> (i)]);
+        out.push_back (pv);
+    }
+
+    return out;
 }
 void OrchConductorAudioProcessor::prepareToPlay (double, int)
 {

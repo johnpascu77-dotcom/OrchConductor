@@ -108,6 +108,26 @@ namespace
         juce::TextEditor textEditor;
     };
 
+    // A viewport content holder that forwards wheel / two-finger scroll to its
+    // parent Viewport even when the pointer is over a child control (a Label
+    // passes it through anyway; a Slider would otherwise eat it). Sliders still
+    // adjust on wheel only when the pointer is directly over them AND a modifier
+    // isn't held - handled by leaving the slider's own wheel behaviour intact;
+    // this just guarantees the "scroll over anything" case works.
+    class WheelForwardingComponent final : public juce::Component
+    {
+    public:
+        void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails& wheel) override
+        {
+            if (auto* vp = findParentComponentOfClass<juce::Viewport>())
+            {
+                auto pos = vp->getViewPosition();
+                pos.y -= juce::roundToInt ((wheel.deltaY != 0.0f ? wheel.deltaY : wheel.deltaX) * 110.0f);
+                vp->setViewPosition (pos);
+            }
+        }
+    };
+
     // The "Combi Grid" tab: every instrument's exact CC value in one scrollable
     // grid, saved as a user combi's explicitCcValues (which override every
     // section preset). Covers the whole editor area when shown.
@@ -177,6 +197,11 @@ namespace
             seedButton.setButtonText ("Seed from Current Output");
             seedButton.onClick = [this] { seedFromCurrent(); };
             addAndMakeVisible (seedButton);
+
+            styleButton (randomButton, juce::Colour::fromRGB (70, 55, 85));
+            randomButton.setButtonText ("Randomize");
+            randomButton.onClick = [this] { showRandomMenu(); };
+            addAndMakeVisible (randomButton);
 
             styleButton (clearButton, juce::Colour::fromRGB (70, 55, 55));
             clearButton.setButtonText ("Clear");
@@ -299,11 +324,13 @@ namespace
 
             auto loadRow = r.removeFromTop (30);
             loadLabel.setBounds (loadRow.removeFromLeft (90));
-            loadBox.setBounds (loadRow.removeFromLeft (320).reduced (0, 2));
-            loadRow.removeFromLeft (12);
-            seedButton.setBounds (loadRow.removeFromLeft (210).reduced (0, 2));
+            loadBox.setBounds (loadRow.removeFromLeft (300).reduced (0, 2));
+            loadRow.removeFromLeft (10);
+            seedButton.setBounds (loadRow.removeFromLeft (190).reduced (0, 2));
             loadRow.removeFromLeft (8);
-            clearButton.setBounds (loadRow.removeFromLeft (90).reduced (0, 2));
+            randomButton.setBounds (loadRow.removeFromLeft (120).reduced (0, 2));
+            loadRow.removeFromLeft (8);
+            clearButton.setBounds (loadRow.removeFromLeft (80).reduced (0, 2));
 
             r.removeFromTop (6);
             statusLabel.setBounds (r.removeFromTop (18));
@@ -364,6 +391,48 @@ namespace
             loadBox.setSelectedId (1, juce::dontSendNotification);
             statusLabel.setText ("Seeded from the current OrchConductor output. Save as New Combi.",
                                  juce::dontSendNotification);
+        }
+
+        void showRandomMenu()
+        {
+            juce::PopupMenu m;
+            m.addSectionHeader ("Random starting point (orchestration-aware)");
+            m.addItem (1, "Balanced");
+            m.addItem (2, "Feature a section");
+            m.addItem (3, "Sparse / chamber");
+            m.addItem (4, "Tutti");
+
+            m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (randomButton),
+                [this] (int choice)
+                {
+                    if (choice == 0)
+                        return;
+
+                    const auto style = choice == 2 ? OrchConductorAudioProcessor::GridRandomStyle::feature
+                                     : choice == 3 ? OrchConductorAudioProcessor::GridRandomStyle::sparse
+                                     : choice == 4 ? OrchConductorAudioProcessor::GridRandomStyle::tutti
+                                                   : OrchConductorAudioProcessor::GridRandomStyle::balanced;
+
+                    const auto values = processor.generateRandomGridCombi (
+                        style, juce::Random::getSystemRandom().nextInt64());
+
+                    setAllSliders ([&] (int i)
+                    {
+                        const int cc = processor.getInstrumentSlotCc (i);
+
+                        for (const auto& pv : values)
+                            if (pv.ccNumber == cc)
+                                return pv.value;
+
+                        return 0;
+                    });
+
+                    editingId = -1;
+                    updateButton.setEnabled (false);
+                    loadBox.setSelectedId (1, juce::dontSendNotification);
+                    statusLabel.setText ("Random grid - tweak and Save as New Combi. Randomize again for another.",
+                                         juce::dontSendNotification);
+                });
         }
 
         void loadSelected()
@@ -444,7 +513,7 @@ namespace
         int editingId { -1 };
 
         juce::Label titleLabel, hintLabel, loadLabel, statusLabel;
-        juce::TextButton backButton, saveNewButton, updateButton, seedButton, clearButton;
+        juce::TextButton backButton, saveNewButton, updateButton, seedButton, randomButton, clearButton;
         juce::TextEditor nameEditor;
         juce::ComboBox loadBox;
 
@@ -1140,6 +1209,8 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     // made shorter than the content. Pinned outside it: the view-switch
     // buttons, the grid, and the two footer status lines.
     {
+        conductorContent = std::make_unique<WheelForwardingComponent>();
+
         juce::Array<juce::Component*> pinned { &conductorViewButton, &gridViewButton,
                                               &statusLabel, &ccMapLabel,
                                               instrumentGridView.get() };
@@ -1148,11 +1219,14 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
 
         for (auto* child : currentChildren)
             if (! pinned.contains (child))
-                conductorContent.addAndMakeVisible (*child);   // reparents
+                conductorContent->addAndMakeVisible (*child);   // reparents
 
-        conductorContent.setInterceptsMouseClicks (false, true);
-        conductorViewport.setViewedComponent (&conductorContent, false);
+        // Content intercepts so its mouseWheelMove (wheel forwarding) runs;
+        // children still receive their own events.
+        conductorContent->setInterceptsMouseClicks (true, true);
+        conductorViewport.setViewedComponent (conductorContent.get(), false);
         conductorViewport.setScrollBarsShown (true, false);
+        conductorViewport.setScrollOnDragMode (juce::Viewport::ScrollOnDragMode::nonHover);
         addAndMakeVisible (conductorViewport);
         conductorViewport.toBack();
     }
@@ -1359,7 +1433,8 @@ void OrchConductorAudioProcessorEditor::resized()
         inputPassthroughBox.setBounds (row.removeFromLeft (260));
     }
 
-    conductorContent.setSize (contentW, area.getY() + 16);
+    if (conductorContent != nullptr)
+        conductorContent->setSize (contentW, area.getY() + 16);
 }
 
 

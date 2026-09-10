@@ -28,9 +28,11 @@ private:
 
     // The Conductor controls live in a scroll viewport so the window can be
     // resized well below the content height. The view-switch buttons, the
-    // grid, and the footer status lines stay pinned outside it.
+    // grid, and the footer status lines stay pinned outside it. conductorContent
+    // forwards wheel/trackpad scroll to the viewport even over child controls
+    // (it is a WheelForwardingComponent, defined in the .cpp).
     juce::Viewport conductorViewport;
-    juce::Component conductorContent;
+    std::unique_ptr<juce::Component> conductorContent;
 
     juce::Label combiPresetLabel;
     juce::Label authorityModeLabel;

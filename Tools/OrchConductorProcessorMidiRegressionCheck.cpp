@@ -729,6 +729,64 @@ bool verifyInstrumentGridUserCombi()
     return ok;
 }
 
+bool verifyRandomGridGenerator()
+{
+    OrchConductorAudioProcessor processor;
+    bool ok = true;
+
+    using Style = OrchConductorAudioProcessor::GridRandomStyle;
+    const int slotCount = OrchConductorAudioProcessor::getInstrumentSlotCount();
+
+    for (const auto style : { Style::balanced, Style::feature, Style::sparse, Style::tutti })
+    {
+        const auto a = processor.generateRandomGridCombi(style, 12345);
+        const auto b = processor.generateRandomGridCombi(style, 12345);
+
+        ok = checkEquals(static_cast<int>(a.size()), slotCount, "random grid size") && ok;
+
+        bool deterministic = a.size() == b.size();
+        for (size_t i = 0; deterministic && i < a.size(); ++i)
+            deterministic = (a[i].ccNumber == b[i].ccNumber && a[i].value == b[i].value);
+        ok = checkPass(deterministic, "random grid is deterministic for a seed") && ok;
+
+        int nonZero = 0;
+        bool inRange = true;
+        for (const auto& pv : a)
+        {
+            if (pv.value < 0 || pv.value > 127) inRange = false;
+            if (pv.value > 0) ++nonZero;
+        }
+        ok = checkPass(inRange, "random grid values are 0-127") && ok;
+        ok = checkPass(nonZero > 0, "random grid is never silent") && ok;
+    }
+
+    // Tutti is denser than Sparse (averaged over several seeds).
+    int tuttiTotal = 0, sparseTotal = 0;
+    for (juce::int64 s = 1; s <= 12; ++s)
+    {
+        for (const auto& pv : processor.generateRandomGridCombi(Style::tutti, s))  tuttiTotal  += (pv.value > 0);
+        for (const auto& pv : processor.generateRandomGridCombi(Style::sparse, s)) sparseTotal += (pv.value > 0);
+    }
+    ok = checkPass(tuttiTotal > sparseTotal, "Tutti random grid is denser than Sparse") && ok;
+
+    // A generated grid saves and reproduces exactly.
+    const auto values = processor.generateRandomGridCombi(Style::balanced, 999);
+    const int id = processor.saveInstrumentGridAsUserCombi("Random", values, -1);
+    ok = checkPass(id >= 0, "generated grid saves as a combi") && ok;
+
+    processor.setCombiPresetId(id);
+    processor.requestSendPreset();
+    const auto captured = captureMidi(processor);
+
+    bool match = true;
+    for (const auto& pv : values)
+        if (captured.ccValues.count(pv.ccNumber) == 0 || captured.ccValues.at(pv.ccNumber) != pv.value)
+            match = false;
+    ok = checkPass(match, "generated grid combi output matches the generated values") && ok;
+
+    return ok;
+}
+
 bool verifyManualHarpPianoSliders()
 {
     OrchConductorAudioProcessor processor;
@@ -957,6 +1015,7 @@ int main()
     ok = verifyUserCombiHarpPianoOverride() && ok;
     ok = verifyManualHarpPianoSliders() && ok;
     ok = verifyInstrumentGridUserCombi() && ok;
+    ok = verifyRandomGridGenerator() && ok;
     ok = verifyUserCombiExplicitCcValues() && ok;
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     ok = verifyNarrativeScanDrivesCombiSend() && ok;
