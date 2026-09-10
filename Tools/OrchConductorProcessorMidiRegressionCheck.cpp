@@ -649,8 +649,12 @@ bool verifyNarrativeScanDrivesCombiSend()
     for (int cc = 50; cc <= 54; ++cc)
         ok = expectCcValue(atEnd, cc, 127, "narrative scan end full strings") && ok;
 
+    // "Full Orchestra" (the organic_build lane's end point) now includes the
+    // 7 unpitched percussion instruments - CC56-62 - just like the pitched
+    // percussion CC43-48 above. Added 2026-09-10 in both the hardcoded combi
+    // table and the embedded JSON catalog.
     for (int cc = 56; cc <= 62; ++cc)
-        ok = expectCcValue(atEnd, cc, 0, "narrative scan end unpitched percussion (not in this factory combi)") && ok;
+        ok = expectCcValue(atEnd, cc, 127, "narrative scan end full orchestra unpitched percussion") && ok;
 
     ok = expectCcValue(atEnd, 105, 0, "narrative scan end field select (#0)") && ok;
     ok = checkEquals(processor.getLastSentFieldSelectIndex(), 0, "narrative scan end field index") && ok;

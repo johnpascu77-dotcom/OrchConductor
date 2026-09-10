@@ -76,7 +76,7 @@ bool verifyCoreFactoryShape(const orchconductor::PresetLibraryDefinition& librar
 
     ok = checkEquals(library.midi.channel, 1, "midi.channel") && ok;
     ok = checkEquals(library.midi.ccMin, 20, "midi.ccMin") && ok;
-    ok = checkEquals(library.midi.ccMax, 54, "midi.ccMax") && ok;
+    ok = checkEquals(library.midi.ccMax, 62, "midi.ccMax") && ok;
 
     ok = checkEquals(static_cast<int>(library.woodwindPresets.size()), 20, "woodwinds preset count") && ok;
     ok = checkEquals(static_cast<int>(library.brassPresets.size()), 17, "brass preset count") && ok;

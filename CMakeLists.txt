@@ -10,7 +10,13 @@ if (MSVC)
     add_compile_options(/FS)
 endif()
 
-option(ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS "Enable experimental runtime JSON-backed preset infrastructure" OFF)
+# ON by default since 2026-09-10: this is the build the rig actually uses.
+# It loads the embedded orchconductor_library_v1 JSON, which is the ONLY
+# source of the 6 narrative-scan lanes (the hardcoded fallback catalog has
+# none). The JSON stays NON-authoritative for CC values - the hardcoded
+# combi/section tables remain the source of truth for MIDI output unless
+# ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL is also ON (it is not).
+option(ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS "Enable runtime JSON-backed preset infrastructure (narrative-scan lanes)" ON)
 option(ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL "Enable internal non-default runtime catalog authority trial path" OFF)
 
 if(ORCHCONDUCTOR_ENABLE_RUNTIME_CATALOG_AUTHORITY_TRIAL AND NOT ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS)

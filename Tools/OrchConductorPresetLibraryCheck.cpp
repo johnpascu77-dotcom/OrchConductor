@@ -323,7 +323,7 @@ int main()
 
     ok = checkEquals(library.midi.channel, 1, "midi.channel") && ok;
     ok = checkEquals(library.midi.ccMin, 20, "midi.ccMin") && ok;
-    ok = checkEquals(library.midi.ccMax, 54, "midi.ccMax") && ok;
+    ok = checkEquals(library.midi.ccMax, 62, "midi.ccMax") && ok;
 
     constexpr int reservedCc = 49;
 

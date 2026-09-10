@@ -14,7 +14,13 @@ namespace
     constexpr int runtimeStringPresetAuditMaxId = 13;
     constexpr int runtimeCombiPresetAuditMinId = 0;
     constexpr int runtimeCombiPresetAuditMaxId = 28;
-    constexpr int runtimeCombiFullPayloadValueCount = 35;
+    // A combi with this many explicit CC values is treated as writing a
+    // near-complete payload and is then required to pin the reserved harp
+    // CC (49) to 0. Bumped 35 -> 43 on 2026-09-10: the addressable CC span
+    // grew from 20-54 to 20-62 (the 7 unpitched percussion instruments), so
+    // "Full Orchestra" legitimately carries 41 values now without ever
+    // touching CC49.
+    constexpr int runtimeCombiFullPayloadValueCount = 43;
     constexpr int runtimeNarrativeLaneExpectedCount = 6;
     constexpr int reservedHarpCcNumber = 49;
     constexpr int reservedHarpCcValue = 0;

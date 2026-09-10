@@ -4,7 +4,7 @@
     "libraryName":  "OrchConductor Factory Library",
     "libraryVersion":  "1.0.0",
     "pluginTarget":  "OrchConductor",
-    "phase":  "3C-complete-factory-json",
+    "phase":  "3C + 2026-09-10 unpitched percussion CC56-62 added to combis 2,9,10,11,17,18,19,20,26,27",
     "notes":  [
                   "This file is a complete JSON expansion of the current hardcoded factory preset behavior.",
                   "OrchConductor does not parse this file at runtime in Phase 3C.",
@@ -15,7 +15,7 @@
                  "channel":  1,
                  "ccRange":  {
                                  "min":  20,
-                                 "max":  54
+                                 "max":  62
                              },
                  "reservedControllers":  [
                                              {
@@ -1462,6 +1462,34 @@
                                             {
                                                 "cc":  54,
                                                 "value":  127
+                                            },
+                                            {
+                                                "cc":  56,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  57,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  58,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  59,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  60,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  61,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  62,
+                                                "value":  127
                                             }
                                         ]
                          },
@@ -1930,6 +1958,18 @@
                                             {
                                                 "cc":  51,
                                                 "value":  127
+                                            },
+                                            {
+                                                "cc":  58,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  59,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  62,
+                                                "value":  127
                                             }
                                         ]
                          },
@@ -1986,6 +2026,14 @@
                                             {
                                                 "cc":  54,
                                                 "value":  127
+                                            },
+                                            {
+                                                "cc":  56,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  60,
+                                                "value":  127
                                             }
                                         ]
                          },
@@ -2041,6 +2089,14 @@
                                             },
                                             {
                                                 "cc":  53,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  57,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  61,
                                                 "value":  127
                                             }
                                         ]
@@ -2282,6 +2338,22 @@
                                             {
                                                 "cc":  43,
                                                 "value":  127
+                                            },
+                                            {
+                                                "cc":  56,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  58,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  59,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  60,
+                                                "value":  127
                                             }
                                         ]
                          },
@@ -2317,6 +2389,14 @@
                                             },
                                             {
                                                 "cc":  54,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  56,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  60,
                                                 "value":  127
                                             }
                                         ]
@@ -2357,6 +2437,14 @@
                                             },
                                             {
                                                 "cc":  51,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  58,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  62,
                                                 "value":  127
                                             }
                                         ]
@@ -2401,6 +2489,14 @@
                                             },
                                             {
                                                 "cc":  54,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  56,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  60,
                                                 "value":  127
                                             }
                                         ]
@@ -2582,6 +2678,14 @@
                                             {
                                                 "cc":  54,
                                                 "value":  127
+                                            },
+                                            {
+                                                "cc":  60,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  62,
+                                                "value":  127
                                             }
                                         ]
                          },
@@ -2621,6 +2725,14 @@
                                             },
                                             {
                                                 "cc":  51,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  58,
+                                                "value":  127
+                                            },
+                                            {
+                                                "cc":  62,
                                                 "value":  127
                                             }
                                         ]
