@@ -35,6 +35,12 @@ namespace
     constexpr int narrativeLaneCcNumber = 103;
     constexpr int authorityModeCcNumber = 104;
 
+    // OrchGate response bridge (broadcast, read by every OrchGate set to
+    // "Follow Conductor Response"). Also undefined controllers, clear of the
+    // CC20-62 send map and CC102-105.
+    constexpr int gateResponseModeCcDefault = 106;
+    constexpr int gateResponseAmountCcDefault = 107;
+
     struct ExpectedRuntimeCatalogValue
     {
         int ccNumber = -1;
@@ -717,6 +723,19 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
         juce::ParameterID { "fieldSelectCc", 1 },
         "Field Select CC (0 = off)",
         0, 127, 105));
+
+    // OrchGate response bridge broadcast CCs. Undefined controllers (106/107),
+    // clear of OrchConductor's own CC20-62 + CC102-105 and of MPL's CC20-64.
+    // 0 = don't broadcast that half of the bridge.
+    addParameter (gateResponseModeCcParameter = new juce::AudioParameterInt (
+        juce::ParameterID { "gateResponseModeCc", 1 },
+        "Gate Response Mode CC (0 = off)",
+        0, 127, 106));
+
+    addParameter (gateResponseAmountCcParameter = new juce::AudioParameterInt (
+        juce::ParameterID { "gateResponseAmountCc", 1 },
+        "Gate Response Amount CC (0 = off)",
+        0, 127, 107));
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     runRuntimeCatalogProbe (orchconductor::RuntimePresetSource::loadEmbeddedFactoryJsonIfEnabled());
 
@@ -1512,6 +1531,10 @@ void OrchConductorAudioProcessor::prepareToPlay (double, int)
     lastResolvedNarrativeCombiId = -1;
     lastResolvedNarrativeHarpValue = -1;
     lastResolvedNarrativePianoValue = -1;
+    lastResolvedGateResponseMode = -1;
+    lastResolvedGateResponseAmount = -1;
+    lastSentGateResponseMode = -1;
+    lastSentGateResponseAmount = -1;
     pendingFieldSelectIndex = -1;
     lastSentFieldSelectIndex = -1;
     explicitSendPresetRequested = false;
@@ -1624,6 +1647,8 @@ void OrchConductorAudioProcessor::setAuthorityMode (AuthorityMode mode)
         lastResolvedNarrativeCombiId = -1;
         lastResolvedNarrativeHarpValue = -1;
         lastResolvedNarrativePianoValue = -1;
+        lastResolvedGateResponseMode = -1;
+        lastResolvedGateResponseAmount = -1;
         pendingFieldSelectIndex = -1;
         lastSentFieldSelectIndex = -1;
     }
@@ -1666,9 +1691,92 @@ void OrchConductorAudioProcessor::requestNarrativeReresolve()
     lastResolvedNarrativeCombiId = -1;
     lastResolvedNarrativeHarpValue = -1;
     lastResolvedNarrativePianoValue = -1;
+    lastResolvedGateResponseMode = -1;
+    lastResolvedGateResponseAmount = -1;
 
     if (authorityMode == AuthorityMode::narrativeScan)
         sendPresetRequested = true;
+}
+
+void OrchConductorAudioProcessor::setGateResponseManualEnabled (bool shouldEnable)
+{
+    if (gateResponseManualEnabled == shouldEnable)
+        return;
+
+    gateResponseManualEnabled = shouldEnable;
+    sendPresetRequested = true;   // emit (or neutralize) the bridge CCs next block
+}
+
+bool OrchConductorAudioProcessor::isGateResponseManualEnabled() const
+{
+    return gateResponseManualEnabled;
+}
+
+void OrchConductorAudioProcessor::setGateResponseManualMode (int mode)
+{
+    const int clamped = juce::jlimit (0, 127, mode);
+
+    if (gateResponseManualMode == clamped)
+        return;
+
+    gateResponseManualMode = clamped;
+
+    if (gateResponseManualEnabled)
+        sendPresetRequested = true;
+}
+
+int OrchConductorAudioProcessor::getGateResponseManualMode() const
+{
+    return gateResponseManualMode;
+}
+
+void OrchConductorAudioProcessor::setGateResponseManualAmount (int amount)
+{
+    const int clamped = juce::jlimit (0, 127, amount);
+
+    if (gateResponseManualAmount == clamped)
+        return;
+
+    gateResponseManualAmount = clamped;
+
+    if (gateResponseManualEnabled)
+        sendPresetRequested = true;
+}
+
+int OrchConductorAudioProcessor::getGateResponseManualAmount() const
+{
+    return gateResponseManualAmount;
+}
+
+void OrchConductorAudioProcessor::shuffleGateResponseMode()
+{
+    // 1..127 - value 0 is "start of piece / no chapter yet" on the OrchGate
+    // side, so never land there deliberately.
+    gateResponseManualMode = 1 + gateResponseShuffleRng.nextInt (127);
+    gateResponseManualEnabled = true;
+    sendPresetRequested = true;
+}
+
+int OrchConductorAudioProcessor::getEffectiveGateResponseMode() const
+{
+    if (gateResponseManualEnabled)
+        return gateResponseManualMode;
+
+    if (isNarrativeScanDriving() && lastResolvedGateResponseMode >= 0)
+        return lastResolvedGateResponseMode;
+
+    return -1;
+}
+
+int OrchConductorAudioProcessor::getEffectiveGateResponseAmount() const
+{
+    if (gateResponseManualEnabled)
+        return gateResponseManualAmount;
+
+    if (isNarrativeScanDriving() && lastResolvedGateResponseAmount >= 0)
+        return lastResolvedGateResponseAmount;
+
+    return -1;
 }
 
 double OrchConductorAudioProcessor::getNarrativePosition() const
@@ -1766,6 +1874,19 @@ void OrchConductorAudioProcessor::updateNarrativeScanResolution()
             lastResolvedNarrativeHarpValue = harpValue;
             lastResolvedNarrativePianoValue = pianoValue;
             sendPresetRequested = true; // harp/piano ride in the combi payload send
+        }
+
+        const int gateResponseMode =
+            runtimePresetCatalog.getNarrativeLanePointGateResponseMode (narrativeLaneIndex, selection.pointIndex);
+        const int gateResponseAmount =
+            runtimePresetCatalog.getNarrativeLanePointGateResponseAmount (narrativeLaneIndex, selection.pointIndex);
+
+        if (gateResponseMode != lastResolvedGateResponseMode
+            || gateResponseAmount != lastResolvedGateResponseAmount)
+        {
+            lastResolvedGateResponseMode = gateResponseMode;
+            lastResolvedGateResponseAmount = gateResponseAmount;
+            sendPresetRequested = true; // bridge CCs emitted alongside the payload
         }
     }
 
@@ -1943,6 +2064,56 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
         }
     }
 
+    // OrchGate response bridge (CC 106 mode / CC 107 amount). Broadcast when
+    // the effective mode/amount changes, re-broadcast on an explicit "Send
+    // Current Presets" (so a late-joining OrchGate is brought current), and
+    // forced to amount 0 on "Send All Off" (every OrchGate then falls back to
+    // its own literal CC Invert / Threshold / Participation knobs).
+    if (shouldSendAllOff || shouldSendPreset)
+    {
+        const int modeCc = gateResponseModeCcParameter != nullptr
+            ? gateResponseModeCcParameter->get() : gateResponseModeCcDefault;
+        const int amountCc = gateResponseAmountCcParameter != nullptr
+            ? gateResponseAmountCcParameter->get() : gateResponseAmountCcDefault;
+
+        const bool forceResend = explicitSend || shouldSendAllOff;
+
+        int effMode = getEffectiveGateResponseMode();
+        int effAmount = getEffectiveGateResponseAmount();
+
+        if (shouldSendAllOff)
+        {
+            // Neutralise the bridge, but only if it was ever armed - a rig that
+            // never heard CC106/107 gets no spurious "amount 0" broadcast.
+            effMode = -1;
+            effAmount = (lastSentGateResponseMode >= 0 || lastSentGateResponseAmount > 0) ? 0 : -1;
+        }
+        else
+        {
+            // Driving source went away (panel disabled / lane point clears it)
+            // after we broadcast a non-zero amount: emit 0 once so every
+            // OrchGate returns to its own literal knobs.
+            if (effAmount < 0 && lastSentGateResponseAmount > 0)
+                effAmount = 0;
+        }
+
+        if (effMode >= 0 && modeCc > 0
+            && (forceResend || effMode != lastSentGateResponseMode))
+        {
+            midiMessages.addEvent (
+                juce::MidiMessage::controllerEvent (1, modeCc, juce::jlimit (0, 127, effMode)), 0);
+            lastSentGateResponseMode = effMode;
+        }
+
+        if (effAmount >= 0 && amountCc > 0
+            && (forceResend || effAmount != lastSentGateResponseAmount))
+        {
+            midiMessages.addEvent (
+                juce::MidiMessage::controllerEvent (1, amountCc, juce::jlimit (0, 127, effAmount)), 0);
+            lastSentGateResponseAmount = effAmount;
+        }
+    }
+
     if (! shouldSendAllOff && ! shouldSendPreset)
         return;
 
@@ -2080,7 +2251,7 @@ void OrchConductorAudioProcessor::getStateInformation (juce::MemoryBlock& destDa
 {
     juce::MemoryOutputStream stream (destData, true);
 
-    stream.writeInt (6);
+    stream.writeInt (7);
     stream.writeInt (combiPresetId);
     stream.writeInt (woodwindsPresetId);
     stream.writeInt (brassPresetId);
@@ -2123,6 +2294,11 @@ void OrchConductorAudioProcessor::getStateInformation (juce::MemoryBlock& destDa
     // v6: manual Harp (CC49) / Piano (CC55) values (-1 = Off).
     stream.writeInt (manualHarpValue);
     stream.writeInt (manualPianoValue);
+
+    // v7: OrchGate response bridge live-panel state.
+    stream.writeBool (gateResponseManualEnabled);
+    stream.writeInt (gateResponseManualMode);
+    stream.writeInt (gateResponseManualAmount);
 }
 
 void OrchConductorAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
@@ -2138,7 +2314,7 @@ void OrchConductorAudioProcessor::setStateInformation (const void* data, int siz
         return;
     }
 
-    if (firstInt >= 1 && firstInt <= 6)
+    if (firstInt >= 1 && firstInt <= 7)
     {
         const auto version = firstInt;
         const auto combi = stream.readInt();
@@ -2253,6 +2429,19 @@ void OrchConductorAudioProcessor::setStateInformation (const void* data, int siz
                 const int restoredPiano = stream.readInt();
                 manualPianoValue = (restoredPiano >= 0 && restoredPiano <= 127) ? restoredPiano : -1;
             }
+        }
+
+        if (version >= 7 && ! stream.isExhausted())
+        {
+            // Members set directly (no send queued on project restore); the
+            // bridge re-broadcasts on the next Send Preset / transport start.
+            gateResponseManualEnabled = stream.readBool();
+
+            if (! stream.isExhausted())
+                gateResponseManualMode = juce::jlimit (0, 127, stream.readInt());
+
+            if (! stream.isExhausted())
+                gateResponseManualAmount = juce::jlimit (0, 127, stream.readInt());
         }
 
         return;
@@ -2411,6 +2600,16 @@ int OrchConductorAudioProcessor::getNarrativeLanePointPianoValueAt (int laneInde
     return runtimePresetCatalog.getNarrativeLanePointPianoValue (laneIndex, pointIndex);
 }
 
+int OrchConductorAudioProcessor::getNarrativeLanePointGateResponseModeAt (int laneIndex, int pointIndex) const
+{
+    return runtimePresetCatalog.getNarrativeLanePointGateResponseMode (laneIndex, pointIndex);
+}
+
+int OrchConductorAudioProcessor::getNarrativeLanePointGateResponseAmountAt (int laneIndex, int pointIndex) const
+{
+    return runtimePresetCatalog.getNarrativeLanePointGateResponseAmount (laneIndex, pointIndex);
+}
+
 namespace
 {
     juce::String currentNarrativeLibraryJsonText (const juce::File& userFile)
@@ -2476,9 +2675,11 @@ bool OrchConductorAudioProcessor::saveNarrativeLane (const juce::String& laneId,
         o->setProperty ("position", p.position);
         o->setProperty ("combiId", p.combiId);
 
-        if (p.pitchFieldIndex >= 0) o->setProperty ("pitchFieldIndex", p.pitchFieldIndex);
-        if (p.harpValue >= 0)       o->setProperty ("harpValue", p.harpValue);
-        if (p.pianoValue >= 0)      o->setProperty ("pianoValue", p.pianoValue);
+        if (p.pitchFieldIndex >= 0)   o->setProperty ("pitchFieldIndex", p.pitchFieldIndex);
+        if (p.harpValue >= 0)         o->setProperty ("harpValue", p.harpValue);
+        if (p.pianoValue >= 0)        o->setProperty ("pianoValue", p.pianoValue);
+        if (p.gateResponseMode >= 0)  o->setProperty ("gateResponseMode", p.gateResponseMode);
+        if (p.gateResponseAmount >= 0) o->setProperty ("gateResponseAmount", p.gateResponseAmount);
 
         pointArray.add (juce::var (o.get()));
     }
@@ -2771,6 +2972,13 @@ std::vector<OrchConductorAudioProcessor::NarrativeLanePointEdit>
     std::vector<NarrativeLanePointEdit> lane;
     lane.reserve ((size_t) n);
 
+    // OrchGate response bridge: the "mode" (per-instance seed) steps only when
+    // the orchestration actually moves, so a held / reprised combi keeps the
+    // same articulation attitude (coherence). The "amount" tracks the arc's
+    // tension - unsettled passages let each OrchGate's invert / threshold /
+    // participation wander further from its literal setting.
+    int currentMode = 1 + (int) (((juce::uint64) seed) % 127u);
+
     for (int i = 0; i < n; ++i)
     {
         const float t = n > 1 ? (float) i / (float) (n - 1) : 0.0f;
@@ -2824,6 +3032,14 @@ std::vector<OrchConductorAudioProcessor::NarrativeLanePointEdit>
 
         if (s.energy > 0.85f && rng.nextFloat() < 0.35f)
             pt.pianoValue = juce::jlimit (70, 127, juce::roundToInt (s.energy * 127.0f));
+
+        // Advance the response "chapter" only on a genuine orchestration move.
+        if (i > 0 && pt.combiId != prevCombi)
+            currentMode = 1 + ((currentMode + 17 + rng.nextInt (40)) % 127);
+
+        pt.gateResponseMode = currentMode;
+        pt.gateResponseAmount = juce::jlimit (0, 127,
+            juce::roundToInt ((0.12f + 0.70f * s.tension + 0.18f * s.energy) * 127.0f));
 
         lane.push_back (pt);
     }

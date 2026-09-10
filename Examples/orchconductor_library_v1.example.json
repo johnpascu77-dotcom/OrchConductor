@@ -4,7 +4,7 @@
     "libraryName":  "OrchConductor Factory Library",
     "libraryVersion":  "1.0.0",
     "pluginTarget":  "OrchConductor",
-    "phase":  "3C + 2026-09-10: unpitched percussion CC56-62 in combis; per-lane-point harpValue/pianoValue (organic_build demo)",
+    "phase":  "3C + 2026-09-11: unpitched percussion CC56-62 in combis; per-lane-point harpValue/pianoValue + gateResponseMode/gateResponseAmount (organic_build demo)",
     "notes":  [
                   "This file is a complete JSON expansion of the current hardcoded factory preset behavior.",
                   "OrchConductor does not parse this file at runtime in Phase 3C.",
@@ -2785,21 +2785,27 @@
                                                   "combiId":  4,
                                                   "label":  "Chamber Orchestra",
                                                   "pitchFieldIndex":  10,
-                                                  "harpValue":  50
+                                                  "harpValue":  50,
+                                                  "gateResponseMode":  40,
+                                                  "gateResponseAmount":  48
                                               },
                                               {
                                                   "position":  0.55,
                                                   "combiId":  12,
                                                   "label":  "Warm Strings + Horns",
                                                   "pitchFieldIndex":  3,
-                                                  "harpValue":  80
+                                                  "harpValue":  80,
+                                                  "gateResponseMode":  40,
+                                                  "gateResponseAmount":  84
                                               },
                                               {
                                                   "position":  0.75,
                                                   "combiId":  3,
                                                   "label":  "Full No Percussion",
                                                   "pitchFieldIndex":  1,
-                                                  "harpValue":  110
+                                                  "harpValue":  110,
+                                                  "gateResponseMode":  95,
+                                                  "gateResponseAmount":  120
                                               },
                                               {
                                                   "position":  1,

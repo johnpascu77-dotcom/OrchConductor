@@ -119,6 +119,15 @@ struct NarrativeLanePointDefinition
     int harpValue = -1;
     int pianoValue = -1;
 
+    // Optional OrchGate response-bridge state for this lane point. -1 = leave
+    // the broadcast unchanged; 0..127 sets the "mode" (per-instance seed) and
+    // "amount" (how far the per-instance randomizer may push each OrchGate's
+    // invert / threshold / participation range). Emitted as CC 106 / CC 107
+    // when the resolved lane point changes - see OrchConductorProcessor's
+    // gate-response CC block.
+    int gateResponseMode = -1;
+    int gateResponseAmount = -1;
+
     bool isValid() const noexcept
     {
         return position >= 0.0
@@ -128,7 +137,11 @@ struct NarrativeLanePointDefinition
             && harpValue >= -1
             && harpValue <= 127
             && pianoValue >= -1
-            && pianoValue <= 127;
+            && pianoValue <= 127
+            && gateResponseMode >= -1
+            && gateResponseMode <= 127
+            && gateResponseAmount >= -1
+            && gateResponseAmount <= 127;
     }
 };
 

@@ -827,6 +827,22 @@ bool verifyNarrativeLaneMaker(OrchConductorAudioProcessor& processor)
         ok = checkPass(validCombis, "generated lane combi ids are valid") && ok;
         ok = checkPass(std::abs(a.front().position) < 1e-6 && std::abs(a.back().position - 1.0) < 1e-6,
                        "generated lane spans 0..1") && ok;
+
+        // Every generated stop carries an OrchGate response mode (1..127) and
+        // amount (0..127); the mode only advances when the combi moves (a held
+        // combi keeps the same articulation attitude).
+        bool grValid = true, grHeldWhereCombiHeld = true;
+        for (size_t i = 0; i < a.size(); ++i)
+        {
+            if (a[i].gateResponseMode < 1 || a[i].gateResponseMode > 127
+                || a[i].gateResponseAmount < 0 || a[i].gateResponseAmount > 127)
+                grValid = false;
+            if (i > 0 && a[i].combiId == a[i - 1].combiId
+                && a[i].gateResponseMode != a[i - 1].gateResponseMode)
+                grHeldWhereCombiHeld = false;
+        }
+        ok = checkPass(grValid, "generated lane gate-response values are in range") && ok;
+        ok = checkPass(grHeldWhereCombiHeld, "generated lane holds the response mode across a held combi") && ok;
     }
 
     // Low restlessness -> more repeated adjacent combis than high restlessness.
@@ -864,10 +880,16 @@ bool verifyNarrativeLaneMaker(OrchConductorAudioProcessor& processor)
     if (idx >= 0)
     {
         ok = checkEquals(processor.getNarrativeLanePointCount(idx), 5, "saved lane stop count") && ok;
-        bool combisMatch = true;
+        bool combisMatch = true, gateResponseMatch = true;
         for (int i = 0; i < 5; ++i)
+        {
             if (processor.getNarrativeLanePointCombiId(idx, i) != lane[(size_t) i].combiId) combisMatch = false;
+            if (processor.getNarrativeLanePointGateResponseModeAt(idx, i) != lane[(size_t) i].gateResponseMode
+                || processor.getNarrativeLanePointGateResponseAmountAt(idx, i) != lane[(size_t) i].gateResponseAmount)
+                gateResponseMatch = false;
+        }
         ok = checkPass(combisMatch, "saved lane combi ids round-trip") && ok;
+        ok = checkPass(gateResponseMatch, "saved lane gate-response values round-trip") && ok;
     }
 
     ok = checkPass(processor.deleteNarrativeLane("qa_test_lane"), "deleteNarrativeLane succeeds") && ok;

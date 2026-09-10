@@ -837,6 +837,8 @@ namespace
                 p.pitchFieldIndex = processor.getNarrativeLanePointFieldIndex (laneIndex, i);
                 p.harpValue = processor.getNarrativeLanePointHarpValueAt (laneIndex, i);
                 p.pianoValue = processor.getNarrativeLanePointPianoValueAt (laneIndex, i);
+                p.gateResponseMode = processor.getNarrativeLanePointGateResponseModeAt (laneIndex, i);
+                p.gateResponseAmount = processor.getNarrativeLanePointGateResponseAmountAt (laneIndex, i);
                 model.push_back (p);
             }
 
@@ -967,6 +969,8 @@ namespace
             std::swap (model[(size_t) i].pitchFieldIndex, model[(size_t) j].pitchFieldIndex);
             std::swap (model[(size_t) i].harpValue, model[(size_t) j].harpValue);
             std::swap (model[(size_t) i].pianoValue, model[(size_t) j].pianoValue);
+            std::swap (model[(size_t) i].gateResponseMode, model[(size_t) j].gateResponseMode);
+            std::swap (model[(size_t) i].gateResponseAmount, model[(size_t) j].gateResponseAmount);
             rebuildRows();
         }
 
@@ -1423,6 +1427,69 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
         updateOutputTable();
         updateStatus();
     };
+
+    // --- Live Gate Response panel -----------------------------------------
+    styleLabel (gateResponseLabel, juce::Colours::white, 14.0f, juce::Font::bold);
+    gateResponseLabel.setText ("Gate Response Bridge (CC106/107 -> OrchGate)", juce::dontSendNotification);
+    addAndMakeVisible (gateResponseLabel);
+
+    gateResponseEnableButton.setColour (juce::ToggleButton::textColourId, juce::Colours::white);
+    gateResponseEnableButton.setToggleState (audioProcessor.isGateResponseManualEnabled(), juce::dontSendNotification);
+    gateResponseEnableButton.onClick = [this]
+    {
+        audioProcessor.setGateResponseManualEnabled (gateResponseEnableButton.getToggleState());
+        updateStatus();
+    };
+    addAndMakeVisible (gateResponseEnableButton);
+
+    auto styleGateSlider = [this] (juce::Slider& s, juce::Label& l, const juce::String& text)
+    {
+        styleLabel (l, juce::Colours::white, 13.0f, juce::Font::plain);
+        l.setText (text, juce::dontSendNotification);
+        addAndMakeVisible (l);
+
+        s.setSliderStyle (juce::Slider::LinearHorizontal);
+        s.setTextBoxStyle (juce::Slider::TextBoxRight, false, 48, 22);
+        s.setRange (0.0, 127.0, 1.0);
+        s.setColour (juce::Slider::backgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+        s.setColour (juce::Slider::trackColourId, juce::Colour::fromRGB (95, 200, 245));
+        s.setColour (juce::Slider::thumbColourId, juce::Colours::white);
+        s.setColour (juce::Slider::textBoxTextColourId, juce::Colours::white);
+        s.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colour::fromRGB (28, 36, 46));
+        s.setColour (juce::Slider::textBoxOutlineColourId, juce::Colour::fromRGB (70, 85, 95));
+        addAndMakeVisible (s);
+    };
+
+    styleGateSlider (gateResponseAmountSlider, gateResponseAmountLabel, "Amount");
+    styleGateSlider (gateResponseModeSlider, gateResponseModeLabel, "Mode");
+    gateResponseAmountSlider.setValue (audioProcessor.getGateResponseManualAmount(), juce::dontSendNotification);
+    gateResponseModeSlider.setValue (audioProcessor.getGateResponseManualMode(), juce::dontSendNotification);
+
+    gateResponseAmountSlider.onValueChange = [this]
+    {
+        audioProcessor.setGateResponseManualAmount (juce::roundToInt (gateResponseAmountSlider.getValue()));
+        updateStatus();
+    };
+    gateResponseModeSlider.onValueChange = [this]
+    {
+        audioProcessor.setGateResponseManualMode (juce::roundToInt (gateResponseModeSlider.getValue()));
+        updateStatus();
+    };
+
+    gateResponseShuffleButton.setColour (juce::TextButton::buttonColourId, juce::Colour::fromRGB (45, 75, 95));
+    gateResponseShuffleButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
+    gateResponseShuffleButton.onClick = [this]
+    {
+        audioProcessor.shuffleGateResponseMode();
+        gateResponseEnableButton.setToggleState (true, juce::dontSendNotification);
+        gateResponseModeSlider.setValue (audioProcessor.getGateResponseManualMode(), juce::dontSendNotification);
+        updateStatus();
+    };
+    addAndMakeVisible (gateResponseShuffleButton);
+
+    styleLabel (gateResponseStatusLabel, juce::Colour::fromRGB (140, 200, 245), 12.0f, juce::Font::plain);
+    gateResponseStatusLabel.setText ("Bridge idle", juce::dontSendNotification);
+    addAndMakeVisible (gateResponseStatusLabel);
 
     saveUserCombiButton.setColour (juce::TextButton::buttonColourId, juce::Colour::fromRGB (45, 75, 95));
     saveUserCombiButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
@@ -1925,6 +1992,26 @@ void OrchConductorAudioProcessorEditor::resized()
 
     area.removeFromTop (12);
 
+    gateResponseLabel.setBounds (area.removeFromTop (22));
+    area.removeFromTop (2);
+    {
+        auto row = area.removeFromTop (30);
+        gateResponseEnableButton.setBounds (row.removeFromLeft (230));
+        row.removeFromLeft (12);
+        gateResponseShuffleButton.setBounds (row.removeFromLeft (110).reduced (0, 2));
+    }
+    {
+        auto row = area.removeFromTop (30);
+        gateResponseAmountLabel.setBounds (row.removeFromLeft (64));
+        gateResponseAmountSlider.setBounds (row.removeFromLeft (360));
+        row.removeFromLeft (20);
+        gateResponseModeLabel.setBounds (row.removeFromLeft (54));
+        gateResponseModeSlider.setBounds (row.removeFromLeft (300));
+    }
+    gateResponseStatusLabel.setBounds (area.removeFromTop (18));
+
+    area.removeFromTop (12);
+
     narrativeMetadataLabel.setBounds (area.removeFromTop (22));
     narrativeMetadataValueLabel.setBounds (area.removeFromTop (64).reduced (8, 0));
 
@@ -1985,6 +2072,31 @@ void OrchConductorAudioProcessorEditor::timerCallback()
 
     if (juce::roundToInt (userCombiPianoSlider.getValue()) != audioProcessor.getManualPianoValue())
         userCombiPianoSlider.setValue (audioProcessor.getManualPianoValue(), juce::dontSendNotification);
+
+    if (gateResponseEnableButton.getToggleState() != audioProcessor.isGateResponseManualEnabled())
+        gateResponseEnableButton.setToggleState (audioProcessor.isGateResponseManualEnabled(), juce::dontSendNotification);
+
+    if (juce::roundToInt (gateResponseAmountSlider.getValue()) != audioProcessor.getGateResponseManualAmount())
+        gateResponseAmountSlider.setValue (audioProcessor.getGateResponseManualAmount(), juce::dontSendNotification);
+
+    if (juce::roundToInt (gateResponseModeSlider.getValue()) != audioProcessor.getGateResponseManualMode())
+        gateResponseModeSlider.setValue (audioProcessor.getGateResponseManualMode(), juce::dontSendNotification);
+
+    {
+        const int effMode = audioProcessor.getEffectiveGateResponseMode();
+        const int effAmount = audioProcessor.getEffectiveGateResponseAmount();
+
+        juce::String gr;
+        if (effMode < 0 && effAmount < 0)
+            gr = audioProcessor.isGateResponseManualEnabled() ? "Bridge on - mode 0" : "Bridge idle (OrchGate on own knobs)";
+        else
+            gr = "Broadcasting  CC106 = " + juce::String (juce::jmax (0, effMode))
+               + "   CC107 = " + juce::String (juce::jmax (0, effAmount))
+               + (audioProcessor.isGateResponseManualEnabled() ? "  (panel)" : "  (lane point)");
+
+        if (gateResponseStatusLabel.getText() != gr)
+            gateResponseStatusLabel.setText (gr, juce::dontSendNotification);
+    }
 
     const bool sendOnChange = audioProcessor.getSendOnPresetChange();
     if (sendOnChangeToggle.getToggleState() != sendOnChange)
@@ -2309,7 +2421,21 @@ juce::String OrchConductorAudioProcessorEditor::buildMidiMapText() const
         appendMidiMapRow (text, row.ccNumber, row.instrumentName, row.value, row.activePlayers, row.maxPlayers);
     }
 
-    text << "\nUse these CC numbers as the assigned CC Gate values in each OrchGate instance.";
+    text << "\n";
+    appendMidiMapSectionHeader (text, "Control plane (broadcast, not per-instrument)");
+    text << "CC102 Narrative Position   CC103 Narrative Lane   CC104 Authority Mode\n";
+    text << "CC105 Field Select (OrchNoteFilter pitch-class field)\n";
+    {
+        const int m = audioProcessor.getEffectiveGateResponseMode();
+        const int a = audioProcessor.getEffectiveGateResponseAmount();
+        text << "CC106 Gate Response Mode   = " << (m < 0 ? juce::String ("(idle)") : juce::String (m))
+             << "   CC107 Gate Response Amount = " << (a < 0 ? juce::String ("(idle)") : juce::String (a))
+             << "\n      (every OrchGate set to \"Follow Conductor Response\" randomises its own\n"
+             << "       CC Invert / Threshold / participation from these)\n";
+    }
+
+    text << "\nUse the per-instrument CC numbers above as the assigned CC Gate value in each\n";
+    text << "OrchGate instance. CC106/107 are a single broadcast the whole rig follows.";
 
     return text;
 }

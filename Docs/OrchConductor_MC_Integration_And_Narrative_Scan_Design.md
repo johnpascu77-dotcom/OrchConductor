@@ -408,3 +408,53 @@ A third editor view: build a narrative lane as an ordered list of combi "stops" 
   `saveNarrativeLane` / `deleteNarrativeLane` (edit the user's NarrativeLibrary.json - or the
   built-in template if none - and re-import live; points sorted + de-collided),
   `getNarrativeArcShapeNames`, `generateNarrativeLane`.
+
+## 19. OrchGate Response Bridge - DONE (`<this branch>`, 2026-09-11)
+
+A broadcast every OrchGate in the rig can follow to randomise its own response - so the user
+never ticks/unticks CC Invert (or nudges CC Threshold / participation) on every instance by
+hand. Two undefined controllers on channel 1, clear of the CC20-62 send map, CC102-105, and
+MPL's CC20-64:
+
+- **CC 106 - Gate Response Mode**: the "chapter" seed. Steps only when the articulation attitude
+  should change.
+- **CC 107 - Gate Response Amount** (0..127): how far each OrchGate's per-instance randomiser
+  may push. 0 = identity / no overlay (also the "Send All Off" state).
+
+Both CC numbers are relocatable params (`gateResponseModeCc` / `gateResponseAmountCc`, 0 = off).
+
+### OrchGate side (`OrchGate` repo)
+
+New APVTS params, all inert unless **Follow Conductor Response** is on (default off - a
+standalone OrchGate with host LFOs is unaffected):
+
+- `followConductorResponse`, `responseAffectsInvert` / `responseAffectsThreshold` /
+  `responseAffectsParticipation` (per-target opt-in, all default on), `responseModeCc` /
+  `responseAmountCc` (default 106 / 107).
+- `resolveResponseOverlay()`: `seed = hash(mode value, this instance's gate CC number)`. From
+  the seed + amount: Invert flips with probability up to 50% at full amount; Threshold jitters
+  +/-24 around the user's value; participation Floor/Ceiling nudge +/-20% each. Every OrchGate
+  diverges (its own CC number is in the seed) but they all shift together when CC106 steps, and
+  identically after a reload - deterministic, same fail-safe spirit as the closed-by-default
+  gate. The manual `ccInvert` / `ccThreshold` stay the base; the overlay rides on top.
+- A response CC arriving mid-block re-resolves and re-applies (a flipped invert can change the
+  gate open/closed with no gate CC of its own).
+- Editor: "Follow Conductor Response" + the three target toggles + Mode/Amount CC sliders + a
+  live overlay readout.
+
+### OrchConductor side
+
+Two brains, layered (the panel overrides the lane point while enabled):
+
+- **Narrative lane point**: `NarrativeLanePointDefinition` gains `gateResponseMode` /
+  `gateResponseAmount` (-1 = leave alone), read from JSON, round-tripped by `saveNarrativeLane`,
+  emitted when the resolved point changes. `generateNarrativeLane` fills them from the arc - the
+  amount tracks tension, the mode only advances on a genuine combi move (a held / reprised combi
+  keeps its attitude).
+- **Live "Gate Response" panel** (Conductor tab): Broadcast toggle, Amount slider, Mode slider,
+  **Shuffle** (rolls a new 1..127 mode + arms). `setGateResponseManual{Enabled,Mode,Amount}`,
+  `shuffleGateResponseMode`, `getEffectiveGateResponse{Mode,Amount}`. State v7.
+- Emission mirrors the field-select CC: on change, re-broadcast on an explicit "Send Current
+  Presets", amount 0 on "Send All Off" or when the driving source goes away (back to each
+  OrchGate's own knobs). `expectedSendCcCount` unchanged - 106/107 are control-plane like
+  102-105, not combi payload.

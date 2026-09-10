@@ -169,6 +169,23 @@ public:
     // Force a fresh lane resolve + send on the next block (Narrative Scan mode).
     void requestNarrativeReresolve();
 
+    // --- OrchGate response bridge (the live "Gate Response" panel) --------
+    // When enabled, OrchConductor broadcasts CC 106 (mode) / CC 107 (amount)
+    // that every OrchGate set to "Follow Conductor Response" obeys. Enabled
+    // here overrides whatever a narrative lane point sets. Disabling it emits
+    // amount 0 once, returning every OrchGate to its own literal knobs.
+    void setGateResponseManualEnabled (bool shouldEnable);
+    bool isGateResponseManualEnabled() const;
+    void setGateResponseManualMode (int mode);
+    int getGateResponseManualMode() const;
+    void setGateResponseManualAmount (int amount);
+    int getGateResponseManualAmount() const;
+    // Roll a fresh mode value (1..127), enable the panel, and request a send.
+    void shuffleGateResponseMode();
+    // The mode / amount currently being broadcast, or -1 when nothing is.
+    int getEffectiveGateResponseMode() const;
+    int getEffectiveGateResponseAmount() const;
+
     double getNarrativePosition() const;
     void setNarrativePosition (double position);
 
@@ -241,14 +258,18 @@ public:
     int getNarrativeLanePointFieldIndex (int laneIndex, int pointIndex) const;
     int getNarrativeLanePointHarpValueAt (int laneIndex, int pointIndex) const;
     int getNarrativeLanePointPianoValueAt (int laneIndex, int pointIndex) const;
+    int getNarrativeLanePointGateResponseModeAt (int laneIndex, int pointIndex) const;
+    int getNarrativeLanePointGateResponseAmountAt (int laneIndex, int pointIndex) const;
 
     struct NarrativeLanePointEdit
     {
         double position = 0.0;
         int combiId = 0;
-        int pitchFieldIndex = -1;   // -1 = leave the field alone
-        int harpValue = -1;         // -1 = Off
-        int pianoValue = -1;        // -1 = Off
+        int pitchFieldIndex = -1;     // -1 = leave the field alone
+        int harpValue = -1;           // -1 = Off
+        int pianoValue = -1;          // -1 = Off
+        int gateResponseMode = -1;    // -1 = leave the OrchGate response bridge alone
+        int gateResponseAmount = -1;  // -1 = leave the OrchGate response bridge alone
     };
 
     // Write a lane into the narrative-lane library (the user's editable
@@ -481,6 +502,24 @@ private:
     int lastResolvedNarrativeHarpValue { -1 };
     int lastResolvedNarrativePianoValue { -1 };
 
+    // --- OrchGate response bridge (CC 106 mode / CC 107 amount) -----------
+    // A broadcast every OrchGate in the rig can follow to randomize its own
+    // CC Invert / CC Threshold / CC Participation range per-instance (seeded
+    // by the mode value + that gate's own CC number), so the user never has
+    // to tick/untick those on every instance by hand.
+    //
+    // The manual live panel wins when enabled (any authority mode); otherwise
+    // a narrative lane point's gateResponseMode/Amount drives it while
+    // Narrative Scan is running. -1 = "not driving it, leave OrchGate alone".
+    bool gateResponseManualEnabled { false };
+    int gateResponseManualMode { 0 };
+    int gateResponseManualAmount { 96 };
+    int lastResolvedGateResponseMode { -1 };
+    int lastResolvedGateResponseAmount { -1 };
+    int lastSentGateResponseMode { -1 };
+    int lastSentGateResponseAmount { -1 };
+    juce::Random gateResponseShuffleRng;
+
     // Field-select CC (OrchNoteFilter pitch-class field, see NarrativeLanePointDefinition
     // ::pitchFieldIndex). Staged when the resolved lane point changes, emitted
     // next processBlock, suppressed when the field index is unchanged.
@@ -573,6 +612,8 @@ private:
     juce::AudioParameterInt* narrativeLaneParameter { nullptr };
     juce::AudioParameterFloat* narrativePositionParameter { nullptr };
     juce::AudioParameterInt* fieldSelectCcParameter { nullptr };
+    juce::AudioParameterInt* gateResponseModeCcParameter { nullptr };
+    juce::AudioParameterInt* gateResponseAmountCcParameter { nullptr };
     void syncAutomatedParameters();
 
     // Phase 10F.5 increment 2: resolve the selected narrative lane + position

@@ -93,6 +93,20 @@ private:
     juce::Label userCombiPianoLabel;
     juce::Slider userCombiPianoSlider;
 
+    // Live "Gate Response" panel: broadcasts CC 106 (mode) / CC 107 (amount)
+    // that every OrchGate set to "Follow Conductor Response" obeys - a single
+    // control for the whole rig's invert / threshold / participation
+    // randomisation. Overrides a narrative lane point's own gate-response
+    // values while enabled.
+    juce::Label gateResponseLabel;
+    juce::ToggleButton gateResponseEnableButton { "Broadcast Gate Response" };
+    juce::Label gateResponseAmountLabel;
+    juce::Slider gateResponseAmountSlider;
+    juce::Label gateResponseModeLabel;
+    juce::Slider gateResponseModeSlider;
+    juce::TextButton gateResponseShuffleButton { "Shuffle" };
+    juce::Label gateResponseStatusLabel;
+
     juce::TextButton saveUserCombiButton { "Save Current Sections as Combi" };
     juce::TextButton deleteUserCombiButton { "Delete User Combi" };
     juce::TextButton exportUserCombisButton { "Export User Combis JSON" };

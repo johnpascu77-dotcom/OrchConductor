@@ -991,6 +991,151 @@ bool verifyProbeDiagnosticsPresentAndNonAuthoritative()
     return ok;
 }
 
+bool verifyGateResponseManualPanel()
+{
+    OrchConductorAudioProcessor processor;
+    bool ok = true;
+
+    // Panel off: a normal payload send carries no CC106/107.
+    processor.setSectionPresetId(OrchConductorAudioProcessor::Section::strings,
+                                 static_cast<int>(OrchConductorAudioProcessor::Preset::lowStrings));
+    processor.requestSendPreset();
+    const auto quiet = captureMidi(processor);
+    ok = checkEquals(quiet.eventCount, expectedSendCcCount, "gate response panel off: plain payload") && ok;
+    ok = checkPass(quiet.ccValues.count(106) == 0, "gate response panel off: no CC106") && ok;
+    ok = checkPass(quiet.ccValues.count(107) == 0, "gate response panel off: no CC107") && ok;
+
+    // Enable the panel with a mode/amount -> next send broadcasts both.
+    processor.setGateResponseManualMode(70);
+    processor.setGateResponseManualAmount(110);
+    processor.setGateResponseManualEnabled(true);
+    const auto armed = captureMidi(processor);
+    ok = checkEquals(armed.eventCount, expectedSendCcCount + 2, "gate response armed: payload + 2 bridge CCs") && ok;
+    ok = expectCcValue(armed, 106, 70, "gate response armed CC106 = mode") && ok;
+    ok = expectCcValue(armed, 107, 110, "gate response armed CC107 = amount") && ok;
+
+    // Explicit "Send Current Presets" re-broadcasts (same contract as the
+    // field-select CC) so a late-joining OrchGate is brought current.
+    processor.requestSendPreset();
+    const auto resync = captureMidi(processor);
+    ok = expectCcValue(resync, 106, 70, "gate response re-sync CC106") && ok;
+    ok = expectCcValue(resync, 107, 110, "gate response re-sync CC107") && ok;
+
+    // Disable the panel -> amount 0 emitted once (every OrchGate back to knobs).
+    processor.setGateResponseManualEnabled(false);
+    const auto released = captureMidi(processor);
+    ok = expectCcValue(released, 107, 0, "gate response disabled emits CC107 = 0") && ok;
+
+    // ...and not again on the next send.
+    processor.requestSendPreset();
+    const auto after = captureMidi(processor);
+    ok = checkPass(after.ccValues.count(107) == 0, "gate response disabled: CC107 = 0 not repeated") && ok;
+
+    // Send All Off after arming neutralises the bridge.
+    processor.setGateResponseManualEnabled(true);
+    processor.setGateResponseManualAmount(90);
+    captureMidi(processor);
+    processor.requestSendAllOff();
+    const auto allOff = captureMidi(processor);
+    ok = expectCcValue(allOff, 107, 0, "Send All Off after arming emits CC107 = 0") && ok;
+
+    // Shuffle enables the panel and lands on a non-zero mode.
+    OrchConductorAudioProcessor shuffled;
+    shuffled.shuffleGateResponseMode();
+    ok = checkPass(shuffled.isGateResponseManualEnabled(), "shuffle enables the panel") && ok;
+    ok = checkPass(shuffled.getGateResponseManualMode() >= 1 && shuffled.getGateResponseManualMode() <= 127,
+                   "shuffle lands on a 1..127 mode") && ok;
+
+    // State v7 round-trip.
+    OrchConductorAudioProcessor src;
+    src.setGateResponseManualMode(55);
+    src.setGateResponseManualAmount(33);
+    src.setGateResponseManualEnabled(true);
+    juce::MemoryBlock state;
+    src.getStateInformation(state);
+    OrchConductorAudioProcessor restored;
+    restored.setStateInformation(state.getData(), static_cast<int>(state.getSize()));
+    ok = checkPass(restored.isGateResponseManualEnabled(), "gate response enabled survives state round-trip") && ok;
+    ok = checkEquals(restored.getGateResponseManualMode(), 55, "gate response mode survives state round-trip") && ok;
+    ok = checkEquals(restored.getGateResponseManualAmount(), 33, "gate response amount survives state round-trip") && ok;
+
+    return ok;
+}
+
+#if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
+bool verifyGateResponseLanePoint()
+{
+    OrchConductorAudioProcessor processor;
+
+    if (processor.doesRuntimePresetCatalogAuthorityProbeRequireFallback())
+    {
+        std::cout << "[SKIP] gate response lane point: runtime catalog not authoritative" << std::endl;
+        return true;
+    }
+
+    bool ok = true;
+
+    // Build a throwaway lane with explicit gate-response stops (the embedded
+    // demo lane may be shadowed by the user's own NarrativeLibrary.json).
+    const auto libFile = processor.getNarrativeLibraryFile();
+    const bool hadLib = libFile.existsAsFile();
+    const juce::String libBackup = hadLib ? libFile.loadFileAsString() : juce::String{};
+
+    std::vector<OrchConductorAudioProcessor::NarrativeLanePointEdit> lane;
+    { OrchConductorAudioProcessor::NarrativeLanePointEdit p; p.position = 0.0; p.combiId = 1;                       lane.push_back(p); }
+    { OrchConductorAudioProcessor::NarrativeLanePointEdit p; p.position = 0.5; p.combiId = 4; p.gateResponseMode = 40; p.gateResponseAmount = 48; lane.push_back(p); }
+    { OrchConductorAudioProcessor::NarrativeLanePointEdit p; p.position = 0.75; p.combiId = 4; p.gateResponseMode = 40; p.gateResponseAmount = 84; lane.push_back(p); }
+    { OrchConductorAudioProcessor::NarrativeLanePointEdit p; p.position = 1.0; p.combiId = 2;                       lane.push_back(p); }
+
+    ok = checkPass(processor.saveNarrativeLane("qa_gate_response_lane", "QA Gate Response", "", lane),
+                   "saveNarrativeLane (gate response) succeeds") && ok;
+
+    int laneIdx = -1;
+    for (int i = 0; i < processor.getNarrativeLaneCount(); ++i)
+        if (processor.getNarrativeLaneId(i) == "qa_gate_response_lane") laneIdx = i;
+
+    if (laneIdx >= 0)
+    {
+        processor.setAuthorityMode(OrchConductorAudioProcessor::AuthorityMode::narrativeScan);
+        processor.setNarrativeLaneIndex(laneIdx);
+
+        // Point 0 (position 0) carries no gate-response -> no CC106/107.
+        processor.setNarrativePosition(0.0);
+        processor.requestNarrativeReresolve();
+        const auto atStart = captureMidi(processor);
+        ok = checkPass(atStart.ccValues.count(106) == 0, "lane point 0: no CC106") && ok;
+        ok = checkPass(atStart.ccValues.count(107) == 0, "lane point 0: no CC107") && ok;
+
+        // Point at 0.5 sets gateResponseMode 40 / gateResponseAmount 48.
+        processor.setNarrativePosition(0.5);
+        const auto atMid = captureMidi(processor);
+        ok = expectCcValue(atMid, 106, 40, "lane point 0.5 broadcasts gateResponseMode") && ok;
+        ok = expectCcValue(atMid, 107, 48, "lane point 0.5 broadcasts gateResponseAmount") && ok;
+
+        // Point at 0.75 keeps mode 40 (held chapter) but lifts amount to 84 ->
+        // only CC107 is re-sent.
+        processor.setNarrativePosition(0.75);
+        const auto atLate = captureMidi(processor);
+        ok = checkPass(atLate.ccValues.count(106) == 0, "lane point 0.75 holds the mode (no CC106)") && ok;
+        ok = expectCcValue(atLate, 107, 84, "lane point 0.75 lifts gateResponseAmount") && ok;
+
+        // Far end (position 1) has no gate-response -> amount neutralised to 0.
+        processor.setNarrativePosition(1.0);
+        const auto atEnd = captureMidi(processor);
+        ok = expectCcValue(atEnd, 107, 0, "lane end with no gate-response neutralises CC107") && ok;
+
+        processor.setAuthorityMode(OrchConductorAudioProcessor::AuthorityMode::manualSections);
+    }
+
+    processor.deleteNarrativeLane("qa_gate_response_lane");
+
+    if (hadLib) libFile.replaceWithText(libBackup);
+    else        libFile.deleteFile();
+
+    return ok;
+}
+#endif
+
 } // namespace
 
 int main()
@@ -1017,10 +1162,12 @@ int main()
     ok = verifyInstrumentGridUserCombi() && ok;
     ok = verifyRandomGridGenerator() && ok;
     ok = verifyUserCombiExplicitCcValues() && ok;
+    ok = verifyGateResponseManualPanel() && ok;
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     ok = verifyNarrativeScanDrivesCombiSend() && ok;
     ok = verifyNarrativeControlCcInput() && ok;
     ok = verifyInputPassthroughModes() && ok;
+    ok = verifyGateResponseLanePoint() && ok;
 #endif
     ok = verifySendRequestConsumed() && ok;
     ok = verifyProbeDiagnosticsPresentAndNonAuthoritative() && ok;
