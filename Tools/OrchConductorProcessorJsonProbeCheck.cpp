@@ -718,8 +718,8 @@ bool verifyNarrativeLibraryImportRoundTrip(OrchConductorAudioProcessor& processo
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     bool ok = true;
 
-    ok = checkEquals(processor.getNarrativeLaneCount(), 6, "built-in narrative lane count") && ok;
-
+    // (The processor may already carry a user NarrativeLibrary.json - the
+    // template it exports below always has just the 6 built-in lanes.)
     const auto libraryFile = processor.getNarrativeLibraryFile();
     const bool hadExistingLibrary = libraryFile.existsAsFile();
     const juce::String existingLibraryBackup = hadExistingLibrary ? libraryFile.loadFileAsString() : juce::String{};
@@ -876,6 +876,37 @@ bool verifyNarrativeLaneMaker(OrchConductorAudioProcessor& processor)
     for (int i = 0; i < processor.getNarrativeLaneCount(); ++i)
         if (processor.getNarrativeLaneId(i) == "qa_test_lane") stillThere = true;
     ok = checkPass(! stillThere, "deleted lane is gone") && ok;
+
+    // A lane whose stops reference a USER combi must resolve to it (the
+    // resolver used to reject any id >= the catalog's factory combi count).
+    processor.setSectionPresetId(OrchConductorAudioProcessor::Section::strings,
+                                 static_cast<int>(OrchConductorAudioProcessor::Preset::fullStrings));
+    const int userCombiId = processor.createUserCombiPresetFromCurrentSections("QA Lane User Combi");
+    ok = checkPass(userCombiId >= 29, "a user combi exists for the lane test") && ok;
+
+    std::vector<OrchConductorAudioProcessor::NarrativeLanePointEdit> userLane;
+    { OrchConductorAudioProcessor::NarrativeLanePointEdit p; p.position = 0.0; p.combiId = 1;           userLane.push_back(p); }
+    { OrchConductorAudioProcessor::NarrativeLanePointEdit p; p.position = 1.0; p.combiId = userCombiId; userLane.push_back(p); }
+
+    ok = checkPass(processor.saveNarrativeLane("qa_user_lane", "QA User Lane", "", userLane),
+                   "saveNarrativeLane with a user-combi stop succeeds") && ok;
+
+    int userLaneIdx = -1;
+    for (int i = 0; i < processor.getNarrativeLaneCount(); ++i)
+        if (processor.getNarrativeLaneId(i) == "qa_user_lane") userLaneIdx = i;
+
+    if (userLaneIdx >= 0)
+    {
+        processor.setAuthorityMode(OrchConductorAudioProcessor::AuthorityMode::narrativeScan);
+        processor.setNarrativeLaneIndex(userLaneIdx);
+        processor.setNarrativePosition(1.0);
+        processor.requestNarrativeReresolve();
+        juce::AudioBuffer<float> buf(2, 64); juce::MidiBuffer mid; processor.processBlock(buf, mid);
+        ok = checkEquals(processor.getResolvedNarrativeCombiId(), userCombiId,
+                         "narrative lane resolves to a user combi at the end stop") && ok;
+        processor.setAuthorityMode(OrchConductorAudioProcessor::AuthorityMode::manualSections);
+    }
+    processor.deleteNarrativeLane("qa_user_lane");
 
     if (hadLib) libFile.replaceWithText(libBackup);
     else        libFile.deleteFile();

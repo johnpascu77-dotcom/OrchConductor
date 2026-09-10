@@ -531,7 +531,7 @@ namespace
     {
     public:
         std::function<void()> onBack;
-        std::function<void()> onSaved;
+        std::function<void (juce::String laneId)> onLaneActive;   // save or load -> point the Conductor at this lane
 
         explicit LaneMakerComponent (OrchConductorAudioProcessor& proc)
             : processor (proc)
@@ -664,9 +664,9 @@ namespace
         {
             if (isVisible())
             {
-                refreshLoadBox();
                 rebuildCombiChoices();
                 rebuildRows();
+                refreshLoadBox();   // preserves currentLaneId
             }
         }
 
@@ -768,10 +768,17 @@ namespace
             loadBox.clear (juce::dontSendNotification);
             loadBox.addItem ("(new lane)", 1);
 
+            int selectId = 1;
+
             for (int i = 0; i < processor.getNarrativeLaneCount(); ++i)
+            {
                 loadBox.addItem (processor.getNarrativeLaneLabel (i), i + 2);
 
-            loadBox.setSelectedId (1, juce::dontSendNotification);
+                if (currentLaneId.isNotEmpty() && processor.getNarrativeLaneId (i) == currentLaneId)
+                    selectId = i + 2;
+            }
+
+            loadBox.setSelectedId (selectId, juce::dontSendNotification);
         }
 
         void resizeModelTo (int count)
@@ -833,10 +840,15 @@ namespace
                 model.push_back (p);
             }
 
+            currentLaneId = processor.getNarrativeLaneId (laneIndex);
             nameEditor.setText (processor.getNarrativeLaneLabel (laneIndex), juce::dontSendNotification);
             stopsSlider.setValue ((double) model.size(), juce::dontSendNotification);
             rebuildRows();
-            statusLabel.setText ("Loaded lane '" + processor.getNarrativeLaneId (laneIndex) + "' - edit and Save.",
+
+            if (onLaneActive) onLaneActive (currentLaneId);
+
+            statusLabel.setText ("Loaded lane '" + currentLaneId
+                                 + "' - now the active lane in the Conductor tab. Edit and Save.",
                                  juce::dontSendNotification);
         }
 
@@ -847,9 +859,13 @@ namespace
 
             if (processor.saveNarrativeLane (id, name, {}, model))
             {
+                currentLaneId = id;
                 refreshLoadBox();
-                if (onSaved) onSaved();
-                statusLabel.setText ("Saved lane '" + id + "' (" + juce::String (model.size()) + " stops) to the library.",
+
+                if (onLaneActive) onLaneActive (id);
+
+                statusLabel.setText ("Saved lane '" + id + "' (" + juce::String (model.size())
+                                     + " stops) - now the active lane in the Conductor tab.",
                                      juce::dontSendNotification);
             }
             else
@@ -865,8 +881,9 @@ namespace
 
             if (processor.deleteNarrativeLane (id))
             {
+                if (currentLaneId == id) currentLaneId.clear();
                 refreshLoadBox();
-                if (onSaved) onSaved();
+                if (onLaneActive) onLaneActive ({});   // let the Conductor re-clamp its lane selection
                 statusLabel.setText ("Deleted lane '" + id + "'.", juce::dontSendNotification);
             }
             else
@@ -964,6 +981,7 @@ namespace
 
         OrchConductorAudioProcessor& processor;
         std::vector<OrchConductorAudioProcessor::NarrativeLanePointEdit> model;
+        juce::String currentLaneId;
 
         juce::Label titleLabel, hintLabel, loadLabel, arcLabel, stopsLabel, restlessLabel, statusLabel, headerRowLabel;
         juce::TextButton backButton, saveButton, deleteButton, proposeButton;
@@ -1665,9 +1683,21 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     {
         auto lm = std::make_unique<LaneMakerComponent> (audioProcessor);
         lm->onBack = [this] { showView (View::conductor); };
-        lm->onSaved = [this]
+        lm->onLaneActive = [this] (juce::String laneId)
         {
             rebuildNarrativeLaneItems();
+
+            int idx = -1;
+            for (int i = 0; i < audioProcessor.getNarrativeLaneCount(); ++i)
+                if (audioProcessor.getNarrativeLaneId (i) == laneId)
+                    idx = i;
+
+            if (idx >= 0)
+            {
+                audioProcessor.setNarrativeLaneIndex (idx);
+                audioProcessor.requestNarrativeReresolve();
+            }
+
             narrativeLaneBox.setSelectedId (audioProcessor.getNarrativeLaneIndex() + 1, juce::dontSendNotification);
             updateNarrativeScanControls();
             updateStatus();

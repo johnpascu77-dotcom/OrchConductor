@@ -166,6 +166,8 @@ public:
 
     int getNarrativeLaneIndex() const;
     void setNarrativeLaneIndex (int laneIndex);
+    // Force a fresh lane resolve + send on the next block (Narrative Scan mode).
+    void requestNarrativeReresolve();
 
     double getNarrativePosition() const;
     void setNarrativePosition (double position);

@@ -114,7 +114,11 @@ OrchConductorNarrativeScanSelection OrchConductorNarrativeScanResolver::resolve(
 
     const int combiId = catalog.getNarrativeLanePointCombiId(laneIndex, selectedPointIndex);
 
-    if (combiId < 0 || combiId >= catalog.getCombiPresetCount())
+    // A lane point may reference a user combi (id >= the catalog's factory
+    // combi count) - user combis live on the processor, not the runtime
+    // catalog, so only bound-check against the full combi-id range (0..127).
+    // The processor's send path resolves an unknown id to silence, not a crash.
+    if (combiId < 0 || combiId > 127)
         return selection;
 
     selection.combiId = combiId;

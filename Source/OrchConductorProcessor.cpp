@@ -1657,6 +1657,20 @@ void OrchConductorAudioProcessor::setNarrativeLaneIndex (int laneIndex)
         *narrativeLaneParameter = clamped;
 }
 
+void OrchConductorAudioProcessor::requestNarrativeReresolve()
+{
+    // Force the next processBlock to re-resolve the current lane from scratch
+    // and send, even if it lands on the same combi id (used after the Lane
+    // Maker edits the library or the editor re-points the lane).
+    lastResolvedNarrativePointIndex = -1;
+    lastResolvedNarrativeCombiId = -1;
+    lastResolvedNarrativeHarpValue = -1;
+    lastResolvedNarrativePianoValue = -1;
+
+    if (authorityMode == AuthorityMode::narrativeScan)
+        sendPresetRequested = true;
+}
+
 double OrchConductorAudioProcessor::getNarrativePosition() const
 {
     return narrativePosition;
