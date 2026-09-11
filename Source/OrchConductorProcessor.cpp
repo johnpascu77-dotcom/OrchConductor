@@ -2897,7 +2897,7 @@ std::vector<OrchConductorAudioProcessor::NarrativeLanePointEdit>
                                                         juce::int64 seed) const
 {
     juce::Random rng (seed);
-    const int n = juce::jlimit (2, 16, pointCount);
+    const int n = juce::jlimit (2, 64, pointCount);
     restlessness = juce::jlimit (0.0f, 1.0f, restlessness);
 
     // Candidate combis: every factory combi except manual.sections (0), plus

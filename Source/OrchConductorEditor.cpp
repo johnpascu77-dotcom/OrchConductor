@@ -612,7 +612,7 @@ namespace
             addAndMakeVisible (stopsLabel);
 
             stopsSlider.setSliderStyle (juce::Slider::IncDecButtons);
-            stopsSlider.setRange (2.0, 16.0, 1.0);
+            stopsSlider.setRange (2.0, 64.0, 1.0);
             stopsSlider.setValue (6.0, juce::dontSendNotification);
             stopsSlider.setTextBoxStyle (juce::Slider::TextBoxLeft, false, 44, 22);
             stopsSlider.setColour (juce::Slider::textBoxTextColourId, juce::Colours::white);
@@ -783,7 +783,7 @@ namespace
 
         void resizeModelTo (int count)
         {
-            count = juce::jlimit (2, 16, count);
+            count = juce::jlimit (2, 64, count);
 
             if ((int) model.size() > count)
                 model.resize ((size_t) count);
