@@ -63,7 +63,7 @@ juce_add_plugin(OrchConductor
     PLUGIN_MANUFACTURER_CODE Jpas
     PLUGIN_CODE Ocnd
 
-    FORMATS VST3
+    FORMATS VST3 Standalone
 
     PRODUCT_NAME "OrchConductor"
     PLUGIN_NAME "OrchConductor"

@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OrchConductor — Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#15120F; --surface:#1E1A15; --surface-2:#262019; --surface-3:#2E2620;
+    --border:#3A2F22; --border-soft:#2A2319;
+    --text:#EDE6D9; --text-dim:#A79B87; --text-faint:#6E6353;
+    --brass:#D8A94E; --brass-dim:#A67E38;
+    --note:#CB6E47; --note-dim:#8C4C31;
+    --control:#5C93B8; --control-dim:#3E6A85;
+    --sage:#84A672; --sage-dim:#5C7A4E;
+    --violet:#9488B0; --violet-dim:#665C7C;
+    color-scheme: dark;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    background:var(--bg); color:var(--text); margin:0;
+    font-family:"Work Sans", ui-sans-serif, system-ui, sans-serif;
+    line-height:1.55; font-size:15px;
+    background-image: radial-gradient(1100px 480px at 10% -10%, color-mix(in srgb, var(--control) 9%, transparent), transparent 60%);
+  }
+  .wrap{ max-width:1160px; margin:0 auto; padding:36px 26px 70px; }
+  .mono{ font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .crumbs{ font-family:"IBM Plex Mono"; font-size:.7rem; color:var(--text-faint); letter-spacing:.04em; margin-bottom:16px; }
+  .crumbs b{ color:var(--control); font-weight:500; }
+  .nameplate{ display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap;
+    padding-bottom:18px; margin-bottom:22px; border-bottom:2px solid var(--border); }
+  .nameplate h1{ font-family:"Big Shoulders Display"; font-weight:800; text-transform:uppercase;
+    font-size:clamp(2.1rem,5vw,3.2rem); line-height:.9; margin:0; letter-spacing:.005em; }
+  .nameplate .role{ color:var(--text-dim); font-size:.92rem; max-width:56ch; margin-top:8px; }
+  .badges{ display:flex; gap:8px; flex-wrap:wrap; }
+  .badge{ font-family:"IBM Plex Mono"; font-size:.66rem; text-transform:uppercase; letter-spacing:.06em;
+    padding:3px 9px; border-radius:20px; white-space:nowrap; }
+  .badge.chain{ color:var(--control); border:1px solid var(--control-dim); background:color-mix(in srgb, var(--control) 14%, transparent); }
+  .badge.live{ color:var(--sage); border:1px solid var(--sage-dim); background:color-mix(in srgb, var(--sage) 14%, transparent); }
+  .badge.plugin-code{ color:var(--text-faint); border:1px dashed var(--text-faint); }
+  .lede{ color:var(--text-dim); max-width:80ch; margin:0 0 34px; font-size:.98rem; }
+  .lede strong{ color:var(--text); font-weight:600; }
+  .tabnote{ display:flex; gap:12px; background:var(--surface); border:1px solid var(--border-soft);
+    border-radius:8px; padding:14px 16px; margin:0 0 34px; }
+  .tabnote .dot{ flex:none; width:9px; height:9px; border-radius:50%; background:var(--control); margin-top:6px; }
+  .tabnote p{ margin:0; color:var(--text-dim); font-size:.87rem; }
+  .tabnote code{ color:var(--brass); font-family:"IBM Plex Mono"; }
+  .section-head{ display:flex; align-items:baseline; gap:14px; margin:52px 0 18px; }
+  .section-head .num{ font-family:"IBM Plex Mono"; color:var(--text-faint); font-size:.82rem; }
+  .section-head h2{ font-family:"Big Shoulders Display"; font-weight:700; text-transform:uppercase; font-size:1.5rem; margin:0; }
+  .section-head .rule{ flex:1; height:1px; background:var(--border); }
+  .section-note{ color:var(--text-dim); max-width:80ch; margin:-6px 0 22px; font-size:.9rem; }
+  .layout{ display:grid; grid-template-columns: 480px 1fr; gap:28px; align-items:start; }
+  @media (max-width:940px){ .layout{ grid-template-columns:1fr; } }
+  .shot-frame{ position:relative; border:1px solid var(--border-soft); border-radius:8px; overflow:hidden;
+    background:#0C0A08; box-shadow: 0 14px 34px -16px rgba(0,0,0,.7); }
+  .shot-frame img{ display:block; width:100%; height:auto; }
+  .marker{ position:absolute; transform:translate(-50%,-50%); width:24px; height:24px; border-radius:50%;
+    background:var(--control); color:#0A1620; border:2px solid #0A1620; font-family:"IBM Plex Mono"; font-weight:600;
+    font-size:.74rem; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--control) 45%, transparent), 0 3px 10px rgba(0,0,0,.5); }
+  .shot-caption{ color:var(--text-faint); font-size:.76rem; margin-top:10px; }
+  .region-list{ display:flex; flex-direction:column; }
+  .region{ display:flex; gap:12px; padding:13px 0; border-bottom:1px solid var(--border-soft); }
+  .region:last-child{ border-bottom:none; }
+  .region .badge-num{ flex:none; width:24px; height:24px; border-radius:50%; background:var(--surface-2);
+    border:1px solid var(--control-dim); color:var(--control); font-family:"IBM Plex Mono"; font-weight:600;
+    font-size:.74rem; display:flex; align-items:center; justify-content:center; margin-top:2px; }
+  .region .r-name{ font-weight:600; font-size:.89rem; }
+  .region .r-members{ font-family:"IBM Plex Mono"; font-size:.65rem; color:var(--text-faint); margin-top:3px; }
+  .region .r-desc{ color:var(--text-dim); font-size:.81rem; margin-top:5px; line-height:1.5; }
+  .table-wrap{ overflow-x:auto; background:var(--surface); border:1px solid var(--border-soft); border-radius:8px; margin-bottom:14px; }
+  table{ width:100%; border-collapse:collapse; font-size:.8rem; }
+  th{ text-align:left; font-family:"IBM Plex Mono"; font-weight:500; font-size:.63rem; text-transform:uppercase;
+    letter-spacing:.08em; color:var(--text-faint); padding:9px 12px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  td{ padding:8px 12px; border-bottom:1px solid var(--border-soft); vertical-align:top; }
+  tr:last-child td{ border-bottom:none; }
+  td.pid{ font-family:"IBM Plex Mono"; color:var(--brass); white-space:nowrap; }
+  td.range{ font-family:"IBM Plex Mono"; color:var(--text-faint); white-space:nowrap; font-size:.72rem; }
+  td.desc{ color:var(--text-dim); }
+  .subhead{ font-family:"IBM Plex Mono"; font-size:.68rem; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--control); margin:22px 0 8px; }
+  .readout-note{ display:flex; gap:14px; background:var(--surface); border:1px solid var(--border-soft); border-radius:8px;
+    padding:16px 18px; margin-top:8px; align-items:flex-start; }
+  .readout-note .dot{ flex:none; width:9px; height:9px; border-radius:50%; background:var(--sage); margin-top:6px; }
+  .readout-note p{ margin:0; color:var(--text-dim); font-size:.87rem; }
+  .readout-note code{ font-family:"IBM Plex Mono"; color:var(--sage); font-size:.82rem; }
+  footer{ margin-top:60px; padding-top:20px; border-top:1px solid var(--border); color:var(--text-faint); font-size:.76rem;
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="crumbs">Orch System → Control Path → <b>OrchConductor</b></div>
+
+  <div class="nameplate">
+    <div>
+      <h1>OrchConductor</h1>
+      <div class="role">The one global CC hub in the built system — everything downstream of it is generic, source-agnostic, per-track.</div>
+    </div>
+    <div class="badges">
+      <span class="badge chain">control path · CC 20-62, ch 1</span>
+      <span class="badge live">live</span>
+      <span class="badge plugin-code mono">Ocnd</span>
+    </div>
+  </div>
+
+  <p class="lede">
+    A full-score orchestration sender: combi presets, per-section presets, a Narrative Scan mode that walks a
+    named arc shape across up to 64 combi "stops," an Instrument Combi Grid for hand-tuning any combination, and
+    a response bridge that broadcasts a deterministic articulation randomizer to every OrchGate in the rig. The
+    biggest, most feature-dense plugin in the family — this guide uses one marker per <strong>region</strong>,
+    not per control, with full tables carrying the exhaustive detail.
+  </p>
+
+  <div class="tabnote">
+    <div class="dot"></div>
+    <p>Only the default <code>Conductor</code> view is screenshotted below. <code>Combi Grid</code> (43
+    instrument sliders) and <code>Narrative Lane</code> (the arc-proposal editor) are documented from source in
+    §02–§03, same depth, no picture — switching views needs a live click this session couldn't automate on an
+    unlisted build.</p>
+  </div>
+
+  <div class="section-head"><span class="num">01</span><h2>Conductor View</h2><div class="rule"></div></div>
+  <p class="section-note">
+    Top to bottom: which combi is playing and how (1–3), the 4 manual section presets plus Harp/Piano (4–5), the
+    Narrative Scan arc-walker (6), the OrchGate response broadcast (7), and a live status bar (8).
+  </p>
+
+  <div class="layout">
+    <div class="shot-frame">
+      <img src="assets/orchconductor-editor.png" alt="OrchConductor editor, real screenshot, Conductor view, 8 numbered regions">
+      <div class="marker" style="left:23.6%; top:5.6%">1</div>
+      <div class="marker" style="left:52.9%; top:21.6%">2</div>
+      <div class="marker" style="left:52.9%; top:33.0%">3</div>
+      <div class="marker" style="left:52.9%; top:47.7%">4</div>
+      <div class="marker" style="left:52.9%; top:56.9%">5</div>
+      <div class="marker" style="left:49.3%; top:67.5%">6</div>
+      <div class="marker" style="left:49.3%; top:84.8%">7</div>
+      <div class="marker" style="left:49.3%; top:95.7%">8</div>
+    </div>
+    <div class="region-list">
+      <div class="region"><div class="badge-num">1</div><div>
+        <div class="r-name">View Switch</div>
+        <div class="r-desc">Conductor / Combi Grid / Narrative Lane — three full editor views sharing one plugin, not tabs of one layout.</div>
+      </div></div>
+      <div class="region"><div class="badge-num">2</div><div>
+        <div class="r-name">Combi Preset &amp; Authority Mode</div>
+        <div class="r-members mono">combiPreset · authorityMode</div>
+        <div class="r-desc">Authority Mode picks which of 3 sources actually drives the CC20-62 output: Manual Sections (the 4 dropdowns in region 4), Combi Preset (one named preset for the whole orchestra), or Narrative Scan (region 6).</div>
+      </div></div>
+      <div class="region"><div class="badge-num">3</div><div>
+        <div class="r-name">User Combi Management</div>
+        <div class="r-desc">Name + Save Current Sections as Combi captures whatever's currently sounding (manual dropdowns + Harp/Piano sliders) into a new named combi. Delete/Export/Import round-trip the whole user library as JSON.</div>
+      </div></div>
+      <div class="region"><div class="badge-num">4</div><div>
+        <div class="r-name">Manual Section Presets</div>
+        <div class="r-members mono">woodwindsPreset · brassPreset · percussionPreset · stringsPreset</div>
+        <div class="r-desc">Only drive output while Authority Mode = Manual Sections. Each section has its own named preset list.</div>
+      </div></div>
+      <div class="region"><div class="badge-num">5</div><div>
+        <div class="r-name">Harp / Piano (manual)</div>
+        <div class="r-desc">UI-only session state, <em>not</em> host-automatable APVTS params (<span class="mono">manualHarpValue</span> / <span class="mono">manualPianoValue</span>, plain members, -1 = off) — CC49/CC55 direct control in Manual Sections mode. Precedence: manual sliders &gt; narrative lane point &gt; user combi's own harpValue/pianoValue.</div>
+      </div></div>
+      <div class="region"><div class="badge-num">6</div><div>
+        <div class="r-name">Narrative Scan</div>
+        <div class="r-members mono">narrativeLane · narrativePosition</div>
+        <div class="r-desc">Walks the selected lane's combi "stops" by position (0..1) with hysteresis, resolved via the same 6+ CC102/103 bridge MC drives (see the Signal Map). Export/Import Lane Library JSON grows the lane set without a rebuild — this rig's own library currently holds 9 lanes.</div>
+      </div></div>
+      <div class="region"><div class="badge-num">7</div><div>
+        <div class="r-name">Gate Response Bridge</div>
+        <div class="r-members mono">gateResponseModeCc · gateResponseAmountCc</div>
+        <div class="r-desc">Broadcast Gate Response + Shuffle + Amount/Mode sliders — the live manual panel for the CC106/107 bridge that drives every OrchGate's own per-instance-seeded articulation randomizer. Panel overrides whatever the active narrative lane point requests while enabled.</div>
+      </div></div>
+      <div class="region"><div class="badge-num">8</div><div>
+        <div class="r-name">Status Bar</div>
+        <div class="r-desc">Build/authority/catalog line plus a live send readout — active players, harp/piano values, last action, send-request count. The fastest way to confirm what's actually being sent without a MIDI monitor.</div>
+      </div></div>
+    </div>
+  </div>
+  <div class="shot-caption">Real capture of the Standalone build, Phase 10G, Authority Mode = Manual Sections, runtime JSON catalog active.</div>
+
+  <div class="section-head"><span class="num">02</span><h2>Combi Grid View</h2><div class="rule"></div></div>
+  <p class="section-note">
+    Every CC OrchConductor can send, as one 0-127 slider, in send order — the "any combination, including two
+    instruments from the same family" answer. Saves into a user combi's <span class="mono">explicitCcValues</span>,
+    which overrides every section preset and the harp/piano fields.
+  </p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Section</th><th>CC range</th><th>Count</th></tr></thead>
+      <tbody>
+        <tr><td class="desc">Woodwinds</td><td class="pid">20–31</td><td class="range">12</td></tr>
+        <tr><td class="desc">Brass</td><td class="pid">32–42</td><td class="range">11</td></tr>
+        <tr><td class="desc">Melodic percussion (mallets)</td><td class="pid">43–48</td><td class="range">6</td></tr>
+        <tr><td class="desc">Harp</td><td class="pid">49</td><td class="range">1</td></tr>
+        <tr><td class="desc">Strings</td><td class="pid">50–54</td><td class="range">5</td></tr>
+        <tr><td class="desc">Piano</td><td class="pid">55</td><td class="range">1</td></tr>
+        <tr><td class="desc">Unpitched percussion</td><td class="pid">56–62</td><td class="range">7</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="section-note">43 total. Actions: Save as New Combi, Update Selected Combi, Load/seed from any factory or user combi, Seed from Current Output, Clear, and a <strong>Randomize</strong> button (<span class="mono">generateRandomGridCombi</span> — Balanced / Feature a section / Sparse / Tutti, orchestration-aware: strings backbone, woodwind pairs and horn units move together, one register favoured, never silent).</p>
+
+  <div class="section-head"><span class="num">03</span><h2>Narrative Lane View</h2><div class="rule"></div></div>
+  <p class="section-note">
+    Builds a lane as an ordered list of combi "stops" along the 0..1 Narrative Position timeline — the direct
+    model for MC's own Propose-a-Piece arc-shape generator.
+  </p>
+  <div class="subhead">Per-stop row</div>
+  <div class="table-wrap">
+    <table>
+      <tbody>
+        <tr><td class="pid">position</td><td class="desc">0..1, editable text field, even-spread on resize</td></tr>
+        <tr><td class="pid">combi</td><td class="desc">dropdown, any factory or user combi</td></tr>
+        <tr><td class="pid">↑ / ↓ / ✕</td><td class="desc">reorder or remove</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="subhead">Propose (generateNarrativeLane)</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Control</th><th>Range / Choices</th></tr></thead>
+      <tbody>
+        <tr><td class="pid">Arc shape</td><td class="range">Organic Build · Arch · Long Fade · Terraced Blocks · Surging Waves · Heroic Journey · Suspense→Release · Mosaic · Catastrophe · Pastoral Plateau</td></tr>
+        <tr><td class="pid">Stops</td><td class="range">2–64</td></tr>
+        <tr><td class="pid">Restlessness</td><td class="range">0.0–1.0 — low = hold/reprise earlier stops, high = always move on</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="section-note">Each proposed stop also carries an optional pitch-field index (drives OrchNoteFilter's harmonic field via CC105), Harp/Piano override, and Gate Response mode/amount — one Narrative Position automation lane can drive orchestration, density, harmonic field, and articulation together. Save to Lane Library / Load / Delete round-trip against the same JSON file §01.6's Export/Import buttons use.</p>
+
+  <div class="section-head"><span class="num">04</span><h2>Full Parameter Table</h2><div class="rule"></div></div>
+  <p class="section-note">13 real, host-automatable APVTS parameters — everything else on this page (combi contents, grid values, lane points) is plugin-internal state, edited through the views above, not host automation.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Parameter</th><th>Range / Choices</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td class="pid">combiPreset</td><td class="range">int, factory + user combi ids</td><td class="range">Manual Sections</td></tr>
+        <tr><td class="pid">woodwindsPreset / brassPreset / percussionPreset / stringsPreset</td><td class="range">int, per-section preset id</td><td class="range">0 (All Off)</td></tr>
+        <tr><td class="pid">sendOnPresetChange</td><td class="range">Off/On</td><td class="range">On</td></tr>
+        <tr><td class="pid">inputPassthrough</td><td class="range">Off · Control CCs (≥105) · All</td><td class="range">Control CCs</td></tr>
+        <tr><td class="pid">authorityMode</td><td class="range">Manual Sections · Combi Preset · Narrative Scan</td><td class="range">Manual Sections</td></tr>
+        <tr><td class="pid">narrativeLane</td><td class="range">int, 0..(lane count-1)</td><td class="range">0</td></tr>
+        <tr><td class="pid">narrativePosition</td><td class="range">0.0–1.0</td><td class="range">0.0</td></tr>
+        <tr><td class="pid">fieldSelectCc</td><td class="range">0–127 (0=off)</td><td class="range">105</td></tr>
+        <tr><td class="pid">gateResponseModeCc</td><td class="range">0–127 (0=off)</td><td class="range">106</td></tr>
+        <tr><td class="pid">gateResponseAmountCc</td><td class="range">0–127 (0=off)</td><td class="range">107</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="readout-note">
+    <div class="dot"></div>
+    <p>The status bar's own <code>Active: N players</code> / <code>Auto-send: On/Off</code> readout is the
+    fastest way to confirm a combi or narrative-scan move actually reached the wire — before assuming a routing
+    problem downstream at OrchGate.</p>
+  </div>
+
+  <footer>
+    <span>Source: <span class="mono">Source/OrchConductorProcessor.cpp</span> constructor (<span class="mono">addParameter</span> calls) — regenerate this table if those change.</span>
+    <span>OrchConductor · <span class="mono">johnpascu77-dotcom</span></span>
+  </footer>
+
+</div>
+</body>
+</html>
