@@ -189,6 +189,24 @@ public:
     double getNarrativePosition() const;
     void setNarrativePosition (double position);
 
+    // --- Bank CC broadcast (2026-09-24) ------------------------------------
+    // Broadcasts narrativePosition (already live from MC via CC102, the same
+    // signal Narrative Scan itself resolves against) as a single CC, scaled
+    // 0-127, to every downstream OrchNoteMapper instance's "KS Bank CC" input.
+    // Unlike the Gate Response bridge above, this is NOT gated behind
+    // shouldSendPreset/shouldSendAllOff - it re-sends every time the value
+    // actually changes, every block, so it tracks the arc continuously rather
+    // than only at narrative-lane-point boundaries. Each receiving
+    // OrchNoteMapper instance applies its own ksBankCcOffset on top, so
+    // several instruments sharing this one broadcast still cross their
+    // Layer 1/Layer 3 boundary at different points along the same arc.
+    void setBankCcBroadcastEnabled (bool shouldEnable);
+    bool isBankCcBroadcastEnabled() const;
+    int getBankCcNumber() const;
+    void setBankCcNumber (int ccNumber);
+    // What's currently being broadcast (0-127), or -1 when the bridge is off.
+    int getLastSentBankCcValueForUi() const;
+
     void requestSendPreset();
     void requestSendAllOff();
 
@@ -502,6 +520,10 @@ private:
     int lastResolvedNarrativeHarpValue { -1 };
     int lastResolvedNarrativePianoValue { -1 };
 
+    // --- Bank CC broadcast (OrchNoteMapper "KS Bank CC") -------------------
+    bool bankCcBroadcastEnabled { false };
+    int lastSentBankCcValue { -1 };
+
     // --- OrchGate response bridge (CC 106 mode / CC 107 amount) -----------
     // A broadcast every OrchGate in the rig can follow to randomize its own
     // CC Invert / CC Threshold / CC Participation range per-instance (seeded
@@ -614,6 +636,8 @@ private:
     juce::AudioParameterInt* fieldSelectCcParameter { nullptr };
     juce::AudioParameterInt* gateResponseModeCcParameter { nullptr };
     juce::AudioParameterInt* gateResponseAmountCcParameter { nullptr };
+    juce::AudioParameterBool* bankCcBroadcastEnabledParameter { nullptr };
+    juce::AudioParameterInt* bankCcNumberParameter { nullptr };
     void syncAutomatedParameters();
 
     // Phase 10F.5 increment 2: resolve the selected narrative lane + position

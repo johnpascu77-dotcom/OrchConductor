@@ -107,6 +107,15 @@ private:
     juce::TextButton gateResponseShuffleButton { "Shuffle" };
     juce::Label gateResponseStatusLabel;
 
+    // Live "Bank CC" broadcast: narrativePosition (0-127) sent continuously to
+    // every OrchNoteMapper's "KS Bank CC" input - the arc-driven articulation
+    // switch. Each OrchNoteMapper instance applies its own ksBankCcOffset on
+    // top, so this one shared broadcast still staggers when different
+    // instruments cross their Layer 1/Layer 3 boundary.
+    juce::Label bankCcLabel;
+    juce::ToggleButton bankCcEnableButton { "Broadcast Bank CC" };
+    juce::Label bankCcStatusLabel;
+
     juce::TextButton saveUserCombiButton { "Save Current Sections as Combi" };
     juce::TextButton deleteUserCombiButton { "Delete User Combi" };
     juce::TextButton exportUserCombisButton { "Export User Combis JSON" };

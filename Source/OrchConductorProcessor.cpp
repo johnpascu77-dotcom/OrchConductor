@@ -736,6 +736,20 @@ OrchConductorAudioProcessor::OrchConductorAudioProcessor()
         juce::ParameterID { "gateResponseAmountCc", 1 },
         "Gate Response Amount CC (0 = off)",
         0, 127, 107));
+
+    // Bank CC broadcast (2026-09-24): narrativePosition scaled to 0-127, sent
+    // continuously (not gated behind Send Preset) so every OrchNoteMapper's
+    // "KS Bank CC" input tracks the arc smoothly. Default CC70 - clear of
+    // OrchConductor's own CC20-62/102-107 and MPL's CC20-64.
+    addParameter (bankCcBroadcastEnabledParameter = new juce::AudioParameterBool (
+        juce::ParameterID { "bankCcBroadcastEnabled", 1 },
+        "Bank CC Broadcast Enabled",
+        false));
+
+    addParameter (bankCcNumberParameter = new juce::AudioParameterInt (
+        juce::ParameterID { "bankCcNumber", 1 },
+        "Bank CC Number (0 = off)",
+        0, 127, 70));
 #if ORCHCONDUCTOR_ENABLE_RUNTIME_JSON_PRESETS
     runRuntimeCatalogProbe (orchconductor::RuntimePresetSource::loadEmbeddedFactoryJsonIfEnabled());
 
@@ -1599,6 +1613,14 @@ void OrchConductorAudioProcessor::syncAutomatedParameters()
             sendOnPresetChange = value;
     }
 
+    if (bankCcBroadcastEnabledParameter != nullptr)
+    {
+        const bool value = bankCcBroadcastEnabledParameter->get();
+
+        if (value != bankCcBroadcastEnabled)
+            bankCcBroadcastEnabled = value;
+    }
+
     if (inputPassthroughParameter != nullptr)
     {
         const auto value = static_cast<InputPassthroughMode> (
@@ -1792,6 +1814,35 @@ void OrchConductorAudioProcessor::setNarrativePosition (double position)
 
     if (narrativePositionParameter != nullptr)
         *narrativePositionParameter = static_cast<float> (clamped);
+}
+
+void OrchConductorAudioProcessor::setBankCcBroadcastEnabled (bool shouldEnable)
+{
+    bankCcBroadcastEnabled = shouldEnable;
+
+    if (bankCcBroadcastEnabledParameter != nullptr)
+        *bankCcBroadcastEnabledParameter = shouldEnable;
+}
+
+bool OrchConductorAudioProcessor::isBankCcBroadcastEnabled() const
+{
+    return bankCcBroadcastEnabled;
+}
+
+int OrchConductorAudioProcessor::getBankCcNumber() const
+{
+    return bankCcNumberParameter != nullptr ? bankCcNumberParameter->get() : 70;
+}
+
+void OrchConductorAudioProcessor::setBankCcNumber (int ccNumber)
+{
+    if (bankCcNumberParameter != nullptr)
+        *bankCcNumberParameter = juce::jlimit (0, 127, ccNumber);
+}
+
+int OrchConductorAudioProcessor::getLastSentBankCcValueForUi() const
+{
+    return bankCcBroadcastEnabled ? lastSentBankCcValue : -1;
 }
 
 void OrchConductorAudioProcessor::applyNarrativeControlCcInput (const juce::MidiBuffer& midiMessages)
@@ -2000,6 +2051,31 @@ void OrchConductorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer
     }
 
     syncAutomatedParameters();
+
+    // Bank CC broadcast - runs every block, unconditionally (not gated behind
+    // shouldSendPreset/shouldSendAllOff like the section CCs and Gate
+    // Response bridge below), so it tracks narrativePosition's own smooth,
+    // continuous updates rather than only re-sending at narrative-lane-point
+    // boundaries. Only sends when the resolved value actually changes.
+    if (bankCcBroadcastEnabled)
+    {
+        const int bankCc = bankCcNumberParameter != nullptr ? bankCcNumberParameter->get() : 0;
+
+        if (bankCc > 0)
+        {
+            const int bankCcValue = juce::jlimit (0, 127, juce::roundToInt (narrativePosition * 127.0));
+
+            if (bankCcValue != lastSentBankCcValue)
+            {
+                midiMessages.addEvent (juce::MidiMessage::controllerEvent (1, bankCc, bankCcValue), 0);
+                lastSentBankCcValue = bankCcValue;
+            }
+        }
+    }
+    else
+    {
+        lastSentBankCcValue = -1;
+    }
 
     if (authorityMode == AuthorityMode::narrativeScan)
         updateNarrativeScanResolution();

@@ -1491,6 +1491,24 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
     gateResponseStatusLabel.setText ("Bridge idle", juce::dontSendNotification);
     addAndMakeVisible (gateResponseStatusLabel);
 
+    // --- Live Bank CC panel -------------------------------------------------
+    styleLabel (bankCcLabel, juce::Colours::white, 14.0f, juce::Font::bold);
+    bankCcLabel.setText ("Bank CC Broadcast (narrative position -> OrchNoteMapper)", juce::dontSendNotification);
+    addAndMakeVisible (bankCcLabel);
+
+    bankCcEnableButton.setColour (juce::ToggleButton::textColourId, juce::Colours::white);
+    bankCcEnableButton.setToggleState (audioProcessor.isBankCcBroadcastEnabled(), juce::dontSendNotification);
+    bankCcEnableButton.onClick = [this]
+    {
+        audioProcessor.setBankCcBroadcastEnabled (bankCcEnableButton.getToggleState());
+        updateStatus();
+    };
+    addAndMakeVisible (bankCcEnableButton);
+
+    styleLabel (bankCcStatusLabel, juce::Colour::fromRGB (140, 200, 245), 12.0f, juce::Font::plain);
+    bankCcStatusLabel.setText ("Bridge idle", juce::dontSendNotification);
+    addAndMakeVisible (bankCcStatusLabel);
+
     saveUserCombiButton.setColour (juce::TextButton::buttonColourId, juce::Colour::fromRGB (45, 75, 95));
     saveUserCombiButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
     addAndMakeVisible (saveUserCombiButton);
@@ -2012,6 +2030,13 @@ void OrchConductorAudioProcessorEditor::resized()
 
     area.removeFromTop (12);
 
+    bankCcLabel.setBounds (area.removeFromTop (22));
+    area.removeFromTop (2);
+    bankCcEnableButton.setBounds (area.removeFromTop (30).removeFromLeft (230));
+    bankCcStatusLabel.setBounds (area.removeFromTop (18));
+
+    area.removeFromTop (12);
+
     narrativeMetadataLabel.setBounds (area.removeFromTop (22));
     narrativeMetadataValueLabel.setBounds (area.removeFromTop (64).reduced (8, 0));
 
@@ -2096,6 +2121,21 @@ void OrchConductorAudioProcessorEditor::timerCallback()
 
         if (gateResponseStatusLabel.getText() != gr)
             gateResponseStatusLabel.setText (gr, juce::dontSendNotification);
+    }
+
+    if (bankCcEnableButton.getToggleState() != audioProcessor.isBankCcBroadcastEnabled())
+        bankCcEnableButton.setToggleState (audioProcessor.isBankCcBroadcastEnabled(), juce::dontSendNotification);
+
+    {
+        const int lastSent = audioProcessor.getLastSentBankCcValueForUi();
+
+        juce::String bc = lastSent < 0
+            ? (audioProcessor.isBankCcBroadcastEnabled() ? "Bridge on - waiting for first change" : "Bridge idle")
+            : ("Broadcasting  CC" + juce::String (audioProcessor.getBankCcNumber()) + " = " + juce::String (lastSent)
+               + "  (narrative position " + juce::String (audioProcessor.getNarrativePosition(), 3) + ")");
+
+        if (bankCcStatusLabel.getText() != bc)
+            bankCcStatusLabel.setText (bc, juce::dontSendNotification);
     }
 
     const bool sendOnChange = audioProcessor.getSendOnPresetChange();
