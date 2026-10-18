@@ -1009,6 +1009,67 @@ OrchConductorAudioProcessorEditor::OrchConductorAudioProcessorEditor (OrchConduc
 {
     setResizable (true, true);
     setResizeLimits (860, 480, 1400, 1300);
+    // Tooltips (text from Docs/OrchConductor_Guide.html): hovering a control or its label shows what it does.
+    // written by hand (controls the guide has no row for, labels, read-outs)
+    conductorViewButton.setTooltip ("The Conductor controls: combi preset, authority mode, manual section presets, narrative scan, the gate-response and bank-CC broadcasts.");
+    gridViewButton.setTooltip ("The Combi Grid: every instrument of the orchestra and what it is set to play.");
+    laneViewButton.setTooltip ("The Narrative Lane maker: build and edit the lanes (arcs of combi stops) that Narrative Scan walks along.");
+    combiPresetBox.setTooltip ("One named preset for the whole orchestra. It drives the CC 20-62 output while Authority Mode is Combi Preset.");
+    combiPresetLabel.setTooltip ("One named preset for the whole orchestra (Authority Mode: Combi Preset).");
+    authorityModeBox.setTooltip ("Which source actually drives the CC 20-62 output: Manual Sections (the four section dropdowns), Combi Preset (one named preset for the whole orchestra) or Narrative Scan (a lane walked by position).");
+    authorityModeLabel.setTooltip ("Which source drives the CC 20-62 output: Manual Sections, Combi Preset or Narrative Scan.");
+    narrativeLaneBox.setTooltip ("The lane that Narrative Scan walks: an arc of combi stops. Use the Lane Library buttons to add lanes without a rebuild.");
+    narrativeScanLabel.setTooltip ("Narrative Scan walks the selected lane's combi stops by position, with hysteresis.");
+    narrativeScanStatusLabel.setTooltip ("Which lane and stop Narrative Scan is on now.");
+    narrativePositionSlider.setTooltip ("Where along the selected lane you are (0 to 1). Moving it walks the lane's stops; the same position is sent as the Bank CC when that broadcast is on.");
+    woodwindsPresetBox.setTooltip ("The woodwinds section preset. Only drives the output while Authority Mode is Manual Sections.");
+    woodwindsPresetLabel.setTooltip ("The woodwinds section preset (Manual Sections only).");
+    brassPresetBox.setTooltip ("The brass section preset. Only drives the output while Authority Mode is Manual Sections.");
+    brassPresetLabel.setTooltip ("The brass section preset (Manual Sections only).");
+    percussionPresetBox.setTooltip ("The percussion section preset. Only drives the output while Authority Mode is Manual Sections.");
+    percussionPresetLabel.setTooltip ("The percussion section preset (Manual Sections only).");
+    presetBox.setTooltip ("The strings section preset. Only drives the output while Authority Mode is Manual Sections.");
+    stringsPresetLabel.setTooltip ("The strings section preset (Manual Sections only).");
+    sendOnChangeToggle.setTooltip ("Send the CC messages as soon as a setting changes. Off: only the Send button sends.");
+    inputPassthroughBox.setTooltip ("What happens to incoming MIDI: whether it passes through the Conductor or is replaced by its own output.");
+    inputPassthroughLabel.setTooltip ("What happens to incoming MIDI (passes through, or is replaced by the Conductor's own output).");
+    sendButton.setTooltip ("Send the current settings now as CC messages.");
+    allOffButton.setTooltip ("Turn every player off: sends the all-off state to the whole orchestra.");
+    midiMapButton.setTooltip ("Show the CC map this Conductor sends (which CC goes to which instrument or function).");
+    userCombiNameEditor.setTooltip ("The name for a new user combi. Type a name, then press Save Current Sections as Combi.");
+    userCombiNameLabel.setTooltip ("The name for a new user combi.");
+    userCombiHarpSlider.setTooltip ("Harp (CC 49) by hand in Manual Sections mode. Off = -1. It takes precedence over a narrative lane point and over a user combi's own value.");
+    userCombiHarpLabel.setTooltip ("Harp (CC 49) by hand in Manual Sections mode. -1 = off.");
+    userCombiPianoSlider.setTooltip ("Piano (CC 55) by hand in Manual Sections mode. Off = -1. It takes precedence over a narrative lane point and over a user combi's own value.");
+    userCombiPianoLabel.setTooltip ("Piano (CC 55) by hand in Manual Sections mode. -1 = off.");
+    gateResponseEnableButton.setTooltip ("Broadcast the Gate Response (CC 106 mode, CC 107 amount): one control for the whole rig's gate invert, threshold and participation randomness. Every OrchGate set to Follow Conductor Response obeys it. While on, it overrides a narrative lane point's own gate-response values.");
+    gateResponseAmountSlider.setTooltip ("How far the overlay pushes the gates (CC 107). 0 = off.");
+    gateResponseAmountLabel.setTooltip ("How far the gate-response overlay pushes the gates (CC 107).");
+    gateResponseModeSlider.setTooltip ("The gate-response mode, or chapter (CC 106). Each OrchGate derives its own per-instance divergence from it, so all shift together when it changes.");
+    gateResponseModeLabel.setTooltip ("The gate-response mode, or chapter (CC 106).");
+    gateResponseShuffleButton.setTooltip ("Pick a new gate-response mode at random, so every OrchGate re-draws its own variation.");
+    gateResponseStatusLabel.setTooltip ("What the gate-response broadcast is sending now.");
+    bankCcEnableButton.setTooltip ("Broadcast the narrative position (0-127) continuously to every OrchNoteMapper's KS Bank CC input: the arc-driven articulation switch. Each OrchNoteMapper adds its own offset, so the instruments cross their articulation layers at different points along the same arc.");
+    bankCcStatusLabel.setTooltip ("What the bank CC broadcast is sending now.");
+    saveUserCombiButton.setTooltip ("Save whatever is sounding now (the manual section dropdowns and the harp and piano sliders) as a new user combi with the name typed above.");
+    deleteUserCombiButton.setTooltip ("Delete the selected user combi.");
+    exportUserCombisButton.setTooltip ("Write the whole user combi library to a JSON file.");
+    importUserCombisButton.setTooltip ("Read user combis from a JSON file into the library.");
+    exportNarrativeLibraryButton.setTooltip ("Write the whole narrative lane library to a JSON file.");
+    importNarrativeLibraryButton.setTooltip ("Read narrative lanes from a JSON file: grows the lane set without a rebuild.");
+    narrativeLibrarySourceLabel.setTooltip ("Where the narrative lane library comes from (built in, or imported).");
+    narrativeMetadataLabel.setTooltip ("The narrative metadata of the current lane point.");
+    narrativeMetadataValueLabel.setTooltip ("The narrative metadata of the current lane point (section, role, intensity and so on).");
+    ccMapLabel.setTooltip ("The CC range this Conductor drives.");
+    statusLabel.setTooltip ("Build, authority and catalog line, plus a live send read-out: active players, harp and piano values, the last action and the number of send requests. The fastest way to confirm what is being sent without a MIDI monitor.");
+    tableTitleLabel.setTooltip ("The output table: what each instrument is being told to do, by section.");
+    woodwindsPanelLabel.setTooltip ("The woodwinds output: what each woodwind is being told to do.");
+    brassPanelLabel.setTooltip ("The brass output: what each brass instrument is being told to do.");
+    percussionPanelLabel.setTooltip ("The percussion output: what each percussion instrument is being told to do.");
+    stringsPanelLabel.setTooltip ("The strings output: what each string section is being told to do.");
+    titleLabel.setTooltip ("OrchConductor: the orchestra's conductor. One narrative drives every Orch plug-in by CC: who plays, which articulation layer, how the gates behave.");
+    buildLabel.setTooltip ("When this build was compiled: a fresh timestamp on every build, to confirm which build is loaded.");
+
     setSize (980, 760);
 
     titleLabel.setText ("OrchConductor", juce::dontSendNotification);
