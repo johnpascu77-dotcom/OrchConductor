@@ -256,6 +256,11 @@ namespace
                 s->setColour (juce::Slider::textBoxBackgroundColourId, juce::Colour::fromRGB (28, 36, 46));
                 s->setColour (juce::Slider::textBoxOutlineColourId, juce::Colour::fromRGB (70, 85, 95));
                 s->onValueChange = [this] { markManualEdit(); };
+                const auto slotName = processor.getInstrumentSlotName (i);
+                const auto slotCc = juce::String (processor.getInstrumentSlotCc (i));
+                s->setTooltip ("The exact value (0 to 127) sent on CC" + slotCc + " for " + slotName
+                               + ". Saved in the combi and overriding the section presets. Clear sets it to 0.");
+                nameL->setTooltip (s->getTooltip());
                 content.addAndMakeVisible (s);
                 sliders.add (s);
             }
@@ -263,6 +268,21 @@ namespace
             viewport.setViewedComponent (&content, false);
             viewport.setScrollBarsShown (true, false);
             addAndMakeVisible (viewport);
+
+            // [tooltips]
+            backButton.setTooltip ("Return to the Conductor controls.");
+            titleLabel.setTooltip ("The grid sets the exact CC value of every instrument at once and saves it as a User Combi.");
+            hintLabel.setTooltip ("A User Combi saved from the grid stores explicit values that override every section preset.");
+            nameEditor.setTooltip ("The name of the combi to save.");
+            saveNewButton.setTooltip ("Save the grid as a new User Combi under the name on the left.");
+            updateButton.setTooltip ("Overwrite the User Combi that is loaded (available after loading or saving a User Combi).");
+            loadLabel.setTooltip ("Fill the grid from an existing combi.");
+            loadBox.setTooltip ("Fill the sliders from a combi. A User Combi can then be edited and updated; a factory combi is only a starting point (save it as new).");
+            seedButton.setTooltip ("Fill the sliders with the values the Conductor is sending right now.");
+            randomButton.setTooltip ("Fill the sliders with a random, orchestration-aware starting point: Balanced, Feature a section, Sparse / chamber or Tutti. Press again for another.");
+            clearButton.setTooltip ("Set every slider to 0.");
+            statusLabel.setTooltip ("What the grid is doing: unsaved, editing a combi, or the result of the last save.");
+            // [/tooltips]
 
             refreshLoadBox();
         }
@@ -658,6 +678,26 @@ namespace
 
             resizeModelTo (6);
             refreshLoadBox();
+
+            // [tooltips]
+            backButton.setTooltip ("Return to the Conductor controls.");
+            titleLabel.setTooltip ("A lane is a path of combis over the Narrative Position (0 to 1): the Conductor moves along it as the position moves.");
+            hintLabel.setTooltip ("A lane = combi stops along the 0 to 1 Narrative Position timeline. Saved to the lane library.");
+            nameEditor.setTooltip ("The name of the lane. The lane id is made from it (letters, digits and underscores); saving under the same name replaces that lane.");
+            saveButton.setTooltip ("Save the stops to the lane library under this name. The lane becomes the active lane in the Conductor tab.");
+            deleteButton.setTooltip ("Delete the lane that has this name from the library.");
+            loadLabel.setTooltip ("Load a saved lane into the editor.");
+            loadBox.setTooltip ("Load a saved lane into the editor and make it the active lane in the Conductor tab. (new lane) starts from the stops shown.");
+            arcLabel.setTooltip ("The shape of the arc to propose.");
+            arcBox.setTooltip ("The shape of the arc Propose generates (how the combis grow and fall over the lane).");
+            stopsLabel.setTooltip ("The number of stops in the lane.");
+            stopsSlider.setTooltip ("The number of stops (2 to 64). Changing it adds or removes stops at the end and spreads all positions evenly from 0 to 1.");
+            restlessLabel.setTooltip ("How much a proposed arc wanders.");
+            restlessSlider.setTooltip ("How restless a proposed arc is: at 0 it holds a combi and returns to earlier ones more often; at 1 it changes at almost every stop.");
+            proposeButton.setTooltip ("Replace all stops with a generated arc of the chosen shape, number of stops and restlessness. Edit any stop afterwards.");
+            statusLabel.setTooltip ("What the lane maker did last.");
+            headerRowLabel.setTooltip ("Each stop: its number, its position on the 0 to 1 timeline, and the combi used when the position is nearest to it.");
+            // [/tooltips]
         }
 
         void visibilityChanged() override
@@ -912,6 +952,7 @@ namespace
                 idx->setText (juce::String (i + 1), juce::dontSendNotification);
                 idx->setColour (juce::Label::textColourId, juce::Colours::white);
                 idx->setFont (juce::FontOptions (13.0f));
+                idx->setTooltip ("Stop " + juce::String (i + 1) + " of the lane.");
                 content.addAndMakeVisible (idx);
                 rowIndexLabels.add (idx);
 
@@ -922,6 +963,7 @@ namespace
                 pos->setColour (juce::TextEditor::outlineColourId, juce::Colour::fromRGB (70, 85, 95));
                 pos->onFocusLost = [this, i] { commitPosition (i); };
                 pos->onReturnKey = [this, i] { commitPosition (i); };
+                pos->setTooltip ("Where this stop sits on the Narrative Position timeline, 0 (start) to 1 (end). Type a number and press Enter.");
                 content.addAndMakeVisible (pos);
                 rowPositionEditors.add (pos);
 
@@ -933,21 +975,25 @@ namespace
                     box->addItem (combiChoiceLabels[c], combiChoiceIds[c] + 1);
                 box->setSelectedId (model[(size_t) i].combiId + 1, juce::dontSendNotification);
                 box->onChange = [this, i, box] { model[(size_t) i].combiId = box->getSelectedId() - 1; };
+                box->setTooltip ("The combi used when the Narrative Position is nearest to this stop.");
                 content.addAndMakeVisible (box);
                 rowCombiBoxes.add (box);
 
                 auto* up = new juce::TextButton ("^");
                 up->onClick = [this, i] { moveRow (i, -1); };
+                up->setTooltip ("Swap this stop's combi with the one above (the positions stay where they are).");
                 content.addAndMakeVisible (up);
                 rowUpButtons.add (up);
 
                 auto* down = new juce::TextButton ("v");
                 down->onClick = [this, i] { moveRow (i, +1); };
+                down->setTooltip ("Swap this stop's combi with the one below (the positions stay where they are).");
                 content.addAndMakeVisible (down);
                 rowDownButtons.add (down);
 
                 auto* rm = new juce::TextButton ("X");
                 rm->onClick = [this, i] { removeRow (i); };
+                rm->setTooltip ("Remove this stop (a lane needs at least 2). The remaining positions are spread evenly again.");
                 content.addAndMakeVisible (rm);
                 rowRemoveButtons.add (rm);
             }
